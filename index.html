@@ -1,0 +1,347 @@
+<html>
+
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+
+    <script src='ace/ace.js'></script>
+    <script src='ace/keybinding-vim.js'></script>
+
+    <style>
+
+      :root {
+        --shadow_color: rgb(171 200 214);
+      }
+
+      body {
+        margin: 0px;
+        /* same as ace editor */
+        font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace;
+      }
+
+      body::backdrop {
+        background-color: white;
+      }
+
+      .root {
+        height: 100%;
+        display: grid;
+        grid-template-areas:
+          "code eval"
+          "bottom bottom"
+          "statusbar statusbar";
+        grid-template-columns: 60% 40%;
+        grid-template-rows: 1fr 0.7fr 2.5em;
+      }
+
+      .root.embed_value_explorer {
+        grid-template-areas:
+          "code code"
+          "bottom files"
+          "statusbar statusbar";
+        grid-template-columns: 70% 30%;
+      }
+
+      .bottom {
+        display: grid;
+      }
+
+      .editor_container, .bottom, .eval, .files_container, .statusbar {
+        box-shadow: 1px 1px 3px 0px var(--shadow_color);
+      }
+
+      .editor_container, .eval, .bottom, .statusbar, .files_container {
+        margin: 8px;
+      }
+
+      .editor_container:focus-within, 
+      .bottom:focus-within,
+      .eval:focus-within,
+      .files_container:focus-within,
+      .help_dialog {
+        outline: none;
+        box-shadow: 1px 1px 6px 3px var(--shadow_color);
+      }
+
+      .calltree:focus-within, .problems:focus-within {
+        outline: none;
+      }
+
+      .editor_container {
+        position: relative;
+        grid-area: code;
+        font-size: 16px;
+      }
+
+      .eval {
+        display: grid;
+        grid-area: eval;
+        overflow: auto;
+        white-space: pre;
+      }
+
+      .eval_content {
+        padding: 5px;
+        outline: none;
+      }
+
+      /* ace markers */
+
+      .selection {
+        position: absolute;
+        border-radius: 5px;
+        background-color: #ff00ff;
+      }
+
+      .evaluated_ok {
+        position: absolute;
+        background-color: rgb(225, 244, 253);
+      }
+      .evaluated_error {
+        position: absolute;
+        background-color: #ff000024;
+      }
+      .error-code {
+        /*
+          TODO: make underline like in all editors
+        */
+        position: absolute;
+        border-bottom: 7px solid red;
+      }
+
+      /* end of ace markers */
+
+      .eval_error {
+        color: red;
+      }
+
+      /* calltree */
+
+      .bottom {
+        grid-area: bottom;
+        position: relative;
+        overflow: auto;
+      }
+
+      .calltree, .problems {
+        padding: 5px;
+        overflow: auto;
+      }
+
+      .entrypoint_select {
+        position: absolute;
+        right: 20px;
+        top: 7px;
+      }
+
+      .entrypoint_title {
+        margin-right: 0.5em;
+      }
+
+      .callnode {
+        margin-left: 1em;
+      }
+      .callnode .active {
+        background-color: rgb(225, 244, 253);
+      }
+      .call_header {
+        white-space: nowrap;
+      }
+      .call_header.error {
+        color: red;
+      }
+      .call_header.error.native {
+        color: red;
+        opacity: 0.5;
+      }
+      .call_header.native {
+        font-style: italic;
+        color: grey;
+      }
+
+      /* problems view */
+      .problem a {
+        color: red;
+      }
+
+      /* files */
+
+      .files_container {
+        overflow: auto;
+        grid-area: files;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .allow_file_access {
+        height: 100%;
+        padding: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+      }
+      .allow_file_access .subtitle {
+        padding: 10px;
+        font-size: 0.8em;
+      }
+
+      .files {
+        overflow: auto;
+        padding: 5px;
+      }
+
+      .files .file {
+        margin-left: 1em;
+      }
+
+      .files > .file {
+        margin-left: 0em !important;
+      }
+
+      .files .file_title.active {
+        background-color: rgb(225, 244, 253);
+      }
+
+      .files .file_title .icon {
+        display: inline-block;
+        margin-right: 5px;
+        width: 1em;
+      }
+
+      .file_actions {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-evenly;
+        padding: 5px;
+        background-color: rgb(225 244 253 / 80%);
+      }
+
+      /* value_explorer */
+
+      .embed_value_explorer_container {
+        height: 0px;
+      }
+
+      .embed_value_explorer_wrapper {
+        margin-left: 1em;
+        /* preserve wrapper from getting clicks for code line left to it */
+        pointer-events: none; 
+      }
+
+      .embed_value_explorer_content {
+        pointer-events: initial;
+        white-space: pre;
+        max-width: fit-content;
+        background-color: white;
+        box-shadow: 1px 2px 3px -1px var(--shadow_color);
+      }
+
+      .embed_value_explorer_content:focus {
+        outline: none;
+        box-shadow: 1px 2px 11px 1px var(--shadow_color);
+      }
+
+      .embed_value_explorer_content .value_explorer_node {
+        margin-left: 0 !important;
+      }
+
+      .value_explorer_node {
+        margin-left: 1em;
+      }
+
+      .value_explorer_header.active {
+        background-color: rgb(148, 227, 191);
+      }
+      
+      .value_explorer_key {
+        color: rgb(150, 0, 128);
+        font-weight: bold;
+      }
+
+      /* status */
+
+      /*
+      .request_fullscreen {
+        margin-left: auto;
+      }
+      */
+
+      .statusbar {
+        grid-area: statusbar;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: flex-start;
+      }
+      .status, .current_file {
+        font-size: 1.5em;
+      }
+      .status {
+        color: red;
+      }
+      .options {
+        margin-left: auto;
+        padding: 5px;
+      }
+      .options > * {
+        margin: 5px;
+      }
+
+      .show_help, .github {
+        margin: 0em 0.5em;
+      }
+
+      .help_dialog[open] {
+        border: none;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        padding: 0;
+        width: 70%;
+        height: 70%;
+        background-color: white;
+      }
+
+      .help_dialog::backdrop {
+        background-color: rgb(225 244 253 / 80%);
+      }
+
+      .help {
+        padding: 2em;
+        border-spacing: 5px;
+      }
+
+      .help th {
+        padding: 0.5em;
+      }
+
+      .help th.key {
+        width: 5em;
+      }
+
+      .help td.key {
+        background-color: rgb(225, 244, 253, 0.5);
+        border-radius: 10px;
+        text-align: center;
+      }
+
+    </style>
+
+    <script type='module'>
+      // TODO remove
+      window.log = console.log
+
+      import {init} from './src/index.js'
+
+      window.addEventListener('load', () => {
+        init(document.body)
+      })
+    </script>
+  </head>
+
+  <body>
+  </body>
+
+</html>
