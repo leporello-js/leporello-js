@@ -7,34 +7,43 @@ Leporello.js is live coding IDE for pure functional subset of javascript. It pro
 ## Features
 
 - Mutating values is not allowed
+
 ![Mutating](docs/images/mutation.png)
 
 - All values are immutable. You create new values by applying change to old values
+
 ![Immutable](docs/images/immutable.png)
 
 - Functional programs are trees of expressions that map values to other values,
   rather than a sequence of imperative statements which update the running
   state of the program. Because data is never mutated, you can jump to any
   point in execution of your program 
+
 ![Navigation](docs/images/nav.gif)
 
 - and inspect any intermediate values
+
 ![Inspect](docs/images/inspect.gif)
 
 - Expressions that were evaluated have blue background. And that were not reached
 have white background.
+
 ![Background](docs/images/background.png)
 
 - Expressions that throw errors are red
+
 ![Errors](docs/images/error.png)
 
 - When you put cursor inside function, the first call of this function is found
+
 ![Follow cursor](docs/images/follow_cursor.gif)
 
 - You can edit this function and immediately see result
+
 ![Live coding](docs/images/edit.gif)
 
 - Leporello is (mostly) self-hosted, i.e. built in itself
+
 ![Self-hosted](docs/images/self-hosted.png)
 
 
@@ -103,6 +112,7 @@ node test/run.js
 ```
 
 run tests in leporello itself:
+
 ![Tests](docs/images/test.png)
 
 - grant local folder access
