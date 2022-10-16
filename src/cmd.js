@@ -476,13 +476,6 @@ const get_value_explorer = (state, index) => {
 
   const frame = active_frame(state)
 
-  if(frame.type == 'function_expr' && frame.body.type != 'do') {
-    return {
-      index: frame.children[1].index + frame.children[1].length,
-      result: frame.children[1].result
-    }
-  }
-
   if(
     true
     // not toplevel, function expr
@@ -496,9 +489,16 @@ const get_value_explorer = (state, index) => {
     } else {
       // cursor in args, show args
       return {
-        index: frame.children[0].index + frame.children[0].length,
+        index: frame.children[0].index,
         result: frame.children[0].result,
       }
+    }
+  }
+
+  if(frame.type == 'function_expr' && frame.body.type != 'do') {
+    return {
+      index: frame.children[1].index,
+      result: frame.children[1].result
     }
   }
 
@@ -555,7 +555,7 @@ const get_value_explorer = (state, index) => {
       result = stmt.children[0].result
     } else if(stmt.type == 'let') {
       return {
-        index: stmt.index + stmt.length,
+        index: stmt.index,
         result: 
           {
             ok: true, 
@@ -585,9 +585,7 @@ const get_value_explorer = (state, index) => {
     result = find_error_origin_node(stmt).result
   }
 
-  const pos = stmt.index + stmt.length
-  
-  return {index: pos, result}
+  return {index: stmt.index, result}
 }
 
 const do_move_cursor = (state, index) => {
@@ -605,7 +603,6 @@ const do_move_cursor = (state, index) => {
           calltree_node_loc(state.active_calltree_node).module
               ? {type: 'embed_value_explorer', args: [value_exp]}
               : null
-        
     }
   }
 }
