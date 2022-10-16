@@ -496,9 +496,12 @@ const get_value_explorer = (state, index) => {
   }
 
   if(frame.type == 'function_expr' && frame.body.type != 'do') {
+    const result = frame.children[1].result
     return {
       index: frame.children[1].index,
-      result: frame.children[1].result
+      result: result.ok
+        ? result
+        : find_error_origin_node(frame.children[1]).result
     }
   }
 

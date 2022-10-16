@@ -1794,6 +1794,22 @@ const y = x()`
     assert_equal(s2.effects.type, 'unembed_value_explorer')
   }),
 
+  test_only('move_cursor concise fn throws', () => {
+    const code = `
+      const throws = () => {
+        throw new Error('boom')
+      }
+
+      const x = () => 2 * (throws() + 1)
+
+      x()
+    `
+    const s1 = test_initial_state(code)
+    const {effects} = COMMANDS.move_cursor(s1, code.indexOf('throws()'))
+    assert_equal(effects.args[0].result.error.message, 'boom')
+  }),
+
+
   test('frame follows cursor toplevel', () => {
     const code = `
       const x = () => {
