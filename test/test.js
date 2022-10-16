@@ -1696,7 +1696,7 @@ const y = x()`
 
   test('move_cursor arguments', () => {
     const code = `
-      const x = (a, b)/*args*/ => { }
+      const x = (a, b) => { }
       x(1, 2)
     `
     const s1 = test_initial_state(code)
@@ -1707,7 +1707,7 @@ const y = x()`
     const s4 = COMMANDS.move_cursor(s3, code.indexOf('a'))
     assert_equal(s4.effects.type, 'embed_value_explorer')
     assert_equal(s4.effects.args, [{
-      index: code.indexOf('/*args*/'),
+      index: code.indexOf('(a, b)'),
       result: {ok: true, value: {a: 1, b: 2}},
     }])
   }),
@@ -1721,7 +1721,7 @@ const y = x()`
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('2'))
     assert_equal(s2.effects.type, 'embed_value_explorer')
     assert_equal(s2.effects.args, [{
-      index: code.indexOf('2') + 1,
+      index: code.indexOf('y*2'),
       result: {ok: true, value: 4},
     }])
   }),
@@ -1735,7 +1735,7 @@ const y = x()`
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('x'))
     assert_equal(s2.effects.type, 'embed_value_explorer')
     assert_equal(s2.effects.args, [{
-      index: code.indexOf('x') + 1,
+      index: code.indexOf('let x'),
       result: {ok: true, value: {x: 1}},
     }])
   }),
