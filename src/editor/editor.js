@@ -292,7 +292,7 @@ export class Editor {
     const VimApi = require("ace/keyboard/vim").CodeMirror.Vim
 
 
-    this.ace_editor.commands.bindKey("F1", "switch_window");
+    this.ace_editor.commands.bindKey("F2", "switch_window");
     VimApi._mapCommand({
       keys: '<C-w>',
       type: 'action',
@@ -302,12 +302,20 @@ export class Editor {
     this.ace_editor.commands.addCommand({
       name: 'switch_window',
       exec: (editor) => {
-        this.ui.calltree_container.focus()
+        this.ui.set_active_tab('calltree')
+      }
+    })
+
+    this.ace_editor.commands.bindKey("F3", "focus_logs");
+    this.ace_editor.commands.addCommand({
+      name: 'focus_logs',
+      exec: (editor) => {
+        this.ui.set_active_tab('logs')
       }
     })
 
 
-    this.ace_editor.commands.bindKey("F3", "goto_definition");
+    this.ace_editor.commands.bindKey("F4", "goto_definition");
     VimApi._mapCommand({
       keys: 'gd',
       type: 'action',
@@ -322,7 +330,7 @@ export class Editor {
     })
 
 
-    this.ace_editor.commands.bindKey("F2", "focus_value_explorer");
+    this.ace_editor.commands.bindKey("F1", "focus_value_explorer");
     this.ace_editor.commands.addCommand({
       name: 'focus_value_explorer',
       exec: (editor) => {

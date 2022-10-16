@@ -4,15 +4,17 @@ import {find_node, find_leaf, ancestry_inc} from './ast_utils.js'
 import {color} from './color.js'
 import {eval_frame} from './eval.js'
 
-export const pp_calltree = calltree => map_object(
+export const pp_calltree = calltree => stringify(map_object(
   calltree,
-  (module, {exports, calls}) => stringify(do_pp_calltree(calls))
-)
+  (module, {exports, calls}) => do_pp_calltree(calls)
+))
 
-const do_pp_calltree = tree => ({
+export const do_pp_calltree = tree => ({
   id: tree.id,
+  ok: tree.ok,
+  is_log: tree.is_log,
   has_more_children: tree.has_more_children,
-  string: tree.code.string,
+  string: tree.code?.string,
   children: tree.children && tree.children.map(do_pp_calltree)
 })
 
@@ -657,10 +659,7 @@ export const find_call = (state, index) => {
 
   return add_frame(
     expand_path(
-      {...state, 
-        calltree: merged,
-        calltree_changed_token: {},
-      },
+      {...state, calltree: merged},
       active_calltree_node
     ),
     active_calltree_node,
@@ -708,8 +707,8 @@ const select_return_value = state => {
   } else {
     result_node = find_node(frame, n => 
       n.type == 'function_call'
-      &&
-      n.result.call.id == state.current_calltree_node.id
+      && n.result != null
+      && n.result.call.id == state.current_calltree_node.id
     )
     node = find_node(code, n => is_eq(result_node, n))
   }
@@ -718,7 +717,6 @@ const select_return_value = state => {
     state: {...state, 
       current_module: loc.module,
       selection_state: {
-        index: node.index,
         node,
         initial_is_expand: true,
         result: result_node.result,
@@ -729,7 +727,7 @@ const select_return_value = state => {
 
 }
 
-const select_arguments = state => {
+const select_arguments = (state, with_focus = true) => {
   if(state.current_calltree_node.toplevel) {
     return {state}
   }
@@ -749,8 +747,8 @@ const select_arguments = state => {
   } else {
     const call = find_node(frame, n => 
       n.type == 'function_call'
-      &&
-      n.result.call.id == state.current_calltree_node.id
+      && n.result != null
+      && n.result.call.id == state.current_calltree_node.id
     )
     const call_node = find_node(state.active_calltree_node.code, n => is_eq(n, call))
     node = call_node.children[1] // call_args
@@ -761,13 +759,41 @@ const select_arguments = state => {
     state: {...state, 
       current_module: loc.module,
       selection_state: {
-        index: node.index,
         node,
         initial_is_expand: true,
         result,
       }
     }, 
-    effects: {type: 'set_caret_position', args: [node.index, true]}
+    effects: {type: 'set_caret_position', args: [node.index, with_focus]}
+  }
+}
+
+const navigate_logs_increment = (state, increment) => {
+  const index = 
+    Math.max(
+      Math.min(
+        state.logs.log_position == null
+          ? 0
+          : state.logs.log_position + increment,
+        state.logs.logs.length - 1
+      ),
+      0
+    )
+  return navigate_logs_position(state, index)
+}
+
+const navigate_logs_position = (state, log_position) => {
+  const node = find_node(
+    root_calltree_node(state), 
+    n => n.id == state.logs.logs[log_position].id
+  )
+  const {state: next, effects} = select_arguments(
+    expand_path(jump_calltree_node(state, node).state, node),
+    false,
+  )
+  return {
+    state: {...next, logs: {...state.logs, log_position}},
+    effects,
   }
 }
 
@@ -779,4 +805,6 @@ export const calltree_commands = {
   click,
   select_return_value,
   select_arguments,
+  navigate_logs_position,
+  navigate_logs_increment,
 }

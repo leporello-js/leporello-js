@@ -2,7 +2,7 @@ import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {parse, print_debug_node} from '../src/parse_js.js'
 import {eval_tree, eval_frame, eval_modules} from '../src/eval.js'
 import {COMMANDS, get_initial_state} from '../src/cmd.js'
-import {root_calltree_node, active_frame, pp_calltree} from '../src/calltree.js'
+import {root_calltree_node, active_frame, pp_calltree, do_pp_calltree} from '../src/calltree.js'
 import {color_file} from '../src/color.js'
 import {
   test, 
@@ -435,9 +435,13 @@ export const tests = [
       `
     const s1 = test_initial_state(code)
     // TODO fix error messages
+    const message = root_calltree_node(s1).error.message
     assert_equal(
-      root_calltree_node(s1).error.message, 
-      "Cannot read property 'apply' of null"
+      message == "Cannot read property 'apply' of null"
+      ||
+      message == "Cannot read properties of null (reading 'apply')"
+      ,
+      true
     )
   }),
 
@@ -1565,6 +1569,16 @@ const y = x()`
     const {state: s2, effects} = COMMANDS.move_cursor(s1, code.indexOf('x + 1'))
     assert_equal(s2.current_calltree_node.code.index, code.indexOf('x =>'))
   }),
+
+  test('find_call should find first call', () => {
+    const code = `
+      const rec = i => i == 0 ? 0 : rec(i - 1)
+      rec(10)
+    `
+    const s1 = test_initial_state(code)
+    const {state, effects} = COMMANDS.move_cursor(s1, code.indexOf('i == 0'))
+    assert_equal(state.current_calltree_node.args, [10])
+  }),
   
   test('select_return_value not expanded', () => {
     const code = `
@@ -1993,6 +2007,38 @@ const y = x()`
     const s3 = COMMANDS.calltree.arrow_right(s).state
     assert_equal(s3.current_calltree_node.fn.name, 'has_child_calls')
 
+  }),
+
+  test('logs simple', () => {
+    const code = `console.log(10)`
+    const i = test_initial_state(code)
+    assert_equal(i.logs.logs.length, 1)
+    assert_equal(i.logs.logs[0].args, [10])
+  }),
+
+  test('logs', () => {
+    const code = `
+      const deep = x => {
+        if(x == 10) {
+          console.log(x)
+        } else {
+          deep(x + 1)
+        }
+      }
+
+      deep(0)
+    `
+
+    const i = test_initial_state(code)
+    assert_equal(i.logs.logs.length, 1)
+    assert_equal(i.logs.logs[0].args, [10])
+    const {state, effects} = COMMANDS.calltree.navigate_logs_position(i, 0)
+    assert_equal(state.logs.log_position, 0)
+    assert_equal(state.selection_state.result.value, [10])
+    assert_equal(
+      effects, 
+      {type: 'set_caret_position', args: [code.indexOf('(x)'), false]}
+    )
   }),
 
 ]

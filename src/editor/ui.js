@@ -2,6 +2,7 @@ import {exec, get_state} from '../index.js'
 import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
+import {Logs} from './logs.js'
 import {Eval} from './eval.js'
 import {el} from './domutils.js'
 import {FLAGS} from '../feature_flags.js'
@@ -12,6 +13,9 @@ export class UI {
 
     this.files = new Files(this)
 
+    this.tabs = {}
+    this.debugger = {}
+
     container.appendChild(
       (this.root = el('div', 
           'root ' + (FLAGS.embed_value_explorer ? 'embed_value_explorer' : ''),
@@ -20,9 +24,32 @@ export class UI {
           ? null
           : (this.eval_container = el('div', {class: 'eval'})),
         el('div', 'bottom', 
-          this.calltree_container = el('div', {"class": 'calltree', tabindex: 0}),
+          this.debugger_container = el('div', 'debugger',
+            el('div', 'tabs', 
+              this.tabs.calltree = el('div', 'tab', 
+                el('a', {
+                  click: () => this.set_active_tab('calltree'),
+                  href: 'javascript: void(0)',
+                }, 'Call tree (F2)')
+              ),
+              this.tabs.logs = el('div', 'tab', 
+                el('a', {
+                  click: () => this.set_active_tab('logs'),
+                  href: 'javascript: void(0)',
+                }, 'Logs (F3)')
+              ),
+              this.entrypoint_select = el('div', 'entrypoint_select')
+            ),
+            this.debugger.calltree = el('div', {
+              'class': 'tab_content', 
+              tabindex: 0,
+            }),
+            this.debugger.logs = el('div', {
+              'class': 'tab_content logs', 
+              tabindex: 0,
+            }),
+          ),
           this.problems_container = el('div', {"class": 'problems', tabindex: 0}),
-          this.entrypoint_select = el('div', 'entrypoint_select')
         ),
 
         this.files.el,
@@ -88,17 +115,21 @@ export class UI {
     this.root.addEventListener('click', () => this.clear_status(), true)
 
     this.editor_container.addEventListener('keydown', e => {
+      // Bind F2 and F3 for embed_value_explorer
       if(
         e.key.toLowerCase() == 'w' && e.ctrlKey == true
         ||
-        // We bind F1 later, this one to work from embed_value_explorer
-        e.key == 'F1'
+        e.key == 'F2'
       ){
-        this.calltree_container.focus()
+        this.set_active_tab('calltree')
+      }
+
+      if(e.key == 'F3'){
+        this.set_active_tab('logs')
       }
     })
 
-    this.calltree_container.addEventListener('keydown', e => {
+    const escape = e => {
       if(
         (e.key.toLowerCase() == 'w' && e.ctrlKey == true)
         ||
@@ -106,7 +137,10 @@ export class UI {
       ){
         this.editor.focus()
       }
-    })
+    }
+
+    this.debugger.calltree.addEventListener('keydown', escape)
+    this.debugger.logs.addEventListener('keydown', escape)
 
 
     if(!FLAGS.embed_value_explorer) {
@@ -122,7 +156,8 @@ export class UI {
 
     this.editor = new Editor(this, this.editor_container)
 
-    this.calltree = new CallTree(this, this.calltree_container)
+    this.calltree = new CallTree(this, this.debugger.calltree)
+    this.logs = new Logs(this, this.debugger.logs)
 
     // TODO jump to another module
     // TODO use exec
@@ -137,10 +172,22 @@ export class UI {
 
     // TODO when click in calltree, do not jump to location, navigateCallTree
     // instead
-    this.calltree_container.addEventListener('click', jump_to_fn_location)
+    this.debugger.calltree.addEventListener('click', jump_to_fn_location)
 
     this.render_entrypoint_select(state)
     this.render_current_module(state.current_module)
+
+    this.set_active_tab('calltree', true)
+  }
+
+  set_active_tab(tab_id, skip_focus = false) {
+    Object.values(this.tabs).forEach(el => el.classList.remove('active'))
+    this.tabs[tab_id].classList.add('active')
+    Object.values(this.debugger).forEach(el => el.style.display = 'none')
+    this.debugger[tab_id].style.display = 'block'
+    if(!skip_focus) {
+      this.debugger[tab_id].focus()
+    }
   }
 
   render_entrypoint_select(state) {
@@ -172,14 +219,15 @@ export class UI {
     this.editor.focus()
   }
 
-  render_calltree(state) {
-    this.calltree_container.style = ''
+  render_debugger(state) {
+    this.debugger_container.style = ''
     this.problems_container.style = 'display: none'
     this.calltree.render_calltree(state)
+    this.logs.render_logs(null, state.logs)
   }
 
   render_problems(problems) {
-    this.calltree_container.style = 'display: none'
+    this.debugger_container.style = 'display: none'
     this.problems_container.style = ''
     this.problems_container.innerHTML = ''
     problems.forEach(p => {
@@ -220,15 +268,17 @@ export class UI {
 
   render_help() {
     const options =  [
-      ['Switch between editor and call tree', 'F1 or Ctrl-w'],
-      ['Go from call tree to editor', 'F1 or Esc'],
-      ['Focus value explorer', 'F2'],
+      ['Focus value explorer', 'F1'],
       ['Navigate value explorer', '← → ↑ ↓ or hjkl'],
       ['Leave value explorer', 'Esc'],
-      ['Jump to definition', 'F3', 'gd'],
+      ['Switch between editor and call tree view', 'F2 or Ctrl-w'],
+      ['Navigate call tree view', '← → ↑ ↓ or hjkl'],
+      ['Leave call tree view', 'F2 or Esc'],
+      ['Focus console logs', 'F3'],
+      ['Navigate console logs', '↑ ↓ or jk'],
+      ['Jump to definition', 'F4', 'gd'],
       ['Expand selection to eval expression', 'Ctrl-↓ or Ctrl-j'],
       ['Collapse selection', 'Ctrl-↑ or Ctrl-k'],
-      ['Navigate call tree view', '← → ↑ ↓ or hjkl'],
       ['Step into call', 'Ctrl-i', '\\i'],
       ['Step out of call', 'Ctrl-o', '\\o'],
       ['When in call tree view, jump to return statement', 'Enter'],

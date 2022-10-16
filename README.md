@@ -42,6 +42,12 @@ have white background.
 
 ![Live coding](docs/images/edit.gif)
 
+- Console logs are collected and displayed in a separate view. When you click
+  the log you get into debugger to the call of `console.log` or
+  `console.error`.  You can go back and forth like in a time machine.
+
+![Logs](docs/images/logs.gif)
+
 - Leporello is (mostly) self-hosted, i.e. built in itself
 
 ![Self-hosted](docs/images/self-hosted.png)

@@ -1,4 +1,4 @@
-import {map_object, pick_keys} from './utils.js'
+import {map_object, pick_keys, collect_nodes_with_parents} from './utils.js'
 import {
   is_eq, is_child, ancestry, ancestry_inc, map_tree,
   find_leaf, find_fn_by_location, find_node, find_error_origin_node
@@ -12,6 +12,38 @@ import {
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
   find_call, find_call_node, set_active_calltree_node
 } from './calltree.js'
+
+const apply_eval_result = (state, eval_result) => {
+  // TODO what if console.log called from native fn (like Array::map)?
+  // Currently it is not recorded. Maybe we should patch monkey patch console?
+  const logs = (
+    eval_result.calltree[state.entrypoint] == null
+      ? []
+      : collect_nodes_with_parents(
+          eval_result.calltree[state.entrypoint].calls, 
+          n => n.is_log,
+        )
+    )
+    .map(({parent, node}) => (
+      {
+        id: node.id,
+        toplevel: parent.toplevel,
+        module: parent.toplevel 
+          ? parent.module
+          : parent.fn.__location.module,
+        parent_name: parent.fn?.name,
+        args: node.args,
+        log_fn_name: node.fn.name,
+      }
+    ))
+    
+  return {
+    ...state, 
+    calltree: eval_result.calltree,
+    calltree_actions: eval_result.calltree_actions,
+    logs: {logs, log_position: null},
+  }
+}
 
 const apply_active_calltree_node = (state, index) => {
   if(!state.parse_result.ok) {
@@ -27,11 +59,8 @@ const apply_active_calltree_node = (state, index) => {
     node.type == 'do' /* toplevel AST node */
   ) {
     const result = eval_modules(state.parse_result.modules, state.parse_result.sorted)
-    const next = {
-      ...state,
-      calltree: result.calltree,
-      calltree_actions: result.calltree_actions,
-    }
+    const next = apply_eval_result(state, result)
+
     if(node == state.parse_result.modules[root_calltree_module(next)]) {
       const toplevel = root_calltree_node(next)
       return add_frame(
@@ -47,26 +76,24 @@ const apply_active_calltree_node = (state, index) => {
     }
   }
 
-  const {calltree, call, calltree_actions} = eval_modules(
+  const result = eval_modules(
     state.parse_result.modules, 
     state.parse_result.sorted,
     {index: node.index, module: state.current_module},
   )
 
-  if(call == null) {
+  if(result.call == null) {
     // Unreachable call
-    const {node, state: next} = initial_calltree_node({
-      ...state,
-      calltree,
-      calltree_actions,
-    })
+    const {node, state: next} = initial_calltree_node(
+      apply_eval_result(state, result)
+    )
     return set_active_calltree_node(next, null, node)
   }
 
-  const next = {...state, calltree, calltree_actions }
+  const next = apply_eval_result(state, result)
   // We cannot use `call` because `code` was not assigned to it
   const active_calltree_node = find_node(root_calltree_node(next),
-    n => n.id == call.id
+    n => n.id == result.call.id
   )
 
   return add_frame(
@@ -127,6 +154,7 @@ const apply_code = (state, dirty_files) => {
     calltree_changed_token: {},
 
     calltree_actions: null,
+    logs: null,
     current_calltree_node: null,
     active_calltree_node: null,
     calltree_node_is_expanded: null,

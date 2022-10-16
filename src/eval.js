@@ -1,4 +1,9 @@
-import {zip, stringify, map_object, filter_object} from './utils.js'
+import {
+  zip, 
+  stringify, 
+  map_object, 
+  filter_object, 
+} from './utils.js'
 
 import {
   find_fn_by_location, 
@@ -235,28 +240,24 @@ export const eval_modules = (modules, sorted, location) => {
 
   const codestring = 
     `
-    const MAX_DEPTH = 1
-    let depth
-    let current_call
+    let children, prev_children
+    // TODO use native array for stack?
+    const stack = new Array() 
+
     let call_counter = 0
 
-    let enable_find_call
+    let is_entrypoint
     let searched_location
     let found_call
 
-    function add_call(call) {
-      depth++
-      call.id = call_counter++
-      if(current_call.children == null) {
-        current_call.children = [] 
+    const set_record_call = () => {
+      for(let i = 0; i < stack.length; i++) {
+        stack[i] = true
       }
-      current_call.children.push(call)
-      current_call = call
     }
 
     const expand_calltree_node = (node) => {
-      depth = 0
-      current_call = {}
+      children = null
       try {
         node.fn.apply(node.context, node.args)
       } catch(e) {
@@ -264,14 +265,16 @@ export const eval_modules = (modules, sorted, location) => {
       }
       if(node.fn.__location != null) {
         // fn is hosted, it created call, this time with children
-        const result = current_call.children[0]
+        const result = children[0]
         result.id = node.id
+        result.children = prev_children
+        result.has_more_children = false
         return result
       } else {
         // fn is native, it did not created call, only its child did
         return {...node, 
-          children: current_call.children,
-          has_more_children: null,
+          children,
+          has_more_children: false,
         }
       }
     }
@@ -291,55 +294,71 @@ export const eval_modules = (modules, sorted, location) => {
           result.__closure = get_closure()
         }
 
-        const prev = current_call
-        add_call({
-          fn: result,
-          args: argscount == null 
-            ? args
-            // Do not capture unused args
-            : args.slice(0, argscount)
-        })
+        const children_copy = children
+        children = null
+        stack.push(false)
 
-        if(
-            enable_find_call
+        const is_found_call =
+          is_entrypoint
+          &&
+          (searched_location != null && found_call == null)
+          &&
+          (
+            __location.index == searched_location.index
             &&
-            (searched_location != null && found_call == null)
-            &&
-            (
-              __location.index == searched_location.index
-              &&
-              __location.module == searched_location.module
-            )
-        ) {
-          found_call = current_call
+            __location.module == searched_location.module
+          )
 
-          // Set depth to record children of found call
-          depth = 1
+        if(is_found_call) {
+          // Assign temporary value to prevent nested calls from populating
+          // found_call
+          found_call = {}
         }
 
+        let ok, value, error
+
         try {
-          const value = fn(...args)
-          current_call.ok = true
-          current_call.value = value
-          if(depth > MAX_DEPTH) {
-            if(current_call.children != null && current_call.children.length > 0) {
-              current_call.has_more_children = true
-              current_call.children = null
-            }
-          }
+          value = fn(...args)
+          ok = true
           return value
-        } catch(error) {
-          current_call.ok = false
-          current_call.error = error
+        } catch(_error) {
+          ok = false
+          error = _error
+          set_record_call()
           throw error
         } finally {
-          depth--
-          if(found_call != null && depth < 1) {
-            // Set depth to 1 to record sibling calls for calls that precede
-            // found call
-            depth = 1
+
+          prev_children = children
+
+          const call = {
+            id: call_counter++,
+            ok,
+            value,
+            error,
+            fn: result,
+            args: argscount == null 
+              ? args
+              // Do not capture unused args
+              : args.slice(0, argscount),
           }
-          current_call = prev
+
+          if(is_found_call) {
+            found_call = call
+            set_record_call()
+          }
+
+          const should_record_call = stack.pop()
+
+          if(should_record_call) {
+            call.children = children
+          } else {
+            call.has_more_children = children != null && children.length != 0
+          }
+          children = children_copy
+          if(children == null) {
+            children = []
+          }
+          children.push(call)
         }
       }
 
@@ -352,47 +371,81 @@ export const eval_modules = (modules, sorted, location) => {
       if(fn != null && fn.__location != null) {
         return fn(...args)
       }
+
       if(typeof(fn) != 'function') {
         return fn.apply(context, args)
       }
-      const prev = current_call
-      add_call({fn, args, context})
+
+      const children_copy = children
+      children = null
+      stack.push(false)
+
+      const is_log = is_entrypoint 
+        ? fn == console.log || fn == console.error // TODO: other console fns
+        : undefined
+
+      if(is_log) {
+        set_record_call()
+      }
+
+      let ok, value, error
+
       try {
-        const value = fn.apply(context, args)
-        current_call.ok = true
-        current_call.value = value
-        if(depth > MAX_DEPTH) {
-          if(current_call.children != null && current_call.children.length > 0) {
-            current_call.has_more_children = true
-            current_call.children = null
-          }
+        if(!is_log) {
+          value = fn.apply(context, args)
+        } else {
+          value = undefined
         }
+        ok = true
         return value
-      } catch(error) {
-        current_call.ok = false
-        current_call.error = error
+      } catch(_error) {
+        ok = false
+        error = _error
+        set_record_call()
         throw error
       } finally {
-          depth--
-          if(found_call != null && depth < 1) {
-            // Set depth to 1 to record sibling calls for calls that precede
-            // found call
-            depth = 1
-          }
-          current_call = prev
+
+        prev_children = children
+
+        const call = {
+          id: call_counter++,
+          ok,
+          value,
+          error,
+          fn,
+          args,
+          context,
+          is_log,
+        }
+
+        const should_record_call = stack.pop()
+
+        if(should_record_call) {
+          call.children = children
+        } else {
+          call.has_more_children = children != null && children.length != 0
+        }
+
+        children = children_copy
+        if(children == null) {
+          children = []
+        }
+        children.push(call)
       }
     }
 
-    const run = find_call_entrypoint => {
-      depth = 1
+    const run = entrypoint => {
       const __modules = {}
+      let current_call
+
     `
     +
     sorted
       .map((m, i) => 
         `
-         enable_find_call = find_call_entrypoint == '${m}'
+         is_entrypoint = entrypoint == '${m}'
          __modules['${m}'] = {}
+         children = null
          current_call = {
            toplevel: true, 
            module: '${m}', 
@@ -411,9 +464,10 @@ export const eval_modules = (modules, sorted, location) => {
                 current_call.error = error
               }
            })()
-          if(!__modules['${m}'].calls.ok) {
-            return __modules
-          }
+         current_call.children = children
+         if(!__modules['${m}'].calls.ok) {
+           return __modules
+         }
         `
       )
       .join('')
@@ -447,16 +501,14 @@ export const eval_modules = (modules, sorted, location) => {
     }
   }
 
+  const entrypoint = sorted[sorted.length - 1]
+
   let calltree, call
 
   if(location == null) {
-    // Intentionally do not pass arg to run()
-    calltree = actions.run()
+    calltree = actions.run(entrypoint)
   } else {
-    const result = calltree_actions.find_call(
-      sorted[sorted.length - 1], 
-      location
-    )
+    const result = calltree_actions.find_call(entrypoint, location)
     calltree = result.calltree
     call = result.call
   }
@@ -468,6 +520,7 @@ export const eval_modules = (modules, sorted, location) => {
   }
 }
 
+// TODO: assign_code: benchmark and use imperative version for perf?
 const assign_code_calltree = (modules, calltree) =>
   map_object(
     calltree,
@@ -486,6 +539,7 @@ const assign_code = (modules, call, module) => {
     return {...call, 
       code: call.fn == null || call.fn.__location == null 
         ? null
+          // TODO cache find_fn_by_location calls?
         : find_fn_by_location(modules[call.fn.__location.module], call.fn.__location),
       children: call.children && call.children.map(call => assign_code(modules, call)),
     }

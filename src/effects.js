@@ -81,7 +81,7 @@ export const render_initial_state = (ui, state) => {
   ui.editor.switch_session(state.current_module)
   render_parse_result(ui, state)
   if(state.current_calltree_node != null) {
-    ui.render_calltree(state)
+    ui.render_debugger(state)
     render_coloring(ui, state)
   }
 }
@@ -115,7 +115,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     render_parse_result(ui, next)
   }
 
-  if(next.current_calltree_node == null) {
+  if(!next.parse_result.ok) {
 
     ui.calltree.clear_calltree()
     ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
@@ -129,25 +129,25 @@ export const render_common_side_effects = (prev, next, command, ui) => {
       prev.calltree_changed_token != next.calltree_changed_token
     ) {
       // Rerender entire calltree
-      ui.render_calltree(next)
+      ui.render_debugger(next)
       ui.eval.clear_value_or_error()
       ui.editor.for_each_session(f => clear_coloring(ui, f))
       render_coloring(ui, next)
       ui.editor.unembed_value_explorer()
     } else {
+      if(
+        prev.calltree != next.calltree 
+        || 
+        prev.calltree_node_is_expanded != next.calltree_node_is_expanded
+      ) {
+        ui.calltree.render_expand_node(prev, next)
+      }
+
       const node_changed = next.current_calltree_node != prev.current_calltree_node
-      const id = next.current_calltree_node.id
-      const exp_changed = !!prev.calltree_node_is_expanded[id] 
-                          != 
-                          !!next.calltree_node_is_expanded[id] 
 
       if(node_changed) {
-        ui.calltree.render_select_node(next)
+        ui.calltree.render_select_node(prev, next)
       } 
-
-      if(exp_changed) {
-        ui.calltree.render_expand_node(next)
-      }
 
       if(node_changed) {
         if(!next.current_calltree_node.toplevel) {
@@ -161,21 +161,25 @@ export const render_common_side_effects = (prev, next, command, ui) => {
         render_coloring(ui, next)
       }
     }
+
+    if(prev.logs != next.logs) {
+      ui.logs.render_logs(prev.logs, next.logs)
+    }
   }
 
   // Render 
 
   /* Eval selection */
 
-  const selnode = next.selection_state?.node
-  if(prev.selection_state?.node != selnode) {
+  if(prev.selection_state != next.selection_state) {
     ui.editor.remove_markers_of_type(next.current_module, 'selection')
-    if(selnode != null) {
+    const node = next.selection_state?.node
+    if(node != null) {
       ui.editor.add_marker(
         next.current_module, 
         'selection', 
-        selnode.index, 
-        selnode.index + selnode.length
+        node.index, 
+        node.index + node.length
       )
     } 
   }

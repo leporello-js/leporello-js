@@ -1,6 +1,8 @@
 // TODO large arrays/objects
 // TODO maps, sets
 // TODO show Errors in red
+// TODO fns as clickable links (jump to definition), both for header and for
+// content
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 
@@ -53,7 +55,7 @@ export const stringify_for_header = v => {
   }
 }
 
-const header = object => {
+export const header = object => {
   if(typeof(object) == 'undefined') {
     return 'undefined'
   } else if(object == null) {

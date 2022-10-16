@@ -62,7 +62,7 @@
         box-shadow: 1px 1px 6px 3px var(--shadow_color);
       }
 
-      .calltree:focus-within, .problems:focus-within {
+      .tab_content:focus-within, .problems:focus-within {
         outline: none;
       }
 
@@ -114,7 +114,23 @@
         color: red;
       }
 
-      /* calltree */
+      /* Tabs */
+
+      .tabs {
+        display: flex;
+        padding-bottom: 0.5em;
+      }
+
+      .tabs > .tab {
+        margin-right: 1em;
+        padding: 0.3em 1em;
+      }
+
+      .tabs > .tab.active {
+        background-color: rgb(225, 244, 253);
+      }
+
+      /* debugger */
 
       .bottom {
         grid-area: bottom;
@@ -122,15 +138,32 @@
         overflow: auto;
       }
 
-      .calltree, .problems {
+      .debugger {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .debugger, .problems {
         padding: 5px;
         overflow: auto;
       }
 
+      .logs {
+        padding-left: 1em;
+      }
+
+      .logs .log.active {
+        background-color: rgb(225, 244, 253);
+      }
+
+      .tab_content {
+        overflow: auto;
+      }
+
       .entrypoint_select {
-        position: absolute;
-        right: 20px;
-        top: 7px;
+        display: flex;
+        align-items: center;
+        margin-left: auto;
       }
 
       .entrypoint_title {

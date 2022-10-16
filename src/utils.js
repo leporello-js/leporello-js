@@ -59,6 +59,25 @@ export const zip = (x,y) => {
 
 export const uniq = arr => [...new Set(arr)]
 
+export const collect_nodes_with_parents = new Function('node', 'pred', `
+  const result = []
+
+  const do_collect = (node, parent) => {
+    if(node.children != null) {
+      for(let c of node.children) {
+        do_collect(c, node)
+      }
+    }
+    if(pred(node)) {
+      result.push({node, parent})
+    }
+  }
+
+  do_collect(node, null)
+
+  return result
+`)
+
 // TODO remove
 /*
 function object_diff(a,b){

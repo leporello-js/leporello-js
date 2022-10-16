@@ -24,11 +24,15 @@ export class CallTree {
       e.preventDefault()
 
       if(e.key == 'F1') {
-        this.ui.editor.focus()
+        this.ui.editor.focus_value_explorer(this.container)
       }
 
       if(e.key == 'F2') {
-        this.ui.editor.focus_value_explorer(this.container)
+        this.ui.editor.focus()
+      }
+
+      if(e.key == 'F3') {
+        this.ui.set_active_tab('logs')
       }
 
       if(e.key == 'a') {
@@ -80,12 +84,12 @@ export class CallTree {
     this.state = null
   }
 
-  render_node(n, current_node){
+  render_node(n){
     const is_expanded = this.state.calltree_node_is_expanded[n.id]
 
     const result = el('div', 'callnode',
       el('div', {
-        'class': (n == current_node ? 'call_el active' : 'call_el'),
+        'class': 'call_el',
         click: () => this.on_click_node(n.id),
       },
         !is_expandable(n)
@@ -104,9 +108,7 @@ export class CallTree {
                 + (n.fn.__location == null ? ' native' : '')
             ,
             // TODO show `this` argument
-            n.fn.__location == null
-              ? fn_link(n.fn)
-              : n.fn.name
+            n.fn.name
             ,
             '(' ,
              ...join(
@@ -123,7 +125,7 @@ export class CallTree {
       ),
       (n.children == null || !is_expanded)
         ? null
-        : n.children.map(c => this.render_node(c, current_node))
+        : n.children.map(c => this.render_node(c))
     )
 
     this.node_to_el.set(n.id, result)
@@ -142,8 +144,10 @@ export class CallTree {
     }
   }
 
-  render_select_node(state) {
-    this.render_active(this.state.current_calltree_node, false)
+  render_select_node(prev, state) {
+    if(prev != null) {
+      this.render_active(prev.current_calltree_node, false)
+    }
     this.state = state
     this.render_active(this.state.current_calltree_node, true)
     scrollIntoViewIfNeeded(
@@ -152,12 +156,38 @@ export class CallTree {
     )
   }
 
-  render_expand_node(state) {
+  render_expand_node(prev_state, state) {
     this.state = state
-    const current_node = this.state.current_calltree_node
-    const prev_dom_node = this.node_to_el.get(current_node.id)
-    const next = this.render_node(current_node, current_node)
-    prev_dom_node.parentNode.replaceChild(next, prev_dom_node)
+    this.do_render_expand_node(
+      prev_state.calltree_node_is_expanded,
+      state.calltree_node_is_expanded,
+      root_calltree_node(prev_state),
+      root_calltree_node(state),
+    )
+    this.render_select_node(prev_state, state)
+  }
+
+  do_render_expand_node(prev_exp, next_exp, prev_node, next_node) {
+    if(prev_node.id != next_node.id) {
+      throw new Error()
+    }
+    if(!!prev_exp[prev_node.id] != !!next_exp[next_node.id]) {
+      const prev_dom_node = this.node_to_el.get(prev_node.id)
+      const next = this.render_node(next_node)
+      prev_dom_node.parentNode.replaceChild(next, prev_dom_node)
+    } else {
+      if(prev_node.children == null) {
+        return
+      }
+      for(let i = 0; i < prev_node.children.length; i++) {
+        this.do_render_expand_node(
+          prev_exp, 
+          next_exp, 
+          prev_node.children[i],
+          next_node.children[i],
+        )
+      }
+    }
   }
 
   // TODO on hover highlight line where function defined/
@@ -166,8 +196,7 @@ export class CallTree {
     this.clear_calltree()
     this.state = state
     const root = root_calltree_node(this.state)
-    const current_node = state.current_calltree_node
-    this.container.appendChild(this.render_node(root, current_node))
-    this.render_select_node(state, root, current_node)
+    this.container.appendChild(this.render_node(root))
+    this.render_select_node(null, state)
   }
 }
