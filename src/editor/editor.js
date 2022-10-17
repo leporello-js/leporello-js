@@ -329,6 +329,14 @@ export class Editor {
       }
     })
 
+    this.ace_editor.commands.bindKey("F5", "fullscreen_editor");
+    this.ace_editor.commands.addCommand({
+      name: 'fullscreen_editor',
+      exec: (editor) => {
+        this.ui.fullscreen_editor()
+      }
+    })
+
 
     this.ace_editor.commands.bindKey("F1", "focus_value_explorer");
     this.ace_editor.commands.addCommand({

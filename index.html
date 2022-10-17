@@ -41,8 +41,9 @@
         grid-template-columns: 70% 30%;
       }
 
-      .bottom {
-        display: grid;
+      .root.fullscreen_editor {
+        grid-template-columns: 100% 0%;
+        grid-template-rows: 1fr 0fr 2.5em;
       }
 
       .editor_container, .bottom, .eval, .files_container, .statusbar {
@@ -134,8 +135,8 @@
 
       .bottom {
         grid-area: bottom;
-        position: relative;
         overflow: auto;
+        display: grid;
       }
 
       .debugger {

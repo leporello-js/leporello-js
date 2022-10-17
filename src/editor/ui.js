@@ -283,6 +283,7 @@ export class UI {
       ['Step out of call', 'Ctrl-o', '\\o'],
       ['When in call tree view, jump to return statement', 'Enter'],
       ['When in call tree view, jump to function arguments', 'a'],
+      ['Expand/collapse editor to fullscreen', 'F5'],
     ]
     return el('dialog', 'help_dialog',
       el('table', 'help',
@@ -312,6 +313,11 @@ export class UI {
         el('button', null, 'Close'),
       ),
     )
+  }
+
+  fullscreen_editor() {
+    this.root.classList.toggle('fullscreen_editor')
+    this.editor.ace_editor.resize()
   }
 
 }
