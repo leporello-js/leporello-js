@@ -73,7 +73,7 @@ export class Logs {
     }
 
     if(prev_logs?.log_position != logs.log_position) {
-      if(prev_logs?.log_position != null) {
+      if(prev_logs?.logs == logs.logs && prev_logs?.log_position != null) {
         this.el.children[prev_logs.log_position].classList.remove('active')
       }
       if(logs.log_position != null) {

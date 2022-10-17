@@ -769,6 +769,9 @@ const select_arguments = (state, with_focus = true) => {
 }
 
 const navigate_logs_increment = (state, increment) => {
+  if(state.logs.logs.length == 0) {
+    return {state}
+  }
   const index = 
     Math.max(
       Math.min(
