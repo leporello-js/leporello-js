@@ -45,7 +45,45 @@ const apply_eval_result = (state, eval_result) => {
   }
 }
 
-const apply_active_calltree_node = (state, index) => {
+const run_code = (s, index, dirty_files) => {
+
+  const parse_result = load_modules(s.entrypoint, module => {
+    if(dirty_files != null && dirty_files.includes(module)) {
+      return s.files[module]
+    }
+
+    if(s.parse_result != null) {
+      const result = s.parse_result.cache[module]
+      if(result != null) {
+        return result
+      } else {
+        return s.files[module]
+      }
+    } else {
+      return s.files[module]
+    }
+
+  })
+
+  const state = {
+    ...s,
+    parse_result,
+    calltree: null,
+
+    // Shows that calltree is brand new and requires entire rerender
+    calltree_changed_token: {},
+
+    calltree_actions: null,
+    logs: null,
+    current_calltree_node: null,
+    active_calltree_node: null,
+    calltree_node_is_expanded: null,
+    frames: null,
+    calltree_node_by_loc: null,
+    // TODO keep selection_state?
+    selection_state: null,
+  }
+
   if(!state.parse_result.ok) {
     return state
   } 
@@ -109,10 +147,7 @@ const apply_active_calltree_node = (state, index) => {
 
 const input = (state, code, index) => {
   const files = {...state.files, [state.current_module]: code}
-  const next = apply_active_calltree_node(
-    apply_code({...state, files}, [state.current_module]),
-    index
-  )
+  const next = run_code({...state, files}, index, [state.current_module])
   const effects1 = next.current_module == ''
     ? {type: 'save_to_localstorage', args: ['code', code]}
     : {type: 'write', args: [
@@ -124,51 +159,6 @@ const input = (state, code, index) => {
     state: next2, 
     effects: [effects1, effects2],
   }
-}
-
-const apply_code = (state, dirty_files) => {
-  const parse_result = load_modules(state.entrypoint, module => {
-    if(dirty_files != null && dirty_files.includes(module)) {
-      return state.files[module]
-    }
-
-    if(state.parse_result != null) {
-      const result = state.parse_result.cache[module]
-      if(result != null) {
-        return result
-      } else {
-        return state.files[module]
-      }
-    } else {
-      return state.files[module]
-    }
-
-  })
-
-  return {
-    ...state,
-    parse_result,
-    calltree: null,
-
-    // Shows that calltree is brand new and requires entire rerender
-    calltree_changed_token: {},
-
-    calltree_actions: null,
-    logs: null,
-    current_calltree_node: null,
-    active_calltree_node: null,
-    calltree_node_is_expanded: null,
-    frames: null,
-    calltree_node_by_loc: null,
-    // TODO keep selection_state?
-    selection_state: null,
-  }
-
-}
-
-export const apply_code_with_active_calltree_node = (state, index) => {
-  const next = apply_code(state)
-  return apply_active_calltree_node(next, index)
 }
 
 const can_evaluate_node = (parent, node) => {
@@ -393,7 +383,7 @@ const change_current_module = (state, current_module) => {
 }
 
 const change_entrypoint = (state, entrypoint, index) => {
-  return apply_code_with_active_calltree_node(
+  return run_code(
     {...state, 
       entrypoint,
       current_module: entrypoint,
@@ -671,7 +661,7 @@ export const get_initial_state = state => {
       : current_module,
   }
 
-  return apply_code_with_active_calltree_node(s, 0)
+  return run_code(s, 0)
 }
 
 export const COMMANDS = {
