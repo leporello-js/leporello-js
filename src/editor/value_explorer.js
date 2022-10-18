@@ -69,6 +69,8 @@ export const header = object => {
           .map(stringify_for_header)
           .join(', ')
         + ']'
+    } else if(object.toString != Object.prototype.toString) {
+      return object.toString()
     } else {
       const inner = displayed_entries(object)
         .map(([k,v]) => {
