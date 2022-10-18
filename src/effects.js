@@ -2,6 +2,30 @@ import {write_file} from './filesystem.js'
 import {color_file} from './color.js'
 import {root_calltree_node, calltree_node_loc} from './calltree.js'
 import {FLAGS} from './feature_flags.js'
+import {exec} from './index.js'
+
+const load_external_imports = async state => {
+  if(state.loading_external_imports_state == null) {
+    return
+  }
+  const urls = state.loading_external_imports_state.external_imports
+  const results = await Promise.allSettled(
+    urls.map(u => import(u))
+  )
+  const modules = Object.fromEntries(
+    results.map((r, i) => (
+      [
+        urls[i],
+        {
+          ok: r.status == 'fulfilled',
+          error: r.reason,
+          module: r.value,
+        }
+      ]
+    ))
+  )
+  exec('external_imports_loaded', state /* becomes prev_state */, modules)
+}
 
 const ensure_session = (ui, state, file = state.current_module) => {
   ui.editor.ensure_session(file, state.files[file])
@@ -84,6 +108,7 @@ export const render_initial_state = (ui, state) => {
     ui.render_debugger(state)
     render_coloring(ui, state)
   }
+  load_external_imports(state)
 }
 
 export const render_common_side_effects = (prev, next, command, ui) => {
@@ -111,11 +136,15 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     ui.editor.switch_session(next.current_module)
   }
 
+  if(prev.loading_external_imports_state != next.loading_external_imports_state) {
+    load_external_imports(next)
+  }
+
   if(prev.parse_result != next.parse_result) {
     render_parse_result(ui, next)
   }
 
-  if(!next.parse_result.ok) {
+  if(!next.parse_result.ok || next.loading_external_imports_state != null) {
 
     ui.calltree.clear_calltree()
     ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
@@ -124,6 +153,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
   } else {
 
     if(
+      // TODO refactor this condition
       prev.current_calltree_node == null 
       ||
       prev.calltree_changed_token != next.calltree_changed_token
@@ -232,5 +262,6 @@ export const EFFECTS = {
       ui.eval.clear_value_or_error()
     }
   },
+
 }
 

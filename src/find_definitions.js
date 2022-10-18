@@ -264,6 +264,7 @@ code analysis:
 - every assignment can only be to if identifier is earlier declared by let
 - assignment can only be inside if statement (after let) (relax it?)
 - cannot import names that are not exported from modules
+- module can be imported either as external or regular
 - cannot return from modules (even inside toplevel if statements)
 */
 export const analyze = (node, is_toplevel = true) => {

@@ -235,8 +235,10 @@ const codegen = (node, cxt, parent) => {
   }
 }
 
-export const eval_modules = (modules, sorted, location) => {
+export const eval_modules = (modules, sorted, external_imports, location) => {
   // TODO gensym __modules, __exports
+
+  // TODO bug if module imported twice, once as external and as regular
 
   const codestring = 
     `
@@ -435,7 +437,7 @@ export const eval_modules = (modules, sorted, location) => {
     }
 
     const run = entrypoint => {
-      const __modules = {}
+      const __modules = {...external_imports}
       let current_call
 
     `
@@ -483,7 +485,13 @@ export const eval_modules = (modules, sorted, location) => {
     }
     `
 
-  const actions = (new Function(codestring))()
+  const actions = new Function('external_imports', codestring)(
+    external_imports == null
+    ? null
+    : map_object(external_imports, (name, {module}) => 
+        ({exports: module, is_external: true})
+      )
+  )
 
   const calltree_actions =  {
     expand_calltree_node: (node) => {
@@ -524,8 +532,10 @@ export const eval_modules = (modules, sorted, location) => {
 const assign_code_calltree = (modules, calltree) =>
   map_object(
     calltree,
-    (module, {calls, exports}) => {
-      return {exports, calls: assign_code(modules, calls, modules[module])}
+    (module, {calls, exports, is_external}) => {
+      return is_external
+        ? {is_external, exports}
+        : {exports, calls: assign_code(modules, calls, modules[module])}
     }
   )
 

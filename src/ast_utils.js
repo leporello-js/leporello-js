@@ -43,6 +43,7 @@ export const map_destructuring_identifiers = (node, mapper) => {
 export const collect_imports = module => {
   const imports = module.stmts
     .filter(n => n.type == 'import')
+    .filter(n => !n.is_external)
     .map(n => 
       n.imports.map(i => 
         ({name: i.value, module: n.full_import_path})

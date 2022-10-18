@@ -2,7 +2,8 @@ import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {parse, print_debug_node} from '../src/parse_js.js'
 import {eval_tree, eval_frame, eval_modules} from '../src/eval.js'
 import {COMMANDS, get_initial_state} from '../src/cmd.js'
-import {root_calltree_node, active_frame, pp_calltree, do_pp_calltree} from '../src/calltree.js'
+import {root_calltree_node, active_frame, pp_calltree, do_pp_calltree} 
+  from '../src/calltree.js'
 import {color_file} from '../src/color.js'
 import {
   test, 
@@ -725,9 +726,15 @@ export const tests = [
       'b' : `import {c} from 'c'`,
       'c' : `export const c = 1`,
     })
+
+    // Break file c. If parse result is cached then the file will not be parsed
+    // and the code would not break
+    const spoil_file = {...s, files: {...s.files, 'c': ',,,'}}
+
     // change module ''
-    const s2 = COMMANDS.input(s, 'import {c} from "c"', 0)
-    // TODO assert that module 'c' was loaded from cache
+    const {state: s2} = COMMANDS.input(spoil_file, 'import {c} from "c"', 0)
+
+    assert_equal(s2.parse_result.ok, true)
   }),
 
   test('modules', () => {
@@ -768,6 +775,136 @@ export const tests = [
     // Check that the same symbol improted through different paths gives the
     // same result
     assert_equal(mods.root.exports.is_eq, true)
+  }),
+
+  test('bug parser pragma external', () => {
+    const result = parse(`
+      // external
+    `)
+    assert_equal(result.ok, true)
+  }),
+
+
+  test('module external', () => {
+    const code = `
+      // external
+      import {foo_var} from 'foo.js'
+      console.log(foo_var)
+    `
+    const s1 = test_initial_state(code)
+    assert_equal(s1.loading_external_imports_state.index, 0)
+    assert_equal(s1.loading_external_imports_state.external_imports, ['foo.js'])
+
+    const state = COMMANDS.external_imports_loaded(s1, s1, {
+      'foo.js': {
+        ok: true,
+        module: {
+          'foo_var': 'foo_value'
+        },
+      }
+    })
+    assert_equal(state.logs.logs[0].args, ['foo_value'])
+    assert_equal(state.loading_external_imports_state, null)
+  }),
+
+  test('module external input', () => {
+    const initial_code = ``
+    const initial = test_initial_state(initial_code)
+    const edited = `
+      // external
+      import {foo_var} from 'foo.js'
+      console.log(foo_var)
+    `
+
+    const index = edited.indexOf('foo_var')
+
+    const {state, effects} = COMMANDS.input(
+      initial, 
+      edited, 
+      index
+    )
+    // embed_value_explorer suspended until external imports resolved
+    assert_equal(effects.length, 1)
+    assert_equal(effects[0].type, 'save_to_localstorage')
+    assert_equal(state.loading_external_imports_state.index, index)
+    assert_equal(
+      state.loading_external_imports_state.external_imports,
+      ['foo.js'],
+    )
+
+    // TODO must have effect embed_value_explorer
+    const next = COMMANDS.external_imports_loaded(state, state, {
+      'foo.js': {
+        ok: true,
+        module: {
+          'foo_var': 'foo_value'
+        },
+      }
+    })
+    assert_equal(next.loading_external_imports_state, null)
+    assert_equal(next.logs.logs[0].args, ['foo_value'])
+  }),
+
+  test('module external load error', () => {
+    const code = `
+      // external
+      import {foo_var} from 'foo.js'
+      console.log(foo_var)
+    `
+    const initial = test_initial_state(code)
+
+    const next = COMMANDS.external_imports_loaded(initial, initial, {
+      'foo.js': {
+        ok: false,
+        error: new Error('Failed to resolve module'),
+      }
+    })
+
+    assert_equal(next.parse_result.ok, false)
+    assert_equal(
+      next.parse_result.problems, 
+      [
+        {
+          index: code.indexOf('import'),
+          message: 'Failed to resolve module',
+          module: '',
+        }
+      ]
+    )
+  }),
+
+  test('module external cache', () => {
+    const code = `
+      // external
+      import {foo_var} from 'foo.js'
+      console.log(foo_var)
+    `
+    const initial = test_initial_state(code)
+
+    const next = COMMANDS.external_imports_loaded(initial, initial, {
+      'foo.js': {
+        ok: true,
+        module: {
+          'foo_var': 'foo_value'
+        },
+      }
+    })
+
+    const edited = `
+      // external
+      import {foo_var} from 'foo.js'
+      foo_var
+    `
+
+    const {state, effects} = COMMANDS.input(
+      next, 
+      edited, 
+      edited.lastIndexOf('foo_var'),
+    )
+
+    // If cache was not used then effects will be `load_external_imports`
+    const embed = effects.find(e => e.type == 'embed_value_explorer')
+    assert_equal(embed.args[0].result.value, 'foo_value')
   }),
 
   // Static analysis
@@ -1451,7 +1588,10 @@ const y = x()`
       const overflow = x => overflow(x + 1);
       overflow(0)
     `)
-    assert_equal(s.current_calltree_node.error.message, 'Maximum call stack size exceeded')
+    assert_equal(
+      s.current_calltree_node.error.message, 
+      'Maximum call stack size exceeded'
+    )
     assert_equal(s.current_calltree_node.toplevel, true)
     assert_equal(s.calltree_node_is_expanded[s.current_calltree_node.id], true)
   }),

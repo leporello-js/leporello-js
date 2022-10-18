@@ -78,6 +78,9 @@ const tokenize_js = (str) => {
   ]
   
   const TOKENS = [
+    {name: 'pragma_external'    , re: '//[\\s]*external[\\s]*[\r\n]'},
+    {name: 'pragma_external'    , re: '\\/\\*[\\s]*external[\\s]*\\*\\/'},
+
     {name: 'comment'            , re: '//[^\n]*'},
     {name: 'comment'            , re: '\\/\\*[\\s\\S]*?\\*\\/'},
     {name: 'newline'            , re: '[\r\n\]+'},
@@ -187,6 +190,8 @@ const current = cxt => cxt.current < cxt.tokens.length
 
 const literal = str => by_pred(token => token.string == str, 'expected ' + str)
 
+const insignificant_types = new Set(['newline', 'pragma_external'])
+
 const by_pred = (pred, error) => {
   const result = cxt => {
     const token = current(cxt)
@@ -203,7 +208,8 @@ const by_pred = (pred, error) => {
       }
     }
 
-    if(token.type == 'newline') {
+    // Skip non-significant tokens if they were not asked for explicitly
+    if(insignificant_types.has(token.type)) {
       return result({...cxt, current: cxt.current + 1})
     }
 
@@ -225,7 +231,7 @@ export const eof = cxt => {
   if(c == null) {
     return {ok: true, cxt}
   }
-  if(c.type == 'newline') {
+  if(insignificant_types.has(c.type)) {
     return eof({...cxt, current: cxt.current + 1})
   }
   return {ok: false, error: 'unexpected token, expected eof', cxt}
@@ -1169,23 +1175,30 @@ const import_statement =
   // TODO import *, import as
   if_ok(
     seq([
-      literal('import'),
-      list(
-        ['{', '}'],
-        identifier,
-      ),
-      literal('from'),
-      string_literal
+      optional(by_type('pragma_external')),
+      seq([
+        literal('import'),
+        list(
+          ['{', '}'],
+          identifier,
+        ),
+        literal('from'),
+        string_literal
+      ])
     ]),
-    ({value: [_0, identifiers, _2, module], ...node}) => ({
-      ...node,
-      not_evaluatable: true,
-      type: 'import',
-      // TODO refactor hanlding of string literals. Drop quotes from value and
-      // fix codegen for string_literal
-      module: module.value.slice(1, module.value.length - 1),
-      children: identifiers.value,
-    })
+    ({value: [external, imp]}) => {
+      const {value: [_import, identifiers, _from, module], ...node} = imp
+      return {
+        ...node,
+        not_evaluatable: true,
+        type: 'import',
+        is_external: external != null,
+        // TODO refactor hanlding of string literals. Drop quotes from value and
+        // fix codegen for string_literal
+        module: module.value.slice(1, module.value.length - 1),
+        children: identifiers.value,
+      }
+    }
   )
 
 const export_statement =

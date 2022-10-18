@@ -98,6 +98,23 @@ Operators that are not supported by design (not pure functional):
   - increment, decrement
   - `delete`
 
+## Importing third-party libs
+
+Sometimes you want to import third party library that uses imperative language constructs. You may want to use it to perform side-effects or maybe it mutates data inside but still provides functional interface (does not mutate function arguments). Good example of such library is [bignumber.js](https://github.com/MikeMcl/bignumber.js/) - it makes a lot of mutating assignments inside, but `BigNumber` instances are immutable.
+
+To use `bignumber.js` you add an `external pragma` before the import:
+
+```
+/* external */
+import BigNumber from './path/to/bignumber.mjs';
+```
+
+`external pragma` is just a comment that contains only the literal string `external` (both styles for comments and extra whitespaces are allowed). Now the module is imported as a black box - you cannot debug `BigNumber` methods.
+
+![External import](docs/images/external_import.png)
+
+Currently every external is loaded once and cached until Leporello is restarted (TODO what happens if we load modules in iframe and then recreate iframe)
+
 ## Hotkeys
 
 See built-in Help

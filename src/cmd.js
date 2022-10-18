@@ -1,4 +1,5 @@
-import {map_object, pick_keys, collect_nodes_with_parents} from './utils.js'
+import {map_object, pick_keys, collect_nodes_with_parents, uniq} 
+  from './utils.js'
 import {
   is_eq, is_child, ancestry, ancestry_inc, map_tree,
   find_leaf, find_fn_by_location, find_node, find_error_origin_node
@@ -82,11 +83,96 @@ const run_code = (s, index, dirty_files) => {
     calltree_node_by_loc: null,
     // TODO keep selection_state?
     selection_state: null,
+    loading_external_imports_state: null,
   }
 
   if(!state.parse_result.ok) {
     return state
   } 
+
+  const external_import_nodes = 
+    Object
+      .entries(state.parse_result.modules)
+      .map(([module_name, node]) => 
+        node
+          .children
+          .filter(c => c.type == 'import' && c.is_external)
+          .map(node => ({node, module_name}))
+      )
+      .flat()
+
+  const external_imports = uniq( 
+    external_import_nodes.map(i => i.node.full_import_path)
+  )
+
+  if(
+    external_imports.length != 0
+    &&
+    (
+      state.external_imports_cache == null
+      ||
+      external_imports.some(i => state.external_imports_cache[i] == null)
+    )
+  ) {
+    return {...state, 
+      loading_external_imports_state: {
+        index,
+        external_imports,
+        external_import_nodes,
+      }
+    }
+  } else {
+    return external_imports_loaded(
+      state, 
+      state, 
+      state.external_imports_cache, 
+      index
+    )
+  }
+
+}
+
+const do_external_imports_loaded = (
+  state, 
+  prev_state, 
+  external_imports, 
+  index,
+) => {
+  if(
+    state.loading_external_imports_state 
+    != 
+    prev_state.loading_external_imports_state
+  ) {
+    // code was modified after loading started, discard
+    return state
+  }
+
+  if(external_imports != null) {
+    const errors = new Set(
+      Object
+        .entries(external_imports)
+        .filter(([url, result]) => !result.ok)
+        .map(([url, result]) => url)
+    )
+    if(errors.size != 0) {
+      const problems = state
+        .loading_external_imports_state
+        .external_import_nodes
+        .filter(({node}) => errors.has(node.full_import_path))
+        .map(({node, module_name}) => ({
+          index: node.index,
+          message: external_imports[node.full_import_path].error.message,
+          module: module_name,
+        }))
+      return {...state,
+        parse_result: {
+          ok: false,
+          cache: state.parse_result.cache,
+          problems,
+        }
+      }
+    }
+  }
 
   const node = find_call_node(state, index)
 
@@ -96,7 +182,11 @@ const run_code = (s, index, dirty_files) => {
     ||
     node.type == 'do' /* toplevel AST node */
   ) {
-    const result = eval_modules(state.parse_result.modules, state.parse_result.sorted)
+    const result = eval_modules(
+      state.parse_result.modules, 
+      state.parse_result.sorted,
+      external_imports
+    )
     const next = apply_eval_result(state, result)
 
     if(node == state.parse_result.modules[root_calltree_module(next)]) {
@@ -117,6 +207,7 @@ const run_code = (s, index, dirty_files) => {
   const result = eval_modules(
     state.parse_result.modules, 
     state.parse_result.sorted,
+    external_imports,
     {index: node.index, module: state.current_module},
   )
 
@@ -145,19 +236,44 @@ const run_code = (s, index, dirty_files) => {
   )
 }
 
+const external_imports_loaded = (
+  state, 
+  prev_state, 
+  external_imports, 
+  maybe_index,
+) => {
+  // index saved in loading_external_imports_state maybe stale, if cursor was
+  // moved after
+  // TODO refactor, make index controlled property saved in state?
+  const index = maybe_index ?? state.loading_external_imports_state.index
+
+  // TODO after edit we should fire embed_value_explorer, but we dont do it
+  // here because we dont have cursor position (index) here (see comment
+  // above). Currently it is fixed by having `external_imports_cache`, so code
+  // goes async path only on first external imports load
+  return {
+    ...do_external_imports_loaded(state, prev_state, external_imports, index), 
+    external_imports_cache: external_imports,
+    loading_external_imports_state: null
+  }
+}
+
 const input = (state, code, index) => {
   const files = {...state.files, [state.current_module]: code}
   const next = run_code({...state, files}, index, [state.current_module])
-  const effects1 = next.current_module == ''
+  const effect_save = next.current_module == ''
     ? {type: 'save_to_localstorage', args: ['code', code]}
     : {type: 'write', args: [
       next.current_module,
       next.files[next.current_module],
     ]}
+  if(next.loading_external_imports_state != null) {
+    return {state: next, effects: [effect_save]}
+  }
   const {state: next2, effects: effects2} = do_move_cursor(next, index)
   return {
     state: next2, 
-    effects: [effects1, effects2],
+    effects: [effect_save, effects2],
   }
 }
 
@@ -675,5 +791,6 @@ export const COMMANDS = {
   goto_problem,
   move_cursor,
   eval_selection,
+  external_imports_loaded,
   calltree: calltree_commands,
 }
