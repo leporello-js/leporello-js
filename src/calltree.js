@@ -430,13 +430,13 @@ export const toggle_expanded = (state, is_exp) => {
 
 const click = (state, id) => {
   const node = find_node(root_calltree_node(state), n => n.id == id)
-  // Effects are intentionally discarded, correct `set_caret_position` will be
-  // applied in `toggle_expanded`
   const {state: nextstate, effects} = jump_calltree_node(state, node)
   if(is_expandable(node)) {
+    // `effects` are intentionally discarded, correct `set_caret_position` will
+    // be applied in `toggle_expanded`
     return toggle_expanded(nextstate)
   } else {
-    return {state: nextstate}
+    return {state: nextstate, effects}
   }
 }
 

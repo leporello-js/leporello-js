@@ -1302,6 +1302,36 @@ const y = x()`
     assert_equal(map_expanded.children.length, 3)
   }),
 
+  test('click native calltree node', () => {
+    const s = test_initial_state(`Object.fromEntries([])`)
+    const index = 0 // Where call starts
+    const call = root_calltree_node(s).children[0]
+    const {state, effects} = COMMANDS.calltree.click(s, call.id)
+    assert_equal(
+      effects,
+      [
+        { type: 'set_caret_position', args: [ index ] },
+        {
+          "type": "embed_value_explorer",
+          "args": [
+            {
+              index,
+              result: {
+                "ok": true,
+                "value": {
+                  "*arguments*": [
+                    []
+                  ],
+                  "*return*": {}
+                }
+              }
+            }
+          ]
+        }
+      ]
+    )
+  }),
+
   test('jump_calltree_location' , () => {
     const code = `
       const x = foo => foo + 1;
@@ -1794,7 +1824,7 @@ const y = x()`
     assert_equal(s2.effects.type, 'unembed_value_explorer')
   }),
 
-  test_only('move_cursor concise fn throws', () => {
+  test('move_cursor concise fn throws', () => {
     const code = `
       const throws = () => {
         throw new Error('boom')
