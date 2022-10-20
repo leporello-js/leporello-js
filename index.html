@@ -13,17 +13,17 @@
         --shadow_color: rgb(171 200 214);
       }
 
-      html, body {
+      html, body, .app {
         height: 100%;
       }
 
-      body {
+      .app {
         margin: 0px;
         /* same as ace editor */
         font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace;
       }
 
-      body::backdrop {
+      .app::backdrop {
         background-color: white;
       }
 
@@ -375,12 +375,16 @@
       import {init} from './src/index.js'
 
       window.addEventListener('load', () => {
-        init(document.body)
+        init(document.getElementById('app'))
       })
     </script>
   </head>
 
   <body>
+    <iframe id='run_code' src='iframe.html' hidden>
+    </iframe>
+    <div id='app' class='app'>
+    </div>
   </body>
 
 </html>
