@@ -8,6 +8,10 @@ export class Logs {
     this.ui = ui
     this.el.addEventListener('keydown', (e) => {
 
+      if(e.key == 'Escape') {
+        this.ui.editor.focus()
+      }
+
       if(e.key == 'Enter') {
         // TODO reselect call node that was selected previously by calling
         // 'calltree.navigate_logs_position'

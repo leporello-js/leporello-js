@@ -129,6 +129,11 @@ export class ValueExplorer {
 
         Click - select and toggles expand
       */
+
+      if(e.key == 'F1') {
+        this.on_escape()
+        return
+      }
       
       const current_object = get_path(this.value, this.current_path)
 

@@ -23,6 +23,10 @@ export class CallTree {
       // Do not scroll
       e.preventDefault()
 
+      if(e.key == 'Escape') {
+        this.ui.editor.focus()
+      }
+
       if(e.key == 'F1') {
         this.ui.editor.focus_value_explorer(this.container)
       }

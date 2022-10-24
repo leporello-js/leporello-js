@@ -114,34 +114,19 @@ export class UI {
     this.root.addEventListener('keydown', () => this.clear_status(), true)
     this.root.addEventListener('click', () => this.clear_status(), true)
 
-    this.editor_container.addEventListener('keydown', e => {
-      // Bind F2 and F3 for embed_value_explorer
-      if(
-        e.key.toLowerCase() == 'w' && e.ctrlKey == true
-        ||
-        e.key == 'F2'
-      ){
+    this.root.addEventListener('keydown', e => {
+      if(e.key == 'F2') {
         this.set_active_tab('calltree')
       }
 
       if(e.key == 'F3'){
         this.set_active_tab('logs')
       }
-    })
 
-    const escape = e => {
-      if(
-        (e.key.toLowerCase() == 'w' && e.ctrlKey == true)
-        ||
-        e.key == 'Escape'
-      ){
-        this.editor.focus()
+      if(e.key == 'F5'){
+        this.fullscreen_editor()
       }
-    }
-
-    this.debugger.calltree.addEventListener('keydown', escape)
-    this.debugger.logs.addEventListener('keydown', escape)
-
+    })
 
     if(!FLAGS.embed_value_explorer) {
       this.eval = new Eval(this, this.eval_container)
@@ -270,12 +255,13 @@ export class UI {
     const options =  [
       ['Focus value explorer', 'F1'],
       ['Navigate value explorer', '← → ↑ ↓ or hjkl'],
-      ['Leave value explorer', 'Esc'],
-      ['Switch between editor and call tree view', 'F2 or Ctrl-w'],
+      ['Leave value explorer', 'F1 or Esc'],
+      ['Focus call tree view', 'F2'],
       ['Navigate call tree view', '← → ↑ ↓ or hjkl'],
       ['Leave call tree view', 'F2 or Esc'],
       ['Focus console logs', 'F3'],
       ['Navigate console logs', '↑ ↓ or jk'],
+      ['Leave console logs', 'F3 or Esc'],
       ['Jump to definition', 'F4', 'gd'],
       ['Expand selection to eval expression', 'Ctrl-↓ or Ctrl-j'],
       ['Collapse selection', 'Ctrl-↑ or Ctrl-k'],
@@ -318,6 +304,9 @@ export class UI {
   fullscreen_editor() {
     this.root.classList.toggle('fullscreen_editor')
     this.editor.ace_editor.resize()
+    if(this.root.classList.contains('fullscreen_editor')) {
+      this.editor.focus()
+    }
   }
 
 }

@@ -291,28 +291,10 @@ export class Editor {
 
     const VimApi = require("ace/keyboard/vim").CodeMirror.Vim
 
-
-    this.ace_editor.commands.bindKey("F2", "switch_window");
-    VimApi._mapCommand({
-      keys: '<C-w>',
-      type: 'action',
-      action: 'aceCommand',
-      actionArgs: { name: "switch_window" }
-    })
-    this.ace_editor.commands.addCommand({
-      name: 'switch_window',
-      exec: (editor) => {
-        this.ui.set_active_tab('calltree')
-      }
-    })
-
-    this.ace_editor.commands.bindKey("F3", "focus_logs");
-    this.ace_editor.commands.addCommand({
-      name: 'focus_logs',
-      exec: (editor) => {
-        this.ui.set_active_tab('logs')
-      }
-    })
+    // Remove commands binded to function keys that we are going to redefine
+    this.ace_editor.commands.removeCommand('openCommandPallete')
+    this.ace_editor.commands.removeCommand('toggleFoldWidget')
+    this.ace_editor.commands.removeCommand('goToNextError')
 
 
     this.ace_editor.commands.bindKey("F4", "goto_definition");
@@ -326,14 +308,6 @@ export class Editor {
       name: 'goto_definition',
       exec: (editor) => {
         this.goto_definition()
-      }
-    })
-
-    this.ace_editor.commands.bindKey("F5", "fullscreen_editor");
-    this.ace_editor.commands.addCommand({
-      name: 'fullscreen_editor',
-      exec: (editor) => {
-        this.ui.fullscreen_editor()
       }
     })
 
