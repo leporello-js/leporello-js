@@ -185,7 +185,8 @@ const do_external_imports_loaded = (
     const result = eval_modules(
       state.parse_result.modules, 
       state.parse_result.sorted,
-      external_imports
+      external_imports,
+      state.on_async_call,
     )
     const next = apply_eval_result(state, result)
 
@@ -208,6 +209,7 @@ const do_external_imports_loaded = (
     state.parse_result.modules, 
     state.parse_result.sorted,
     external_imports,
+    state.on_async_call,
     {index: node.index, module: state.current_module},
   )
 
@@ -737,6 +739,10 @@ const move_cursor = (s, index) => {
   return do_move_cursor(state, index)
 }
 
+const on_async_call = (state, ...args) => {
+  console.log('on_async_call', state, args)
+}
+
 const load_dir = (state, dir) => {
   const collect_files = dir => dir.kind == 'file' 
     ? [dir]
@@ -792,5 +798,6 @@ export const COMMANDS = {
   move_cursor,
   eval_selection,
   external_imports_loaded,
+  on_async_call,
   calltree: calltree_commands,
 }

@@ -2227,4 +2227,18 @@ const y = x()`
     )
   }),
 
+  test_only('async calls', () => {
+    const code = `
+      const fn = () => {
+      }
+      // Use Function constructor to exec impure code for testing
+      new Function('fn', 'globalThis.__run_async_call = fn')(fn)
+    `
+    const i = test_initial_state(code, {
+      on_async_call: (calls) => {console.log('test on async call', calls)}
+    })
+    globalThis.__run_async_call()
+    delete globalThis.__run_async_call
+  }),
+
 ]

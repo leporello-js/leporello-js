@@ -46,7 +46,10 @@ export const init = (container) => {
   })
 
   read_modules().then(initial_state => {
-    state = get_initial_state(initial_state)
+    state = get_initial_state({
+      ...initial_state, 
+      on_async_call: (...args) => exec('on_async_call', ...args)
+    })
     // Expose state for debugging
     globalThis.__state = state
     ui = new UI(container, state)

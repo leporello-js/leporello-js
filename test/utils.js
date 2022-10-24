@@ -27,12 +27,15 @@ export const assert_code_error = (codestring, error) => {
   assert_equal(result.error, error)
 }
 
-export const test_initial_state = code => {
-  return get_initial_state({
+export const test_initial_state = (code, state) => {
+  return get_initial_state(
+    {
+      ...state,
       files: typeof(code) == 'object' ? code : { '' : code},
       entrypoint: '',
       current_module: '',
-  })
+    },
+  )
 }
 
 export const stringify = val => 

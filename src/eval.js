@@ -56,6 +56,16 @@ type Call = {
 type Node = ToplevelCall | Call
 */
 
+// TODO just export const Iframe_Function?
+const make_function = globalThis.process != null
+  // Tests are run in Node.js, no iframe
+  ? (...args) => new Function(...args)
+  // Browser context, run code in iframe
+  : (...args) => {
+      const fn_constructor = globalThis.run_code.contentWindow.Function
+      return new fn_constructor(...args)
+    }
+
 const codegen_function_expr = (node, cxt, name) => {
   const do_codegen = n => codegen(n, cxt)
 
@@ -235,7 +245,13 @@ const codegen = (node, cxt, parent) => {
   }
 }
 
-export const eval_modules = (modules, sorted, external_imports, location) => {
+export const eval_modules = (
+  modules, 
+  sorted, 
+  external_imports, 
+  on_async_call,
+  location
+) => {
   // TODO gensym __modules, __exports
 
   // TODO bug if module imported twice, once as external and as regular
@@ -243,7 +259,7 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
   const codestring = 
     `
     let children, prev_children
-    // TODO use native array for stack?
+    // TODO use native array for stack for perf?
     const stack = new Array() 
 
     let call_counter = 0
@@ -252,6 +268,9 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
     let searched_location
     let found_call
 
+    let is_recording_async_calls
+    let is_toplevel_call = true
+
     const set_record_call = () => {
       for(let i = 0; i < stack.length; i++) {
         stack[i] = true
@@ -259,12 +278,14 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
     }
 
     const expand_calltree_node = (node) => {
+      is_recording_async_calls = false
       children = null
       try {
         node.fn.apply(node.context, node.args)
       } catch(e) {
         // do nothing. Exception was caught and recorded inside 'trace'
       }
+      is_recording_async_calls = true
       if(node.fn.__location != null) {
         // fn is hosted, it created call, this time with children
         const result = children[0]
@@ -319,6 +340,9 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
 
         let ok, value, error
 
+        const is_toplevel_call_copy = is_toplevel_call
+        is_toplevel_call = false
+
         try {
           value = fn(...args)
           ok = true
@@ -361,6 +385,12 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
             children = []
           }
           children.push(call)
+
+          is_toplevel_call = is_toplevel_call_copy
+
+          if(is_recording_async_calls && is_toplevel_call) {
+            on_async_call(children)
+          }
         }
       }
 
@@ -437,7 +467,14 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
     }
 
     const run = entrypoint => {
-      const __modules = {...external_imports}
+
+      is_recording_async_calls = false
+
+      const __modules = {
+        /* external_imports passed as an argument to function generated with
+         * 'new Function' constructor */
+        ...external_imports
+      }
       let current_call
 
     `
@@ -468,6 +505,8 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
            })()
          current_call.children = children
          if(!__modules['${m}'].calls.ok) {
+           is_recording_async_calls = true
+           children = null
            return __modules
          }
         `
@@ -475,6 +514,8 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
       .join('')
     +
     `
+      is_recording_async_calls = true
+      children = null
       return __modules
     }
 
@@ -485,12 +526,27 @@ export const eval_modules = (modules, sorted, external_imports, location) => {
     }
     `
 
-  const actions = new Function('external_imports', codestring)(
+  const actions = make_function(
+    'external_imports', 
+    'on_async_call', 
+    codestring
+  )(
+    /* external_imports */
     external_imports == null
-    ? null
-    : map_object(external_imports, (name, {module}) => 
-        ({exports: module, is_external: true})
+      ? null
+      : map_object(external_imports, (name, {module}) => 
+          ({exports: module, is_external: true})
+        )
+    ,
+
+    /* on_async_call */
+    calls => {
+      on_async_call(
+        calls.map(c => 
+          assign_code(modules, c)
+        )
       )
+    },
   )
 
   const calltree_actions =  {
@@ -581,6 +637,9 @@ account
 
 // Workaround with statement forbidden in strict mode (imposed by ES6 modules)
 // Also currently try/catch is not implemented TODO
+
+
+// TODO also create in Iframe Context?
 const eval_codestring = new Function('codestring', 'scope', 
   // Make a copy of `scope` to not mutate it with assignments
   `
