@@ -62,6 +62,7 @@ const make_function = globalThis.process != null
   ? (...args) => new Function(...args)
   // Browser context, run code in iframe
   : (...args) => {
+      /* access window object for iframe */
       const fn_constructor = globalThis.run_code.contentWindow.Function
       return new fn_constructor(...args)
     }
