@@ -57,15 +57,16 @@ type Node = ToplevelCall | Call
 */
 
 // TODO just export const Iframe_Function?
-const make_function = globalThis.process != null
-  // Tests are run in Node.js, no iframe
-  ? (...args) => new Function(...args)
-  // Browser context, run code in iframe
-  : (...args) => {
-      /* access window object for iframe */
-      const fn_constructor = globalThis.run_code.contentWindow.Function
-      return new fn_constructor(...args)
-    }
+const make_function = (...args) => {
+  if(globalThis.run_window == null) {
+    // Tests are run in Node.js or user have not opened run_window
+    return new Function(...args)
+  } else {
+    // Code run in browser and user opened run_window
+    const fn_constructor = globalThis.run_window.Function
+    return new fn_constructor(...args)
+  }
+}
 
 const codegen_function_expr = (node, cxt, name) => {
   const do_codegen = n => codegen(n, cxt)

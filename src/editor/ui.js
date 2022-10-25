@@ -1,4 +1,4 @@
-import {exec, get_state} from '../index.js'
+import {exec, get_state, open_run_window} from '../index.js'
 import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
@@ -67,6 +67,15 @@ export class UI {
             'Fullscreen'
           ),
           */
+
+          el('a', {
+            'class': 'open_run_window',
+            href: 'javascript: void(0)',
+            click: open_run_window,
+          },
+            '(Re)open run window (F6)'
+          ),
+
           this.options = el('div', 'options',
             el('label', {'for': 'standard'},
               el('input', {
@@ -125,6 +134,10 @@ export class UI {
 
       if(e.key == 'F5'){
         this.fullscreen_editor()
+      }
+
+      if(e.key == 'F6'){
+        open_run_window()
       }
     })
 

@@ -10,6 +10,13 @@ const EXAMPLE = `const fib = n =>
     : fib(n - 1) + fib(n - 2)
 fib(6)`
 
+export const open_run_window = () => {
+  if(globalThis.run_window != null) {
+    globalThis.run_window.close()
+  }
+  globalThis.run_window = open('about:blank')
+}
+
 const read_modules = async () => {
   const default_module = {'': localStorage.code || EXAMPLE}
   const current = {
