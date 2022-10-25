@@ -111,10 +111,10 @@ export class UI {
       ))
     )
 
-    this.root.addEventListener('keydown', () => this.clear_status(), true)
-    this.root.addEventListener('click', () => this.clear_status(), true)
+    window.addEventListener('keydown', () => this.clear_status(), true)
+    window.addEventListener('click', () => this.clear_status(), true)
 
-    this.root.addEventListener('keydown', e => {
+    window.addEventListener('keydown', e => {
       if(e.key == 'F2') {
         this.set_active_tab('calltree')
       }
