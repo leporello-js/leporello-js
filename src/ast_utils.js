@@ -63,6 +63,16 @@ export const collect_imports = module => {
   return by_module
 }
 
+export const collect_external_imports = modules =>
+  Object
+    .entries(modules)
+    .map(([module_name, node]) => 
+      node
+        .children
+        .filter(c => c.type == 'import' && c.is_external)
+        .map(node => ({node, module_name}))
+    )
+    .flat()
 
 export const find_leaf = (node, index) => {
   if(!(node.index <= index && node.index + node.length > index)){

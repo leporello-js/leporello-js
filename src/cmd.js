@@ -2,7 +2,8 @@ import {map_object, pick_keys, collect_nodes_with_parents, uniq}
   from './utils.js'
 import {
   is_eq, is_child, ancestry, ancestry_inc, map_tree,
-  find_leaf, find_fn_by_location, find_node, find_error_origin_node
+  find_leaf, find_fn_by_location, find_node, find_error_origin_node,
+  collect_external_imports
 } from './ast_utils.js'
 import {load_modules} from './parse_js.js'
 import {find_export} from './find_definitions.js'
@@ -90,19 +91,9 @@ const run_code = (s, index, dirty_files) => {
     return state
   } 
 
-  const external_import_nodes = 
-    Object
-      .entries(state.parse_result.modules)
-      .map(([module_name, node]) => 
-        node
-          .children
-          .filter(c => c.type == 'import' && c.is_external)
-          .map(node => ({node, module_name}))
-      )
-      .flat()
-
   const external_imports = uniq( 
-    external_import_nodes.map(i => i.node.full_import_path)
+    collect_external_imports(state.parse_result.modules)
+      .map(i => i.node.full_import_path)
   )
 
   if(
@@ -118,7 +109,6 @@ const run_code = (s, index, dirty_files) => {
       loading_external_imports_state: {
         index,
         external_imports,
-        external_import_nodes,
       }
     }
   } else {
@@ -155,9 +145,7 @@ const do_external_imports_loaded = (
         .map(([url, result]) => url)
     )
     if(errors.size != 0) {
-      const problems = state
-        .loading_external_imports_state
-        .external_import_nodes
+      const problems = collect_external_imports(state.parse_result.modules)
         .filter(({node}) => errors.has(node.full_import_path))
         .map(({node, module_name}) => ({
           index: node.index,

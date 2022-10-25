@@ -907,6 +907,50 @@ export const tests = [
     assert_equal(embed.args[0].result.value, 'foo_value')
   }),
 
+  test('module external cache error bug', () => {
+    const code = `
+      // external
+      import {foo_var} from 'foo.js'
+      console.log(foo_var)
+    `
+    const initial = test_initial_state(code)
+
+    // simulate module load error
+    const next = COMMANDS.external_imports_loaded(initial, initial, {
+      'foo.js': {
+        ok: false,
+        error: new Error('Failed to resolve module'),
+      }
+    })
+
+    const edited = `
+      // external
+      import {foo_var} from 'foo.js'
+      // edit
+      console.log(foo_var)
+    `
+
+    // edit code
+    const {state, effects} = COMMANDS.input(
+      next, 
+      edited, 
+      edited.lastIndexOf('foo_var'),
+    )
+
+    // Error must preserve after error
+    assert_equal(next.parse_result.ok, false)
+    assert_equal(
+      next.parse_result.problems, 
+      [
+        {
+          index: code.indexOf('import'),
+          message: 'Failed to resolve module',
+          module: '',
+        }
+      ]
+    )
+  }),
+
   // Static analysis
 
   test('undeclared', () => {
@@ -2227,7 +2271,7 @@ const y = x()`
     )
   }),
 
-  test_only('async calls', () => {
+  test('async calls', () => {
     const code = `
       const fn = () => {
       }
