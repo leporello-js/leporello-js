@@ -1,4 +1,4 @@
-import {map_object, pick_keys, collect_nodes_with_parents, uniq} 
+import {map_object, filter_object, pick_keys, collect_nodes_with_parents, uniq} 
   from './utils.js'
 import {
   is_eq, is_child, ancestry, ancestry_inc, map_tree,
@@ -105,6 +105,7 @@ const run_code = (s, index, dirty_files) => {
       external_imports.some(i => state.external_imports_cache[i] == null)
     )
   ) {
+    // Trigger loading of external modules
     return {...state, 
       loading_external_imports_state: {
         index,
@@ -112,10 +113,16 @@ const run_code = (s, index, dirty_files) => {
       }
     }
   } else {
+    // Modules were loaded and cached, proceed
     return external_imports_loaded(
       state, 
       state, 
-      state.external_imports_cache, 
+      state.external_imports_cache == null
+      ? null
+      : filter_object(
+          state.external_imports_cache,
+          (module_name, module) => external_imports.includes(module_name)
+        ),
       index
     )
   }

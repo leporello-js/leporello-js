@@ -951,6 +951,34 @@ export const tests = [
     )
   }),
 
+  test('module external cache invalidation bug', () => {
+    const code = `
+      // external
+      import {foo_var} from 'foo.js'
+    `
+    const initial = test_initial_state(code)
+
+    // simulate module load error
+    const next = COMMANDS.external_imports_loaded(initial, initial, {
+      'foo.js': {
+        ok: false,
+        error: new Error('Failed to resolve module'),
+      }
+    })
+
+    const edited = ``
+
+    // edit code
+    const {state, effects} = COMMANDS.input(
+      next, 
+      edited, 
+      0,
+    )
+
+    assert_equal(state.parse_result.ok, true)
+  }),
+
+
   // Static analysis
 
   test('undeclared', () => {
