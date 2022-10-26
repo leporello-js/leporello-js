@@ -391,7 +391,12 @@ export const eval_modules = (
           is_toplevel_call = is_toplevel_call_copy
 
           if(is_recording_async_calls && is_toplevel_call) {
-            on_async_call(children)
+            if(children.length != 1) {
+              throw new Error('illegal state')
+            }
+            const call = children[0]
+            children = null
+            on_async_call(call)
           }
         }
       }
@@ -542,13 +547,7 @@ export const eval_modules = (
     ,
 
     /* on_async_call */
-    calls => {
-      on_async_call(
-        calls.map(c => 
-          assign_code(modules, c)
-        )
-      )
-    },
+    call => on_async_call(assign_code(modules, call))
   )
 
   const calltree_actions =  {

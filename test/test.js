@@ -2306,11 +2306,27 @@ const y = x()`
       // Use Function constructor to exec impure code for testing
       new Function('fn', 'globalThis.__run_async_call = fn')(fn)
     `
-    const i = test_initial_state(code, {
-      on_async_call: (calls) => {console.log('test on async call', calls)}
-    })
-    globalThis.__run_async_call()
-    //delete globalThis.__run_async_call
+
+    const {get_async_call, on_async_call} = (new Function(`
+      let call
+      return {
+        get_async_call() {
+          return call
+        },
+        on_async_call(_call) {
+          call = _call
+        }
+      }
+    `))()
+
+    const i = test_initial_state(code, { on_async_call })
+    globalThis.__run_async_call(10)
+    const call = get_async_call()
+    assert_equal(call.fn.name, 'fn')
+    assert_equal(call.code.index, code.indexOf('() => {'))
+    assert_equal(call.args, [10])
+    const state = COMMANDS.on_async_call(i, call)
+    assert_equal(state.async_calls, [call])
   }),
 
 ]

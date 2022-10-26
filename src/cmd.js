@@ -71,6 +71,7 @@ const run_code = (s, index, dirty_files) => {
     ...s,
     parse_result,
     calltree: null,
+    async_calls: null,
 
     // Shows that calltree is brand new and requires entire rerender
     calltree_changed_token: {},
@@ -82,7 +83,6 @@ const run_code = (s, index, dirty_files) => {
     calltree_node_is_expanded: null,
     frames: null,
     calltree_node_by_loc: null,
-    // TODO keep selection_state?
     selection_state: null,
     loading_external_imports_state: null,
   }
@@ -734,8 +734,10 @@ const move_cursor = (s, index) => {
   return do_move_cursor(state, index)
 }
 
-const on_async_call = (state, ...args) => {
-  console.log('on_async_call', state, args)
+const on_async_call = (state, call) => {
+  return {...state, 
+    async_calls: [...(state.async_calls ?? []), call]
+  }
 }
 
 const load_dir = (state, dir) => {

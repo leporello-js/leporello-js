@@ -447,10 +447,15 @@ nodes that are in the second tree that are not in the first tree
 */
 const merge_calltrees = (prev, next) => {
   return Object.fromEntries(
-    Object.entries(prev).map(([module, {exports, calls}]) =>
+    Object.entries(prev).map(([module, {is_external, exports, calls}]) =>
       [
         module, 
-        {exports, calls: merge_calltree_nodes(calls, next[module].calls)[1]}
+        is_external
+          ? {is_external, exports}
+          : {
+              exports, 
+              calls: merge_calltree_nodes(calls, next[module].calls)[1]
+            }
       ]
     )
   )

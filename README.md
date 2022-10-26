@@ -113,7 +113,9 @@ import BigNumber from './path/to/bignumber.mjs';
 
 ![External import](docs/images/external_import.png)
 
-Currently every external is loaded once and cached until Leporello is restarted (TODO what happens if we load modules in iframe and then recreate iframe)
+Currently every external is loaded once and cached until Leporello is restarted 
+(TODO what happens if we load modules in iframe and then recreate iframe)
+(TODO serve modules from service worker, change host every time)
 
 ## Hotkeys
 
@@ -122,6 +124,10 @@ See built-in Help
 ## Editing local files
 
 Editing local files is possible via [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API). Click "Allow access to local project folder" to grant access to local directory.
+
+## Run and debug UI code in separate window
+
+TODO
 
 
 ## Run Leporello locally

@@ -10,6 +10,17 @@ const EXAMPLE = `const fib = n =>
     : fib(n - 1) + fib(n - 2)
 fib(6)`
 
+
+// By default run code in hidden iframe, until user explicitly opens visible
+// window
+globalThis.run_window = (() => {
+  const iframe = document.createElement('iframe')
+  iframe.src = 'about:blank'
+  iframe.setAttribute('hidden', '')
+  document.body.appendChild(iframe)
+  return iframe.contentWindow
+})()
+
 export const open_run_window = () => {
   if(globalThis.run_window != null) {
     globalThis.run_window.close()
