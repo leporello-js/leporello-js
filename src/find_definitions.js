@@ -154,39 +154,6 @@ export const find_definitions = (ast, scope = {}, closure_scope = {}, module_nam
   }
 }
 
-// see https://stackoverflow.com/a/29855511
-
-// Joins path segments.  Preserves initial "/" and resolves ".." and "."
-// Does not support using ".." to go above/outside the root.
-// This means that join("foo", "../../bar") will not resolve to "../bar"
-
-const join = new Function(`
-  // Split the inputs into a list of path commands.
-  var parts = [];
-  for (var i = 0, l = arguments.length; i < l; i++) {
-    parts = parts.concat(arguments[i].split("/"));
-  }
-  // Interpret the path commands to get the new resolved path.
-  var newParts = [];
-  for (i = 0, l = parts.length; i < l; i++) {
-    var part = parts[i];
-    // Remove leading and trailing slashes
-    // Also remove "." segments
-    if (!part || part === ".") continue;
-    // Interpret ".." to pop the last segment
-    if (part === "..") newParts.pop();
-    // Push new path segments.
-    else newParts.push(part);
-  }
-  // Preserve the initial slash if there was one.
-  if (parts[0] === "") newParts.unshift("");
-  // Turn back into a single string path.
-  return newParts.join("/") || (newParts.length ? "/" : ".");
-`)
-
-const concat_path = (base,  imported) => 
-  base == '' ? join(imported) : join(base, '..', imported)
-
 export const find_export = (name, module) => {
   return map_find(module.stmts, n => {
     if(n.type != 'export') {
@@ -197,6 +164,16 @@ export const find_export = (name, module) => {
   })
 }
 
+const BASE = 'dummy://dummy/'
+const concat_path = (base, i) => {
+  const result = new URL(i, BASE + base).toString()
+  if(result.lastIndexOf(BASE) == 0) {
+    return result.replace(BASE, '')
+  } else {
+    return result
+  }
+  return result
+}
 
 export const topsort_modules = (modules) => {
   const sort_module_deps = (module) => {

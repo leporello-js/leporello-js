@@ -10,7 +10,14 @@ const load_external_imports = async state => {
   }
   const urls = state.loading_external_imports_state.external_imports
   const results = await Promise.allSettled(
-    urls.map(u => import(u))
+    urls.map(u => import(
+      /^\w+:\/\//.test(u)    
+        ? // starts with protocol, import as is
+          u
+        : //local path, load using File System Access API, see service_worker.js
+          // Append fake host that will be intercepted in service worker
+          'https://leporello.import/' + u
+    ))
   )
   const modules = Object.fromEntries(
     results.map((r, i) => (

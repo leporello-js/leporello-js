@@ -2310,7 +2310,7 @@ const y = x()`
       on_async_call: (calls) => {console.log('test on async call', calls)}
     })
     globalThis.__run_async_call()
-    delete globalThis.__run_async_call
+    //delete globalThis.__run_async_call
   }),
 
 ]

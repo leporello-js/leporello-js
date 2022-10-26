@@ -2,6 +2,7 @@ export const globals = new Set([
   'globalThis',
   // TODO Promise,
   // TODO Symbol
+  'URL',
   'Set', 
   'Map', 
   "Infinity",
