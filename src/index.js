@@ -26,6 +26,7 @@ export const open_run_window = () => {
     globalThis.run_window.close()
   }
   globalThis.run_window = open('about:blank')
+  exec('rerun_code')
 }
 
 const read_modules = async () => {

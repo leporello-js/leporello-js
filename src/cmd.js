@@ -255,6 +255,10 @@ const external_imports_loaded = (
   }
 }
 
+// TODO refactor, make index controlled property and get it from state instead
+// of setting to zero
+const rerun_code = state => run_code(state, 0)
+
 const input = (state, code, index) => {
   const files = {...state.files, [state.current_module]: code}
   const next = run_code({...state, files}, index, [state.current_module])
@@ -785,6 +789,7 @@ export const get_initial_state = state => {
 
 export const COMMANDS = {
   input, 
+  rerun_code,
   load_dir,
   create_file,
   step_into,
