@@ -159,7 +159,7 @@ const codegen = (node, cxt, parent) => {
           return el.value
         } else if(el.type == 'key_value_pair') {
           return '[' + do_codegen(el.key.type == 'computed_property' ? el.key.expr : el.key) + ']' 
-            + ': (' + do_codegen(el.value) + ')'
+            + ': (' + do_codegen(el.value, el) + ')'
         } else {
           throw new Error('unknown node type ' + el.type)
         }
@@ -169,12 +169,18 @@ const codegen = (node, cxt, parent) => {
   } else if(node.type == 'function_call'){
     return codegen_function_call(node, cxt)
   } else if(node.type == 'function_expr'){
-    const name = parent != null && parent.type == 'const'
-        // TODO here we deduce fn name from left-side of assignment
-        // TODO name inference is much more sophisticated, for example
-        // `{foo: () => {...}}` infers name `foo`
-        ? parent.name
-        : 'anonymous'
+    let name
+    // TODO here we deduce fn name from left-side of assignment
+    // TODO name inference is much more sophisticated, for example
+    // `{foo: () => {...}}` infers name `foo`
+    if(parent?.type == 'const') {
+      name = parent.name
+    } else if(parent?.type == 'key_value_pair') {
+      // unwrap quotes with JSON.parse
+      name = JSON.parse(parent.key.value)
+    } else {
+      name = 'anonymous'
+    }
     return codegen_function_expr(node, cxt, name)
   } else if(node.type == 'ternary'){
     return ''

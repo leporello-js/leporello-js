@@ -459,6 +459,14 @@ export const tests = [
     )
   }),
 
+  test('function name from object literal', () => {
+    const i = test_initial_state(`
+      const fns = {x: () => 1}
+      fns.x()
+    `)
+    assert_equal(root_calltree_node(i).children[0].fn.name, 'x')
+  }),
+
   test('function name', () => {
     // TODO
     /*
