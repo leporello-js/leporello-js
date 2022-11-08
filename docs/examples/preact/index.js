@@ -14,7 +14,7 @@ import {h, render} from 'https://unpkg.com/preact?module';
 /* external */
 import {Stateful} from './stateful.js'
 
-const Counter = Stateful({
+const Fibonacci = Stateful({
   getInitialState: () => ({index: 0}),
 
   handlers: {
@@ -35,4 +35,4 @@ const Counter = Stateful({
     )
 })
 
-render(h(Counter), globalThis.document.body)
+render(h(Fibonacci), globalThis.document.body)
