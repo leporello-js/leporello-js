@@ -6,14 +6,21 @@
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 
+const has_custom_toString = object =>
+  object.toString != globalThis.run_window.Object.prototype.toString
+  &&
+  object.toString != Object.prototype.toString
+
+const isError = object => 
+  object instanceof Error
+  ||
+  object instanceof globalThis.run_window.Error
+
 const displayed_entries = object => {
   if(Array.isArray(object)) {
     return object.map((v, i) => [i, v])
   } else {
-    const result = Object.entries(object)
-    return (object instanceof Error)
-      ? [['message', object.message], ...result]
-      : result
+    return Object.entries(object)
   }
 }
 
@@ -32,7 +39,7 @@ export const stringify_for_header = v => {
   } else if(type == 'function') {
     // TODO clickable link, 'fn', cursive
     return 'fn ' + v.name
-  } else if(v instanceof Error) {
+  } else if(isError(v)) {
     return v.toString()
   } else if(type == 'object') {
     if(Array.isArray(v)) {
@@ -41,6 +48,8 @@ export const stringify_for_header = v => {
       } else {
         return '[…]'
       }
+    } else if(has_custom_toString(v)) {
+      return v.toString()
     } else {
       if(displayed_entries(v).length == 0) {
         return '{}'
@@ -61,7 +70,7 @@ export const header = object => {
   } else if(object == null) {
     return 'null'
   } else if(typeof(object) == 'object') {
-    if(object instanceof Error) {
+    if(isError(object)) {
       return object.toString()
     } else if(Array.isArray(object)) {
       return '['
@@ -69,7 +78,7 @@ export const header = object => {
           .map(stringify_for_header)
           .join(', ')
         + ']'
-    } else if(object.toString != Object.prototype.toString) {
+    } else if(has_custom_toString(object)) {
       return object.toString()
     } else {
       const inner = displayed_entries(object)
