@@ -2302,7 +2302,12 @@ const y = x()`
   test('async calls', () => {
     const code = `
       const fn = () => {
+        fn2()
       }
+      
+      const fn2 = () => {
+      }
+
       // Use Function constructor to exec impure code for testing
       new Function('fn', 'globalThis.__run_async_call = fn')(fn)
     `
@@ -2327,6 +2332,10 @@ const y = x()`
     assert_equal(call.args, [10])
     const state = COMMANDS.on_async_call(i, call)
     assert_equal(state.async_calls, [call])
+
+    // Expand call
+    const {state: expanded} = COMMANDS.calltree.click(state, call.id)
+    assert_equal(expanded.async_calls[0].children[0].fn.name, 'fn2')
   }),
 
 ]

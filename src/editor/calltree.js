@@ -162,12 +162,32 @@ export class CallTree {
 
   render_expand_node(prev_state, state) {
     this.state = state
+
     this.do_render_expand_node(
       prev_state.calltree_node_is_expanded,
       state.calltree_node_is_expanded,
       root_calltree_node(prev_state),
       root_calltree_node(state),
     )
+
+    if(prev_state.async_calls != null) {
+      // Expand already existing async calls
+      for(let i = 0; i < prev_state.async_calls.length; i++) {
+        this.do_render_expand_node(
+          prev_state.calltree_node_is_expanded,
+          state.calltree_node_is_expanded,
+          prev_state.async_calls[i],
+          state.async_calls[i],
+        )
+      }
+      // Add new async calls
+      for(let i = prev_state.async_calls.length; i < state.async_calls.length; i++) {
+        this.async_calls_root.appendChild(
+          this.render_node(state.async_calls[i])
+        )
+      }
+    }
+
     this.render_select_node(prev_state, state)
   }
 
@@ -194,7 +214,7 @@ export class CallTree {
     }
   }
 
-  // TODO on hover highlight line where function defined/
+  // TODO on hover highlight line where function defined
   // TODO hover ?
   render_calltree(state){
     this.clear_calltree()
@@ -202,5 +222,19 @@ export class CallTree {
     const root = root_calltree_node(this.state)
     this.container.appendChild(this.render_node(root))
     this.render_select_node(null, state)
+  }
+
+  render_async_calls(state) {
+    this.state = state
+    this.container.appendChild(
+      el('div', 'callnode', 
+        el('div', 'call_el',
+          el('i', '', 'async calls'),
+          this.async_calls_root = el('div', 'callnode',
+            state.async_calls.map(call => this.render_node(call))
+          )
+        )
+      )
+    )
   }
 }

@@ -18,6 +18,18 @@ export const do_pp_calltree = tree => ({
   children: tree.children && tree.children.map(do_pp_calltree)
 })
 
+const find_calltree_node = (state, id) => {
+  return find_node(
+    {
+      children: [
+        root_calltree_node(state),
+        {children: state.async_calls},
+      ]
+    },
+    n => n.id == id
+  )
+}
+
 const is_stackoverflow = node =>
   // Chrome
   node.error.message == 'Maximum call stack size exceeded'
@@ -115,7 +127,6 @@ export const add_frame = (
   return set_active_calltree_node(result, active_calltree_node, current_calltree_node)
 }
 
-
 const replace_calltree_node = (root, node, replacement) => {
   const do_replace = root => {
     if(root.id == node.id) {
@@ -151,19 +162,39 @@ const replace_calltree_node = (root, node, replacement) => {
   return result
 }
 
+const replace_calltree_node_in_state = (state, node, replacement) => {
+  const root = root_calltree_module(state)
+
+  // Update calltree, replacing node with expanded node
+  const {exports, calls} = state.calltree[root]
+
+  const replaced = replace_calltree_node(
+    {
+      children: [
+        calls,
+        {children: state.async_calls},
+      ]
+    },
+    node,
+    replacement
+  )
+
+  const calltree = {...state.calltree,
+    [root]: {
+      exports, 
+      calls: replaced.children[0],
+    }
+  }
+  return {...state, calltree, async_calls: replaced.children[1].children}
+}
+
 const expand_calltree_node = (state, node) => {
   if(node.has_more_children) {
-    const root = root_calltree_module(state)
     const next_node = state.calltree_actions.expand_calltree_node(node)
-    // Update calltree, replacing node with expanded node
-    const {exports, calls} = state.calltree[root]
-    const calltree = {...state.calltree,
-      [root]: {
-        exports, 
-        calls: replace_calltree_node(calls, node, next_node),
-      }
+    return {
+      state: replace_calltree_node_in_state(state, node, next_node), 
+      node: next_node
     }
-    return {state: {...state, calltree}, node: next_node}
   } else {
     return {state, node}
   }
@@ -187,11 +218,27 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
 
   /* Whether to show fn body (true) or callsite (false) */
   let show_body
-  const [parent] = path_to_root(
-    root_calltree_node(state),
+
+  const [_parent] = path_to_root(
+    {
+      children: [
+        root_calltree_node(state),
+        {children: state.async_calls},
+      ]
+    },
     current_calltree_node
   )
-  if(current_calltree_node.toplevel) {
+
+  const parent = _parent.id == null
+    ? _parent.children[0]
+    : _parent
+
+  if(
+    current_calltree_node.toplevel 
+    || 
+    /* async call */
+    parent == current_calltree_node
+  ) {
     show_body = true
   } else if(is_native_fn(current_calltree_node)) {
     show_body = false
@@ -429,7 +476,7 @@ export const toggle_expanded = (state, is_exp) => {
 }
 
 const click = (state, id) => {
-  const node = find_node(root_calltree_node(state), n => n.id == id)
+  const node = find_calltree_node(state, id)
   const {state: nextstate, effects} = jump_calltree_node(state, node)
   if(is_expandable(node)) {
     // `effects` are intentionally discarded, correct `set_caret_position` will

@@ -172,10 +172,17 @@ export const render_common_side_effects = (prev, next, command, ui) => {
       render_coloring(ui, next)
       ui.editor.unembed_value_explorer()
     } else {
+
+      if(prev.async_calls == null && next.async_calls != null) {
+        ui.calltree.render_async_calls(next)
+      }
+
       if(
         prev.calltree != next.calltree 
         || 
         prev.calltree_node_is_expanded != next.calltree_node_is_expanded
+        ||
+        prev.async_calls != next.async_calls
       ) {
         ui.calltree.render_expand_node(prev, next)
       }

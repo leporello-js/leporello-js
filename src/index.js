@@ -10,6 +10,15 @@ const EXAMPLE = `const fib = n =>
     : fib(n - 1) + fib(n - 2)
 fib(6)`
 
+const set_error_handler = w => {
+  // TODO err.message
+  w.onerror = (msg, src, lineNum, colNum, err) => {
+    ui.set_status(msg)
+  }
+  w.addEventListener('unhandledrejection', (event) => {
+    ui.set_status(event.reason)
+  })
+}
 
 // By default run code in hidden iframe, until user explicitly opens visible
 // window
@@ -18,6 +27,7 @@ globalThis.run_window = (() => {
   iframe.src = 'about:blank'
   iframe.setAttribute('hidden', '')
   document.body.appendChild(iframe)
+  set_error_handler(iframe.contentWindow)
   return iframe.contentWindow
 })()
 
@@ -56,13 +66,7 @@ let ui
 let state
 
 export const init = (container) => {
-  // TODO err.message
-  window.onerror = (msg, src, lineNum, colNum, err) => {
-    ui.set_status(msg)
-  }
-  window.addEventListener('unhandledrejection', (event) => {
-    ui.set_status(event.reason)
-  })
+  set_error_handler(window)
 
   read_modules().then(initial_state => {
     state = get_initial_state({
