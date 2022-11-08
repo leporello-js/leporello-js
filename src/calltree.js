@@ -230,7 +230,7 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
   )
 
   const parent = _parent.id == null
-    ? _parent.children[0]
+    ? current_calltree_node
     : _parent
 
   if(
