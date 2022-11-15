@@ -18,8 +18,8 @@ const Fibonacci = Stateful({
   getInitialState: () => ({index: 0}),
 
   handlers: {
-    prev: ({index}) => ({index: index - 1}),
-    next: ({index}) => ({index: index + 1}),
+    prev: ({index}, event) => ({index: index - 1}),
+    next: ({index}, event) => ({index: index + 1}),
   },
   
   render: (props, state, handlers) => 
