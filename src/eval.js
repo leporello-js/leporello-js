@@ -31,7 +31,7 @@ that records invocation. So its call will be recorded.
 Note that it is not enough to record all invocation at call site, because
 hosted function can be called by native functions (for example Array::map).
 
-For each invocation, we can replay function body with metacirculat interpreter,
+For each invocation, we can replay function body with metacircular interpreter,
 collecting information for editor
 */
 
@@ -602,7 +602,7 @@ export const eval_tree = node => {
       modules: {'': node}}, 
       sorted: ['']
     }
-  ).calltree[''].calls
+  ).calltree
 }
 
 
@@ -998,7 +998,7 @@ const apply_assignments = (do_node, assignments) => {
 }
 
 
-const eval_statement = (s, scope, calls, calltree) => {
+const eval_statement = (s, scope, calls, modules) => {
   if(s.type == 'do') {
     const node = s
     const {ok, assignments, returned, stmts, calls: nextcalls} = node.stmts.reduce(
@@ -1013,7 +1013,7 @@ const eval_statement = (s, scope, calls, calltree) => {
             assignments: next_assignments, 
             scope: nextscope, 
             calls: next_calls, 
-          } = eval_statement(s, scope, calls, calltree)
+          } = eval_statement(s, scope, calls, modules)
           return {
             ok,
             returned,
@@ -1137,7 +1137,7 @@ const eval_statement = (s, scope, calls, calltree) => {
   } else if(s.type == 'import') {
     const children = s.imports.map(i => (
       {...i, 
-        result: {ok: true, value: calltree[s.full_import_path].exports[i.value]}
+        result: {ok: true, value: modules[s.full_import_path][i.value]}
       }
     ))
     const imported_scope = Object.fromEntries(children.map(i => [i.value, i.result.value]))
@@ -1262,7 +1262,7 @@ const eval_statement = (s, scope, calls, calltree) => {
   }
 }
 
-export const eval_frame = (calltree_node, calltree) => {
+export const eval_frame = (calltree_node, modules) => {
   if(calltree_node.has_more_children) {
     throw new Error('illegal state')
   }
@@ -1272,7 +1272,7 @@ export const eval_frame = (calltree_node, calltree) => {
         node,
         {}, 
         calltree_node.children,
-        calltree,
+        modules,
       ).node
   } else {
     // TODO default values for destructuring can be function calls

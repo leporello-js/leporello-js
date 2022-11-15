@@ -42,6 +42,7 @@ const apply_eval_result = (state, eval_result) => {
     calltree: eval_result.calltree,
     calltree_actions: eval_result.calltree_actions,
     logs: {logs, log_position: null},
+    modules: eval_result.modules,
   }
 }
 
@@ -69,6 +70,7 @@ const run_code = (s, index, dirty_files) => {
     ...s,
     parse_result,
     calltree: null,
+    modules: null,
     async_calls: null,
 
     // Shows that calltree is brand new and requires entire rerender

@@ -633,8 +633,8 @@ export const tests = [
         'b'  : 'import {a} from "a"; export const b = a*2;',
       }
     )
-    const calltree = eval_modules(parsed).calltree;
-    const frame = eval_frame(calltree.b.calls, calltree)
+    const {calltree, modules} = eval_modules(parsed);
+    const frame = eval_frame(calltree, modules)
     assert_equal(frame.children[1].result, {ok: true})
     assert_equal(frame.children[1].children[0].children[1].result, {ok: true, value: 2})
   }),
@@ -757,8 +757,8 @@ export const tests = [
       }
     )
     assert_equal(parsed.sorted, ['a', 'b', 'c1', 'c2', 'd'])
-    const result = eval_modules(parsed).calltree;
-    assert_equal(result.d.exports.d, 8)
+    const modules = eval_modules(parsed).modules;
+    assert_equal(modules.d.d, 8)
   }),
 
   test('module loaded just once', () => {
@@ -779,10 +779,10 @@ export const tests = [
         'leaf'  : 'export const leaf = {}',
       }
     )
-    const mods = eval_modules(parsed).calltree
+    const mods = eval_modules(parsed).modules
     // Check that the same symbol improted through different paths gives the
     // same result
-    assert_equal(mods.root.exports.is_eq, true)
+    assert_equal(mods.root.is_eq, true)
   }),
 
   test('bug parser pragma external', () => {

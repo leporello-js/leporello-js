@@ -41,17 +41,15 @@ export const calltree_node_loc = node => node.toplevel
     ? {module: node.module}
     : node.fn.__location
 
-// Finds the last module that was evaluated. If all modules evaluated without
-// problems, then it is the entrypoint module. Else it is the module that
-// throws error
-export const root_calltree_module = state =>
-  findLast(
-    state.parse_result.sorted,
-    module => state.calltree[module] != null
-  )
-
 export const root_calltree_node = state =>
-  state.calltree[root_calltree_module(state)].calls
+  // Returns calltree node for toplevel
+  // It is either toplevel for entrypoint module, or for module that throw
+  // error and prevent entrypoint module from executing.
+  // state.calltree[1] is async calls
+  state.calltree[0]
+
+export const root_calltree_module = state =>
+  root_calltree_node(state).module
 
 export const is_native_fn = calltree_node =>
   !calltree_node.toplevel && calltree_node.fn.__location == null
@@ -109,7 +107,7 @@ export const add_frame = (
 ) => {
   let with_frame
   if(state.frames?.[active_calltree_node.id] == null) {
-    const frame = eval_frame(active_calltree_node, state.calltree)
+    const frame = eval_frame(active_calltree_node, state.modules)
     const coloring = color(frame)
     with_frame = {...state, 
       frames: {...state.frames, 
@@ -162,16 +160,13 @@ const replace_calltree_node = (root, node, replacement) => {
   return result
 }
 
+// TODO remove, after refactoring async_calls
 const replace_calltree_node_in_state = (state, node, replacement) => {
-  const root = root_calltree_module(state)
-
-  // Update calltree, replacing node with expanded node
-  const {exports, calls} = state.calltree[root]
 
   const replaced = replace_calltree_node(
     {
       children: [
-        calls,
+        root_calltree_node(state),
         {children: state.async_calls},
       ]
     },
@@ -179,13 +174,10 @@ const replace_calltree_node_in_state = (state, node, replacement) => {
     replacement
   )
 
-  const calltree = {...state.calltree,
-    [root]: {
-      exports, 
-      calls: replaced.children[0],
-    }
+  return {...state, 
+    calltree: {children: [replaced.children[0]]},
+    async_calls: replaced.children[1].children,
   }
-  return {...state, calltree, async_calls: replaced.children[1].children}
 }
 
 const expand_calltree_node = (state, node) => {
@@ -257,7 +249,7 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
 
   const loc = show_body
     ? calltree_node_loc(next.active_calltree_node)
-    : find_callsite(next.calltree, active_calltree_node, current_calltree_node)
+    : find_callsite(next.modules, active_calltree_node, current_calltree_node)
 
   return {
     state: {...next, current_module: loc.module},
@@ -452,8 +444,8 @@ const arrow_right = state => {
   }
 }
 
-const find_callsite = (calltree, parent, node) => {
-  const frame = eval_frame(parent, calltree)
+const find_callsite = (modules, parent, node) => {
+  const frame = eval_frame(parent, modules)
   const result = find_node(frame, n => n.result?.call == node)
   return {module: calltree_node_loc(parent).module, index: result.index}
 }
