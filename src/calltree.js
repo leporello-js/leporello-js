@@ -691,10 +691,7 @@ export const find_call = (state, index) => {
   }
 
   const loc = {index: node.index, module: state.current_module}
-  const {calltree, call} = state.calltree_actions.find_call(
-    root_calltree_module(state), 
-    loc
-  )
+  const {calltree, call} = state.calltree_actions.find_call(loc)
   if(call == null) {
     return add_calltree_node_by_loc(
       // Remove active_calltree_node

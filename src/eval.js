@@ -310,9 +310,9 @@ export const eval_modules = (
       }
     }
 
-    const find_call = (entrypoint, location) => {
+    const find_call = (location) => {
       searched_location = location
-      const calltree = run(entrypoint)
+      const calltree = run()
       searched_location = null
       const call = found_call
       found_call = null
@@ -479,7 +479,7 @@ export const eval_modules = (
       }
     }
 
-    const run = entrypoint => {
+    const run = () => {
 
       is_recording_async_calls = false
 
@@ -540,10 +540,14 @@ export const eval_modules = (
     `
 
   const actions = make_function(
+    'entrypoint',
     'external_imports', 
     'on_async_call', 
     codestring
   )(
+    /* entrypoint */
+    sorted[sorted.length - 1],
+
     /* external_imports */
     external_imports == null
       ? null
@@ -561,8 +565,8 @@ export const eval_modules = (
       const expanded = actions.expand_calltree_node(node)
       return assign_code(modules, expanded)
     },
-    find_call: (entrypoint, loc) => {
-      const {calltree, call} = actions.find_call(entrypoint, loc)
+    find_call: (loc) => {
+      const {calltree, call} = actions.find_call(loc)
       return {
         calltree: assign_code_calltree(modules, calltree),
         // TODO: `call` does not have `code` property here. Currently it is
@@ -572,14 +576,12 @@ export const eval_modules = (
     }
   }
 
-  const entrypoint = sorted[sorted.length - 1]
-
   let calltree, call
 
   if(location == null) {
-    calltree = actions.run(entrypoint)
+    calltree = actions.run()
   } else {
-    const result = calltree_actions.find_call(entrypoint, location)
+    const result = calltree_actions.find_call(location)
     calltree = result.calltree
     call = result.call
   }
