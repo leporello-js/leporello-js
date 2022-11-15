@@ -838,9 +838,9 @@ const navigate_logs_increment = (state, increment) => {
 }
 
 const navigate_logs_position = (state, log_position) => {
-  const node = find_node(
-    root_calltree_node(state), 
-    n => n.id == state.logs.logs[log_position].id
+  const node = find_calltree_node(
+    state,
+    state.logs.logs[log_position].id
   )
   const {state: next, effects} = select_arguments(
     expand_path(jump_calltree_node(state, node).state, node),

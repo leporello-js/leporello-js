@@ -15,29 +15,27 @@ import {
   find_call, find_call_node, set_active_calltree_node
 } from './calltree.js'
 
+const collect_logs = call => 
+  collect_nodes_with_parents(call, n => n.is_log)
+  .map(({parent, node}) => (
+    {
+      id: node.id,
+      toplevel: parent.toplevel,
+      module: parent.toplevel 
+        ? parent.module
+        : parent.fn.__location.module,
+      parent_name: parent.fn?.name,
+      args: node.args,
+      log_fn_name: node.fn.name,
+    }
+  ))
+
 const apply_eval_result = (state, eval_result) => {
   // TODO what if console.log called from native fn (like Array::map)?
-  // Currently it is not recorded. Maybe we should patch monkey patch console?
-  const logs = (
-    eval_result.calltree[state.entrypoint] == null
-      ? []
-      : collect_nodes_with_parents(
-          eval_result.calltree[state.entrypoint].calls, 
-          n => n.is_log,
-        )
-    )
-    .map(({parent, node}) => (
-      {
-        id: node.id,
-        toplevel: parent.toplevel,
-        module: parent.toplevel 
-          ? parent.module
-          : parent.fn.__location.module,
-        parent_name: parent.fn?.name,
-        args: node.args,
-        log_fn_name: node.fn.name,
-      }
-    ))
+  // Currently it is not recorded. Maybe we should monkey patch `console`?
+  const logs = collect_logs(
+    root_calltree_node({...state, calltree: eval_result.calltree})
+  )
     
   return {
     ...state, 
@@ -740,7 +738,8 @@ const move_cursor = (s, index) => {
 
 const on_async_call = (state, call) => {
   return {...state, 
-    async_calls: [...(state.async_calls ?? []), call]
+    async_calls: [...(state.async_calls ?? []), call],
+    logs: {...state.logs, logs: state.logs.logs.concat(collect_logs(call))},
   }
 }
 

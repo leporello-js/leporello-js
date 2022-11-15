@@ -2314,6 +2314,7 @@ const y = x()`
       }
       
       const fn2 = () => {
+        console.log(1)
       }
 
       // Use Function constructor to exec impure code for testing
@@ -2340,6 +2341,8 @@ const y = x()`
     assert_equal(call.args, [10])
     const state = COMMANDS.on_async_call(i, call)
     assert_equal(state.async_calls, [call])
+
+    assert_equal(state.logs.logs.length, 1)
 
     // Expand call
     const {state: expanded} = COMMANDS.calltree.click(state, call.id)
