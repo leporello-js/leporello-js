@@ -240,7 +240,7 @@ const codegen = (node, cxt, parent) => {
     return do_codegen(node.key) + ' : ' + do_codegen(node.value);
   } else if(node.type == 'import') {
     const names = node.imports.map(n => n.value)
-    return `const {${names.join(',')}} = __modules['${node.full_import_path}'].exports;`;
+    return `const {${names.join(',')}} = __modules['${node.full_import_path}'];`;
   } else if(node.type == 'export') {
     const identifiers = collect_destructuring_identifiers(node.binding.name_node)
       .map(i => i.value)
@@ -254,8 +254,7 @@ const codegen = (node, cxt, parent) => {
 }
 
 export const eval_modules = (
-  modules, 
-  sorted, 
+  parse_result,
   external_imports, 
   on_async_call,
   location
@@ -311,11 +310,11 @@ export const eval_modules = (
 
     const find_call = (location) => {
       searched_location = location
-      const calltree = run()
+      const {modules, calltree} = run()
       searched_location = null
       const call = found_call
       found_call = null
-      return {calltree, call}
+      return {modules, calltree, call}
     }
 
     const trace = (fn, name, argscount, __location, get_closure) => {
@@ -488,23 +487,22 @@ export const eval_modules = (
 
     `
     +
-    sorted
+    parse_result.sorted
       .map((m, i) => 
         `
-         __modules['${m}'] = {}
+         const current_module = '${m}'
          found_call = null
          children = null
          current_call = {
            toplevel: true, 
-           module: '${m}', 
+           module: current_module, 
            id: call_counter++
          }
-         __modules['${m}'].calls = current_call
-         __modules['${m}'].exports = 
+         __modules[current_module] = 
            (() => {
               try {
                 const __exports = {};
-                ${codegen(modules[m], {module: m})};
+                ${codegen(parse_result.modules[m], {module: m})};
                 current_call.ok = true
                 return __exports
               } catch(error) {
@@ -513,10 +511,10 @@ export const eval_modules = (
               }
            })()
          current_call.children = children
-         if(!__modules['${m}'].calls.ok) {
+         if(!current_call.ok) {
            is_recording_async_calls = true
            children = null
-           return __modules
+           return { modules: __modules, calltree: current_call }
          }
         `
       )
@@ -525,7 +523,7 @@ export const eval_modules = (
     `
       is_recording_async_calls = true
       children = null
-      return __modules
+      return { modules: __modules, call: calltree: current_call }
     }
 
     return {
@@ -549,18 +547,18 @@ export const eval_modules = (
     ,
 
     /* on_async_call */
-    call => on_async_call(assign_code(modules, call))
+    call => on_async_call(assign_code(parse_result.modules, call))
   )
 
   const calltree_actions =  {
     expand_calltree_node: (node) => {
       const expanded = actions.expand_calltree_node(node)
-      return assign_code(modules, expanded)
+      return assign_code(parse_result.modules, expanded)
     },
     find_call: (loc) => {
-      const {calltree, call} = actions.find_call(loc)
+      const {modules, calltree, call} = actions.find_call(loc)
       return {
-        calltree: assign_code_calltree(modules, calltree),
+        calltree: assign_code(parse_result.modules, calltree),
         // TODO: `call` does not have `code` property here. Currently it is
         // worked around by callers. Refactor
         call,
@@ -568,38 +566,23 @@ export const eval_modules = (
     }
   }
 
-  let calltree, call
-
-  if(location == null) {
-    calltree = actions.run()
-  } else {
-    const result = calltree_actions.find_call(location)
-    calltree = result.calltree
-    call = result.call
-  }
+  const result = location == null
+    ? actions.run()
+    : calltree_actions.find_call(location)
 
   return {
-    calltree: assign_code_calltree(modules, calltree),
-    call,
+    modules: result.modules,
+    calltree: assign_code(parse_result.modules, result.calltree),
+    call: result.call,
     calltree_actions,
   }
 }
 
 // TODO: assign_code: benchmark and use imperative version for perf?
-const assign_code_calltree = (modules, calltree) =>
-  map_object(
-    calltree,
-    (module, {calls, exports, is_external}) => {
-      return is_external
-        ? {is_external, exports}
-        : {exports, calls: assign_code(modules, calls, modules[module])}
-    }
-  )
-
-const assign_code = (modules, call, module) => {
+const assign_code = (modules, call) => {
   if(call.toplevel) {
     return {...call, 
-      code: module,
+      code: modules[call.module],
       children: call.children && call.children.map(call => assign_code(modules, call)),
     }
   } else {
@@ -614,7 +597,12 @@ const assign_code = (modules, call, module) => {
 }
 
 export const eval_tree = node => {
-  return eval_modules({'': node}, ['']).calltree[''].calls
+  return eval_modules(
+    {
+      modules: {'': node}}, 
+      sorted: ['']
+    }
+  ).calltree[''].calls
 }
 
 

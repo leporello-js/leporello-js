@@ -633,7 +633,7 @@ export const tests = [
         'b'  : 'import {a} from "a"; export const b = a*2;',
       }
     )
-    const calltree = eval_modules(parsed.modules, parsed.sorted).calltree;
+    const calltree = eval_modules(parsed).calltree;
     const frame = eval_frame(calltree.b.calls, calltree)
     assert_equal(frame.children[1].result, {ok: true})
     assert_equal(frame.children[1].children[0].children[1].result, {ok: true, value: 2})
@@ -757,7 +757,7 @@ export const tests = [
       }
     )
     assert_equal(parsed.sorted, ['a', 'b', 'c1', 'c2', 'd'])
-    const result = eval_modules(parsed.modules, parsed.sorted).calltree;
+    const result = eval_modules(parsed).calltree;
     assert_equal(result.d.exports.d, 8)
   }),
 
@@ -779,7 +779,7 @@ export const tests = [
         'leaf'  : 'export const leaf = {}',
       }
     )
-    const mods = eval_modules(parsed.modules, parsed.sorted).calltree
+    const mods = eval_modules(parsed).calltree
     // Check that the same symbol improted through different paths gives the
     // same result
     assert_equal(mods.root.exports.is_eq, true)

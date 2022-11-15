@@ -176,8 +176,7 @@ const do_external_imports_loaded = (
     node.type == 'do' /* toplevel AST node */
   ) {
     const result = eval_modules(
-      state.parse_result.modules, 
-      state.parse_result.sorted,
+      state.parse_result,
       external_imports,
       state.on_async_call,
     )
@@ -199,8 +198,7 @@ const do_external_imports_loaded = (
   }
 
   const result = eval_modules(
-    state.parse_result.modules, 
-    state.parse_result.sorted,
+    state.parse_result,
     external_imports,
     state.on_async_call,
     {index: node.index, module: state.current_module},
@@ -680,7 +678,7 @@ const get_value_explorer = (state, index) => {
       result = {
         ok: true,
         value: pick_keys(
-          state.calltree[stmt.full_import_path].exports,
+          state.modules[stmt.full_import_path],
           stmt.imports.map(i => i.value)
         ),
       }

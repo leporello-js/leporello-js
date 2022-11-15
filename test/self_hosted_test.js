@@ -54,7 +54,7 @@ run([
     } else {
       assert_equal(parsed.ok, true)
       console.time('eval')
-      const result = eval_modules(parsed.modules, parsed.sorted).calltree
+      const result = eval_modules(parsed).calltree
       console.timeEnd('eval')
 
       /* TODO remove
