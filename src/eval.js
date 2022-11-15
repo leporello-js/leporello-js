@@ -272,7 +272,6 @@ export const eval_modules = (
 
     let call_counter = 0
 
-    let is_entrypoint
     let searched_location
     let found_call
 
@@ -330,8 +329,6 @@ export const eval_modules = (
         stack.push(false)
 
         const is_found_call =
-          is_entrypoint
-          &&
           (searched_location != null && found_call == null)
           &&
           (
@@ -425,9 +422,8 @@ export const eval_modules = (
       children = null
       stack.push(false)
 
-      const is_log = is_entrypoint 
-        ? fn == console.log || fn == console.error // TODO: other console fns
-        : undefined
+      // TODO: other console fns
+      const is_log = fn == console.log || fn == console.error
 
       if(is_log) {
         set_record_call()
@@ -495,8 +491,8 @@ export const eval_modules = (
     sorted
       .map((m, i) => 
         `
-         is_entrypoint = entrypoint == '${m}'
          __modules['${m}'] = {}
+         found_call = null
          children = null
          current_call = {
            toplevel: true, 
@@ -540,14 +536,10 @@ export const eval_modules = (
     `
 
   const actions = make_function(
-    'entrypoint',
     'external_imports', 
     'on_async_call', 
     codestring
   )(
-    /* entrypoint */
-    sorted[sorted.length - 1],
-
     /* external_imports */
     external_imports == null
       ? null

@@ -2259,10 +2259,14 @@ const y = x()`
       'x' : `
         const has_child_calls = i => i == 0 ? 0 : has_child_calls(i - 1)
         has_child_calls(10)
+        console.log('log')
         throw new Error('fail')
       `,
     })
     assert_equal(root_calltree_node(s).module, 'x')
+
+    // Must collect logs from failed module
+    assert_equal(s.logs.logs.length, 1)
 
     const s2 = COMMANDS.move_cursor(
       COMMANDS.change_current_module(s, 'x'),
