@@ -752,11 +752,14 @@ const load_dir = (state, dir) => {
     collect_files(dir).map(f => [f.path, f.contents])
   )
 
-  return {
+  return rerun_code({
     ...state,
+    // remove cache
+    parse_result: null,
     project_dir: dir,
-    files: {...files, ...state.files}
-  }
+    files: {...files, ...state.files},
+
+  })
 }
 
 const create_file = (state, dir, current_module) => {
