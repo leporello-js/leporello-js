@@ -271,6 +271,8 @@ export const eval_modules = (
 
     let call_counter = 0
 
+    let current_module
+
     let searched_location
     let found_call
 
@@ -490,7 +492,7 @@ export const eval_modules = (
     parse_result.sorted
       .map((m, i) => 
         `
-         const current_module = '${m}'
+         current_module = '${m}'
          found_call = null
          children = null
          current_call = {
@@ -523,7 +525,7 @@ export const eval_modules = (
     `
       is_recording_async_calls = true
       children = null
-      return { modules: __modules, call: calltree: current_call }
+      return { modules: __modules, calltree: current_call }
     }
 
     return {
@@ -540,11 +542,8 @@ export const eval_modules = (
   )(
     /* external_imports */
     external_imports == null
-      ? null
-      : map_object(external_imports, (name, {module}) => 
-          ({exports: module, is_external: true})
-        )
-    ,
+    ? null
+    : map_object(external_imports, (name, {module}) => module),
 
     /* on_async_call */
     call => on_async_call(assign_code(parse_result.modules, call))
@@ -599,7 +598,7 @@ const assign_code = (modules, call) => {
 export const eval_tree = node => {
   return eval_modules(
     {
-      modules: {'': node}}, 
+      modules: {'': node}, 
       sorted: ['']
     }
   ).calltree

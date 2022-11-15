@@ -4,18 +4,13 @@ import {find_node, find_leaf, ancestry_inc} from './ast_utils.js'
 import {color} from './color.js'
 import {eval_frame} from './eval.js'
 
-export const pp_calltree = calltree => stringify(map_object(
-  calltree,
-  (module, {exports, calls}) => do_pp_calltree(calls)
-))
-
-export const do_pp_calltree = tree => ({
+export const pp_calltree = tree => ({
   id: tree.id,
   ok: tree.ok,
   is_log: tree.is_log,
   has_more_children: tree.has_more_children,
   string: tree.code?.string,
-  children: tree.children && tree.children.map(do_pp_calltree)
+  children: tree.children && tree.children.map(pp_calltree)
 })
 
 const find_calltree_node = (state, id) => {
@@ -45,8 +40,8 @@ export const root_calltree_node = state =>
   // Returns calltree node for toplevel
   // It is either toplevel for entrypoint module, or for module that throw
   // error and prevent entrypoint module from executing.
-  // state.calltree[1] is async calls
-  state.calltree[0]
+  // state.calltree.children[1] is async calls
+  state.calltree.children[0]
 
 export const root_calltree_module = state =>
   root_calltree_node(state).module
@@ -484,23 +479,9 @@ After find_call, we have two calltrees that have common subtree (starting from
 root node). Nodes in these subtrees are the same, but have different ids. Copy
 nodes that are in the second tree that are not in the first tree
 */
-const merge_calltrees = (prev, next) => {
-  return Object.fromEntries(
-    Object.entries(prev).map(([module, {is_external, exports, calls}]) =>
-      [
-        module, 
-        is_external
-          ? {is_external, exports}
-          : {
-              exports, 
-              calls: merge_calltree_nodes(calls, next[module].calls)[1]
-            }
-      ]
-    )
-  )
-}
+const merge_calltrees = (a, b) => do_merge_calltrees(a, b)[1]
 
-const merge_calltree_nodes = (a, b) => {
+const do_merge_calltrees = (a, b) => {
   // TODO Quick workaround, should be fixed by not saving stack in eval.js in
   // case of stackoverflow
   if(!a.ok && is_stackoverflow(a)) {
@@ -526,7 +507,7 @@ const merge_calltree_nodes = (a, b) => {
 
   const [has_update, children] = map_accum(
     (has_update, c, i) => {
-      const [upd, merged] = merge_calltree_nodes(c, b.children[i])
+      const [upd, merged] = do_merge_calltrees(c, b.children[i])
       return [has_update || upd, merged]
     },
     false,
@@ -545,13 +526,6 @@ const merge_calltree_nodes = (a, b) => {
   in calltree `b`. Null if not found
 */
 const find_same_node = (a, b, id) => {
-  return map_find(
-    Object.entries(a),
-    ([module, {calls}]) => do_find_same_node(calls, b[module].calls, id)
-  )
-}
-
-const do_find_same_node = (a, b, id) => {
   if(b == null) {
     return null
   }
@@ -566,7 +540,7 @@ const do_find_same_node = (a, b, id) => {
 
   return map_find(
     a.children,
-    (c, i) => do_find_same_node(c, b.children[i], id)
+    (c, i) => find_same_node(c, b.children[i], id)
   )
 }
 
@@ -695,8 +669,18 @@ export const find_call = (state, index) => {
     )
   }
 
-  const merged = merge_calltrees(state.calltree, calltree)
-  const active_calltree_node = find_same_node(merged, calltree, call.id)
+  const merged = {
+    children: [
+      merge_calltrees(root_calltree_node(state), calltree),
+      state.calltree.children[1],
+    ],
+  }
+
+  const active_calltree_node = find_same_node(
+    merged.children[0], 
+    calltree, 
+    call.id
+  )
 
   return add_frame(
     expand_path(

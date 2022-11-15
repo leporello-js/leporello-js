@@ -2,7 +2,7 @@ import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {parse, print_debug_node} from '../src/parse_js.js'
 import {eval_tree, eval_frame, eval_modules} from '../src/eval.js'
 import {COMMANDS, get_initial_state} from '../src/cmd.js'
-import {root_calltree_node, active_frame, pp_calltree, do_pp_calltree} 
+import {root_calltree_node, active_frame, pp_calltree} 
   from '../src/calltree.js'
 import {color_file} from '../src/color.js'
 import {
@@ -2172,7 +2172,7 @@ const y = x()`
     assert_equal(s3.current_calltree_node.code.index, code.indexOf('() =>'))
     // Check that node for `y` call was reused
     assert_equal(
-      find_node(s2.calltree[''].calls, n => n == s3.current_calltree_node) 
+      find_node(root_calltree_node(s2), n => n == s3.current_calltree_node) 
                                                                       == null,
       false
     )

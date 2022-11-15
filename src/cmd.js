@@ -33,13 +33,11 @@ const collect_logs = call =>
 const apply_eval_result = (state, eval_result) => {
   // TODO what if console.log called from native fn (like Array::map)?
   // Currently it is not recorded. Maybe we should monkey patch `console`?
-  const logs = collect_logs(
-    root_calltree_node({...state, calltree: eval_result.calltree})
-  )
+  const logs = collect_logs(eval_result.calltree)
     
   return {
-    ...state, 
-    calltree: eval_result.calltree,
+    ...state,
+    calltree: {children: [eval_result.calltree]},
     calltree_actions: eval_result.calltree_actions,
     logs: {logs, log_position: null},
     modules: eval_result.modules,
