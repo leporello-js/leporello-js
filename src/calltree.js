@@ -153,31 +153,13 @@ const replace_calltree_node = (root, node, replacement) => {
   return result
 }
 
-// TODO remove, after refactoring async_calls
-const replace_calltree_node_in_state = (state, node, replacement) => {
-
-  const replaced = replace_calltree_node(
-    {
-      children: [
-        root_calltree_node(state),
-        {children: state.async_calls},
-      ]
-    },
-    node,
-    replacement
-  )
-
-  return {...state, 
-    calltree: {children: [replaced.children[0]]},
-    async_calls: replaced.children[1].children,
-  }
-}
-
 const expand_calltree_node = (state, node) => {
   if(node.has_more_children) {
     const next_node = state.calltree_actions.expand_calltree_node(node)
     return {
-      state: replace_calltree_node_in_state(state, node, next_node), 
+      state: {...state, 
+        calltree: replace_calltree_node(state.calltree, node, next_node)
+      },
       node: next_node
     }
   } else {
@@ -204,25 +186,12 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
   /* Whether to show fn body (true) or callsite (false) */
   let show_body
 
-  const [_parent] = path_to_root(
-    {
-      children: [
-        root_calltree_node(state),
-        {children: state.async_calls},
-      ]
-    },
-    current_calltree_node
-  )
-
-  const parent = _parent.id == null
-    ? current_calltree_node
-    : _parent
+  const [parent] = path_to_root(state.calltree, current_calltree_node)
 
   if(
     current_calltree_node.toplevel 
     || 
-    /* async call */
-    parent == current_calltree_node
+    parent.id == 'async_calls'
   ) {
     show_body = true
   } else if(is_native_fn(current_calltree_node)) {
@@ -667,15 +636,13 @@ export const find_call = (state, index) => {
     )
   }
 
-  const merged = {
-    children: [
-      merge_calltrees(root_calltree_node(state), calltree),
-      state.calltree.children[1],
-    ],
-  }
+  const merged = make_calltree(
+    merge_calltrees(root_calltree_node(state), calltree),
+    get_async_calls(state),
+  )
 
   const active_calltree_node = find_same_node(
-    merged.children[0], 
+    root_calltree_node({calltree: merged}),
     calltree, 
     call.id
   )

@@ -39,7 +39,7 @@ const apply_eval_result = (state, eval_result) => {
     
   return {
     ...state,
-    calltree: {children: [eval_result.calltree]},
+    calltree: make_calltree(eval_result.calltree, null),
     calltree_actions: eval_result.calltree_actions,
     logs: {logs, log_position: null},
     modules: eval_result.modules,

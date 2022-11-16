@@ -2,7 +2,7 @@ import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {parse, print_debug_node} from '../src/parse_js.js'
 import {eval_tree, eval_frame, eval_modules} from '../src/eval.js'
 import {COMMANDS, get_initial_state} from '../src/cmd.js'
-import {root_calltree_node, active_frame, pp_calltree} 
+import {root_calltree_node, active_frame, pp_calltree, get_async_calls} 
   from '../src/calltree.js'
 import {color_file} from '../src/color.js'
 import {
@@ -2344,13 +2344,13 @@ const y = x()`
     assert_equal(call.code.index, code.indexOf('() => {'))
     assert_equal(call.args, [10])
     const state = COMMANDS.on_async_call(i, call)
-    assert_equal(state.async_calls, [call])
+    assert_equal(get_async_calls(state), [call])
 
     assert_equal(state.logs.logs.length, 1)
 
     // Expand call
     const {state: expanded} = COMMANDS.calltree.click(state, call.id)
-    assert_equal(expanded.async_calls[0].children[0].fn.name, 'fn2')
+    assert_equal(get_async_calls(expanded)[0].children[0].fn.name, 'fn2')
   }),
 
 ]
