@@ -1,6 +1,10 @@
 import {write_file} from './filesystem.js'
 import {color_file} from './color.js'
-import {root_calltree_node, calltree_node_loc} from './calltree.js'
+import {
+  root_calltree_node, 
+  calltree_node_loc, 
+  get_async_calls
+} from './calltree.js'
 import {FLAGS} from './feature_flags.js'
 import {exec} from './index.js'
 
@@ -173,7 +177,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
       ui.editor.unembed_value_explorer()
     } else {
 
-      if(prev.async_calls == null && next.async_calls != null) {
+      if(get_async_calls(prev) == null && get_async_calls(next) != null) {
         ui.calltree.render_async_calls(next)
       }
 
@@ -181,8 +185,6 @@ export const render_common_side_effects = (prev, next, command, ui) => {
         prev.calltree != next.calltree 
         || 
         prev.calltree_node_is_expanded != next.calltree_node_is_expanded
-        ||
-        prev.async_calls != next.async_calls
       ) {
         ui.calltree.render_expand_node(prev, next)
       }
