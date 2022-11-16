@@ -2351,6 +2351,10 @@ const y = x()`
     // Expand call
     const {state: expanded} = COMMANDS.calltree.click(state, call.id)
     assert_equal(get_async_calls(expanded)[0].children[0].fn.name, 'fn2')
+
+    // Navigate logs
+    const nav = COMMANDS.calltree.navigate_logs_position(expanded, 0)
+    assert_equal(nav.state.current_calltree_node.is_log, true)
   }),
 
 ]

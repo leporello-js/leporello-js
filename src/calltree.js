@@ -516,7 +516,7 @@ export const expand_path = (state, node) => ({
   calltree_node_is_expanded: {
     ...state.calltree_node_is_expanded, 
     ...Object.fromEntries(
-        path_to_root(root_calltree_node(state), node)
+        path_to_root(state.calltree, node)
           .map(n => [n.id, true])
       ),
     // Also expand node, since it is not included in
