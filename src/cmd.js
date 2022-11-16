@@ -9,7 +9,9 @@ import {load_modules} from './parse_js.js'
 import {find_export} from './find_definitions.js'
 import {eval_modules} from './eval.js'
 import {
-  root_calltree_node, root_calltree_module, calltree_commands,
+  root_calltree_node, root_calltree_module, make_calltree, 
+  get_async_calls,
+  calltree_commands,
   add_frame, calltree_node_loc, expand_path,
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
   find_call, find_call_node, set_active_calltree_node
@@ -69,7 +71,6 @@ const run_code = (s, index, dirty_files) => {
     parse_result,
     calltree: null,
     modules: null,
-    async_calls: null,
 
     // Shows that calltree is brand new and requires entire rerender
     calltree_changed_token: {},
@@ -736,7 +737,10 @@ const move_cursor = (s, index) => {
 
 const on_async_call = (state, call) => {
   return {...state, 
-    async_calls: [...(state.async_calls ?? []), call],
+    calltree: make_calltree(
+      root_calltree_node(state),
+      [...(get_async_calls(state) ?? []), call],
+    ),
     logs: {...state.logs, logs: state.logs.logs.concat(collect_logs(call))},
   }
 }

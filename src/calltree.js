@@ -13,18 +13,6 @@ export const pp_calltree = tree => ({
   children: tree.children && tree.children.map(pp_calltree)
 })
 
-const find_calltree_node = (state, id) => {
-  return find_node(
-    {
-      children: [
-        root_calltree_node(state),
-        {children: state.async_calls},
-      ]
-    },
-    n => n.id == id
-  )
-}
-
 const is_stackoverflow = node =>
   // Chrome
   node.error.message == 'Maximum call stack size exceeded'
@@ -36,6 +24,8 @@ export const calltree_node_loc = node => node.toplevel
     ? {module: node.module}
     : node.fn.__location
 
+export const get_async_calls = state => state.calltree.children[1].children
+
 export const root_calltree_node = state =>
   // Returns calltree node for toplevel
   // It is either toplevel for entrypoint module, or for module that throw
@@ -45,6 +35,14 @@ export const root_calltree_node = state =>
 
 export const root_calltree_module = state =>
   root_calltree_node(state).module
+
+export const make_calltree = (root_calltree_node, async_calls) => ({
+  id: 'calltree',
+  children: [
+    root_calltree_node,
+    {id: 'async_calls', children: async_calls},
+  ]
+})
 
 export const is_native_fn = calltree_node =>
   !calltree_node.toplevel && calltree_node.fn.__location == null
@@ -463,7 +461,7 @@ export const toggle_expanded = (state, is_exp) => {
 }
 
 const click = (state, id) => {
-  const node = find_calltree_node(state, id)
+  const node = find_node(state.calltree, n => n.id == id)
   const {state: nextstate, effects} = jump_calltree_node(state, node)
   if(is_expandable(node)) {
     // `effects` are intentionally discarded, correct `set_caret_position` will
@@ -811,9 +809,8 @@ const navigate_logs_increment = (state, increment) => {
 }
 
 const navigate_logs_position = (state, log_position) => {
-  const node = find_calltree_node(
-    state,
-    state.logs.logs[log_position].id
+  const node = find_node(state.calltree, n =>
+    n.id == state.logs.logs[log_position].id
   )
   const {state: next, effects} = select_arguments(
     expand_path(jump_calltree_node(state, node).state, node),
