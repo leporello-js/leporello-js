@@ -317,7 +317,7 @@ const arrow_down = state => {
   } else {
 
     const next = (n, path) => {
-      if(n == root_calltree_node(state)) {
+      if(n.id == 'calltree') {
         return null
       }
       const [parent, ...grandparents] = path
@@ -334,8 +334,12 @@ const arrow_down = state => {
 
     next_node = next(
       current, 
-      path_to_root(root_calltree_node(state), current)
+      path_to_root(state.calltree, current)
     )
+  }
+
+  if(next_node?.id == 'async_calls') {
+    next_node = next_node.children[0]
   }
 
   return next_node == null 
@@ -348,26 +352,28 @@ const arrow_up = state => {
   if(current == root_calltree_node(state)) {
     return state
   }
-  const [parent] = path_to_root(root_calltree_node(state), current)
+  const [parent] = path_to_root(state.calltree, current)
   const child_index = parent.children.findIndex(c =>  
     c == current
   )
   const next_child = parent.children[child_index - 1]
+  const last = node => {
+    if(
+         !is_expandable(node) 
+      || !state.calltree_node_is_expanded[node.id]
+      || node.children == null
+    ) {
+      return node
+    } else {
+      return last(node.children[node.children.length - 1])
+    }
+  }
   let next_node
   if(next_child == null) {
-    next_node = parent
+    next_node = parent.id == 'async_calls'
+      ? last(root_calltree_node(state))
+      : parent
   } else {
-    const last = node => {
-      if(
-           !is_expandable(node) 
-        || !state.calltree_node_is_expanded[node.id]
-        || node.children == null
-      ) {
-        return node
-      } else {
-        return last(node.children[node.children.length - 1])
-      }
-    }
     next_node = last(next_child)
   }
   return jump_calltree_node(state, next_node)
@@ -377,11 +383,11 @@ const arrow_left = state => {
   const current = state.current_calltree_node
   const is_expanded = state.calltree_node_is_expanded[current.id]
   if(!is_expandable(current) || !is_expanded) {
-    if(current != root_calltree_node(state)) {
-      const [parent] = path_to_root(root_calltree_node(state), current)
-      return jump_calltree_node(state, parent)
-    } else {
+    const [parent] = path_to_root(state.calltree, current)
+    if(parent.id == 'calltree' || parent.id == 'async_calls') {
       return state
+    } else {
+      return jump_calltree_node(state, parent)
     }
   } else {
     return toggle_expanded(state)

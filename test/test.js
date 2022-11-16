@@ -2355,6 +2355,9 @@ const y = x()`
     // Navigate logs
     const nav = COMMANDS.calltree.navigate_logs_position(expanded, 0)
     assert_equal(nav.state.current_calltree_node.is_log, true)
+
+    const nav2 = COMMANDS.calltree.arrow_left(nav.state)
+    assert_equal(nav2.state.current_calltree_node.fn.name, 'fn2')
   }),
 
 ]
