@@ -2313,16 +2313,13 @@ const y = x()`
 
   test('async calls', () => {
     const code = `
-      const fn = () => {
+      export const fn = () => {
         fn2()
       }
       
       const fn2 = () => {
         console.log(1)
       }
-
-      // Use Function constructor to exec impure code for testing
-      new Function('fn', 'globalThis.__run_async_call = fn')(fn)
     `
 
     const {get_async_call, on_async_call} = (new Function(`
@@ -2338,7 +2335,10 @@ const y = x()`
     `))()
 
     const i = test_initial_state(code, { on_async_call })
-    globalThis.__run_async_call(10)
+
+    // Make async call
+    i.modules[''].fn(10)
+
     const call = get_async_call()
     assert_equal(call.fn.name, 'fn')
     assert_equal(call.code.index, code.indexOf('() => {'))
@@ -2360,20 +2360,15 @@ const y = x()`
     assert_equal(nav2.state.current_calltree_node.fn.name, 'fn2')
   }),
 
-  // TODO
-  /*
   test('async calls calltree nav', () => {
     const code = `
-      const fn = () => {
-        fn2()
-      }
-      
-      const fn2 = () => {
-        console.log(1)
+      const normal_call = () => {
       }
 
-      // Use Function constructor to exec impure code for testing
-      new Function('fn', 'globalThis.__run_async_call = fn')(fn)
+      normal_call(0)
+      
+      export const async_call = () => {
+      }
     `
 
     const {get_async_call, on_async_call} = (new Function(`
@@ -2389,41 +2384,76 @@ const y = x()`
     `))()
 
     const i = test_initial_state(code, { on_async_call })
-    globalThis.__run_async_call(10)
-    const call = get_async_call()
-    assert_equal(call.fn.name, 'fn')
-    assert_equal(call.code.index, code.indexOf('() => {'))
-    assert_equal(call.args, [10])
-    const state = COMMANDS.on_async_call(i, call)
-    assert_equal(get_async_calls(state), [call])
 
-    assert_equal(state.logs.logs.length, 1)
+    const after_async_calls = [1, 2, 3].reduce(
+      (s, a) => {
+        // Make async calls
+        i.modules[''].async_call(a)
+        const call = get_async_call()
+        return COMMANDS.on_async_call(s, call)
+      },
+      i
+    )
 
-    // Expand call
-    const {state: expanded} = COMMANDS.calltree.click(state, call.id)
-    assert_equal(get_async_calls(expanded)[0].children[0].fn.name, 'fn2')
+    assert_equal(
+      get_async_calls(after_async_calls).map(c => c.args[0]),
+      [1,2,3]
+    )
 
-    // Navigate logs
-    const nav = COMMANDS.calltree.navigate_logs_position(expanded, 0)
-    assert_equal(nav.state.current_calltree_node.is_log, true)
+    assert_equal(after_async_calls.current_calltree_node.toplevel, true)
 
-    const nav2 = COMMANDS.calltree.arrow_left(nav.state)
-    assert_equal(nav2.state.current_calltree_node.fn.name, 'fn2')
+    const down = COMMANDS.calltree.arrow_down(after_async_calls).state
+
+    const first_async_call_selected = COMMANDS.calltree.arrow_down(
+      COMMANDS.calltree.arrow_down(after_async_calls).state
+    ).state
+
+    // After we press arrow down, first async call gets selected
+    assert_equal(
+      first_async_call_selected.current_calltree_node.args[0],
+      1,
+    )
+
+    // One more arrow down, second async call gets selected
+    assert_equal(
+      COMMANDS.calltree.arrow_down(first_async_call_selected)
+        .state
+        .current_calltree_node
+        .args[0],
+      2
+    )
+
+    // After we press arrow up when first async call selected, we select last
+    // visible non async call
+    assert_equal(
+      COMMANDS.calltree.arrow_up(first_async_call_selected)
+        .state
+        .current_calltree_node
+        .args[0],
+      0
+    )
+
+    // After we press arrow left when first async call selected, we stay on
+    // this call
+    assert_equal(
+      COMMANDS.calltree.arrow_left(first_async_call_selected)
+        .current_calltree_node
+        .args[0],
+      1
+    )
+
+
   }),
-  */
 
-  test_only('async_calls find_call', () => {
+  test('async_calls find_call', () => {
     const code = `
-      const fn = () => {
+      export const fn = () => {
         fn2()
       }
       
       const fn2 = () => {
         console.log(1)
       }
-
-      // Use Function constructor to exec impure code for testing
-      new Function('fn', 'globalThis.__run_async_call = fn')(fn)
     `
 
     const {get_async_call, on_async_call} = (new Function(`
@@ -2439,12 +2469,58 @@ const y = x()`
     `))()
 
     const i = test_initial_state(code, { on_async_call })
-    globalThis.__run_async_call(10)
+
+    // Make async call
+    i.modules[''].fn()
+
     const call = get_async_call()
     const state = COMMANDS.on_async_call(i, call)
 
     const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('fn2'))
-    console.log('active_calltree_node', moved.active_calltree_node)
+    assert_equal(moved.active_calltree_node.fn.name, 'fn')
+
+    // Move cursor to toplevel and back, find cached (calltree_node_by_loc) call
+    const move_back = COMMANDS.move_cursor(
+      COMMANDS.move_cursor(moved, 0).state,
+      code.indexOf('fn2')
+    ).state
+
+    assert_equal(move_back.active_calltree_node.fn.name, 'fn')
   }),
 
+  test('async_calls find_call then async_call bug', () => {
+    const code = `
+      export const fn = () => { /* label */ }
+    `
+
+    const {get_async_call, on_async_call} = (new Function(`
+      let call
+      return {
+        get_async_call() {
+          return call
+        },
+        on_async_call(_call) {
+          call = _call
+        }
+      }
+    `))()
+
+    const i = test_initial_state(code, { on_async_call })
+
+    // Make async call
+    i.modules[''].fn(1)
+
+    const state = COMMANDS.on_async_call(i, get_async_call())
+
+    // find call
+    const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('label'))
+
+    // Make async call
+    i.modules[''].fn(2)
+
+    const result = COMMANDS.on_async_call(moved, get_async_call())
+
+    // there was a bug throwing error when added second async call
+    assert_equal(get_async_calls(result).map(c => c.args), [[1], [2]])
+  }),
 ]

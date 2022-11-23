@@ -312,19 +312,40 @@ export const eval_modules = (
 
     const find_call = (location, async_calls) => {
       searched_location = location
-      const {modules, calltree} = run()
+      let is_found_async_call = false
+      let i
+
+      let {calltree} = run()
+
+      is_recording_async_calls = false
       if(found_call == null && async_calls != null) {
-        for(let c of async_calls) {
-          c.fn.apply(c.context, c.args)
+        for(i = 0; i < async_calls.length; i++) {
+          const c = async_calls[i]
+          try {
+            c.fn.apply(c.context, c.args)
+          } catch(e) {
+            // do nothing. Exception was caught and recorded inside 'trace'
+          }
           if(found_call != null) {
+            is_found_async_call = true
+            calltree = children[0]
+            children = null
             break
           }
         }
       }
+
+      is_recording_async_calls = true
+
       searched_location = null
       const call = found_call
       found_call = null
-      return {modules, calltree, call}
+      return {
+        is_found_async_call, 
+        async_call_index: i, 
+        calltree, 
+        call
+      }
     }
 
     const trace = (fn, name, argscount, __location, get_closure) => {
@@ -563,8 +584,15 @@ export const eval_modules = (
       return assign_code(parse_result.modules, expanded)
     },
     find_call: (loc, async_calls) => {
-      const {modules, calltree, call} = actions.find_call(loc, async_calls)
+      const {
+        is_found_async_call, 
+        async_call_index, 
+        calltree, 
+        call
+      } = actions.find_call(loc, async_calls)
       return {
+        is_found_async_call,
+        async_call_index,
         calltree: assign_code(parse_result.modules, calltree),
         // TODO: `call` does not have `code` property here. Currently it is
         // worked around by callers. Refactor

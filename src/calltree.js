@@ -606,7 +606,7 @@ export const find_call = (state, index) => {
 
   if(ct_node_id != null) {
     const ct_node = find_node(
-      root_calltree_node(state), 
+      state.calltree,
       n => n.id == ct_node_id
     )
     if(ct_node == null) {
@@ -630,7 +630,12 @@ export const find_call = (state, index) => {
   }
 
   const loc = {index: node.index, module: state.current_module}
-  const {calltree, call} = state.calltree_actions.find_call(
+  const {
+    calltree, 
+    call, 
+    is_found_async_call, 
+    async_call_index
+  } = state.calltree_actions.find_call(
     loc, 
     get_async_calls(state)
   )
@@ -645,20 +650,41 @@ export const find_call = (state, index) => {
     )
   }
 
-  const merged = make_calltree(
-    merge_calltrees(root_calltree_node(state), calltree),
-    get_async_calls(state),
-  )
+  let next_calltree, active_calltree_node
 
-  const active_calltree_node = find_same_node(
-    root_calltree_node({calltree: merged}),
-    calltree, 
-    call.id
-  )
+  if(is_found_async_call) {
+    const async_calls = get_async_calls(state)
+    const prev_call = async_calls[async_call_index]
+    const merged = merge_calltrees(prev_call, calltree)
+    const next_async_calls = async_calls.map((c, i) => 
+      i == async_call_index
+        ? merged
+        : c
+    )
+    next_calltree = make_calltree(
+      root_calltree_node(state),
+      next_async_calls,
+    )
+    active_calltree_node = find_same_node(
+      merged,
+      calltree,
+      call.id
+    )
+  } else {
+    next_calltree = make_calltree(
+      merge_calltrees(root_calltree_node(state), calltree),
+      get_async_calls(state),
+    )
+    active_calltree_node = find_same_node(
+      root_calltree_node({calltree: next_calltree}),
+      calltree, 
+      call.id
+    )
+  }
 
   return add_frame(
     expand_path(
-      {...state, calltree: merged},
+      {...state, calltree: next_calltree},
       active_calltree_node
     ),
     active_calltree_node,
