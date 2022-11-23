@@ -125,10 +125,35 @@ See built-in Help
 
 Editing local files is possible via [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API). Click "Allow access to local project folder" to grant access to local directory.
 
+## Selecting entrypoint module
+
+After you granted local filesystem access you can select which javascript file
+to run. See the following picture
+
+![Entrypoint module](docs/images/entrypoint.png)
+
 ## Run and debug UI code in separate window
 
-TODO
+By default your code is run in invisible iframe. If you want to run and debug
+UI code then you can open separate browser window. Click "(Re)open run window"
+in statusbar or press corresponding hotkey. New browser window will be opened
+and your code will be run in that window.
 
+While you interacting with your app in separate browser tab, all function calls
+are recorded. You can inspect and debug them.
+
+To try live example, grant file system access to
+[./docs/examples/preact](./docs/examples/preact) folder. Then select `index.js`
+as an entrypoint and click "(Re)open run window". You will see the app where
+you can calculate Fibonacci numbers:
+
+![Entrypoint module](docs/images/fib_ui.png)
+
+Try to click buttons and then get back to Leporello window. Now you can see
+that all all function calls have been recorded and you can inspect and debug
+them:
+
+![Async calls](docs/images/async_calls.png)
 
 ## Run Leporello locally
 To run it locally, you need to clone repo to local folder and serve it via HTTPS protocol (HTTPS is required by [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)). See [How to use HTTPS for local development](https://web.dev/how-to-use-local-https/)
