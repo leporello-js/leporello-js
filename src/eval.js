@@ -310,9 +310,17 @@ export const eval_modules = (
       }
     }
 
-    const find_call = (location) => {
+    const find_call = (location, async_calls) => {
       searched_location = location
       const {modules, calltree} = run()
+      if(found_call == null && async_calls != null) {
+        for(let c of async_calls) {
+          c.fn.apply(c.context, c.args)
+          if(found_call != null) {
+            break
+          }
+        }
+      }
       searched_location = null
       const call = found_call
       found_call = null
@@ -554,8 +562,8 @@ export const eval_modules = (
       const expanded = actions.expand_calltree_node(node)
       return assign_code(parse_result.modules, expanded)
     },
-    find_call: (loc) => {
-      const {modules, calltree, call} = actions.find_call(loc)
+    find_call: (loc, async_calls) => {
+      const {modules, calltree, call} = actions.find_call(loc, async_calls)
       return {
         calltree: assign_code(parse_result.modules, calltree),
         // TODO: `call` does not have `code` property here. Currently it is

@@ -2360,4 +2360,91 @@ const y = x()`
     assert_equal(nav2.state.current_calltree_node.fn.name, 'fn2')
   }),
 
+  // TODO
+  /*
+  test('async calls calltree nav', () => {
+    const code = `
+      const fn = () => {
+        fn2()
+      }
+      
+      const fn2 = () => {
+        console.log(1)
+      }
+
+      // Use Function constructor to exec impure code for testing
+      new Function('fn', 'globalThis.__run_async_call = fn')(fn)
+    `
+
+    const {get_async_call, on_async_call} = (new Function(`
+      let call
+      return {
+        get_async_call() {
+          return call
+        },
+        on_async_call(_call) {
+          call = _call
+        }
+      }
+    `))()
+
+    const i = test_initial_state(code, { on_async_call })
+    globalThis.__run_async_call(10)
+    const call = get_async_call()
+    assert_equal(call.fn.name, 'fn')
+    assert_equal(call.code.index, code.indexOf('() => {'))
+    assert_equal(call.args, [10])
+    const state = COMMANDS.on_async_call(i, call)
+    assert_equal(get_async_calls(state), [call])
+
+    assert_equal(state.logs.logs.length, 1)
+
+    // Expand call
+    const {state: expanded} = COMMANDS.calltree.click(state, call.id)
+    assert_equal(get_async_calls(expanded)[0].children[0].fn.name, 'fn2')
+
+    // Navigate logs
+    const nav = COMMANDS.calltree.navigate_logs_position(expanded, 0)
+    assert_equal(nav.state.current_calltree_node.is_log, true)
+
+    const nav2 = COMMANDS.calltree.arrow_left(nav.state)
+    assert_equal(nav2.state.current_calltree_node.fn.name, 'fn2')
+  }),
+  */
+
+  test_only('async_calls find_call', () => {
+    const code = `
+      const fn = () => {
+        fn2()
+      }
+      
+      const fn2 = () => {
+        console.log(1)
+      }
+
+      // Use Function constructor to exec impure code for testing
+      new Function('fn', 'globalThis.__run_async_call = fn')(fn)
+    `
+
+    const {get_async_call, on_async_call} = (new Function(`
+      let call
+      return {
+        get_async_call() {
+          return call
+        },
+        on_async_call(_call) {
+          call = _call
+        }
+      }
+    `))()
+
+    const i = test_initial_state(code, { on_async_call })
+    globalThis.__run_async_call(10)
+    const call = get_async_call()
+    const state = COMMANDS.on_async_call(i, call)
+
+    const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('fn2'))
+    console.log('active_calltree_node', moved.active_calltree_node)
+  }),
+
 ]
