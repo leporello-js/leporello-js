@@ -719,6 +719,11 @@ const move_cursor = (s, index) => {
     return {state: s}
   }
 
+  if(s.loading_external_imports_state != null) {
+    // TODO: save index in loading_external_imports_state
+    return {state: s}
+  }
+
   // Remove selection on move cursor
   const state_sel_removed = {...s, selection_state: null}
 
