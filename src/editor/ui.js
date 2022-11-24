@@ -195,14 +195,18 @@ export class UI {
         click: e => e.stopPropagation(),
         change: this.change_entrypoint,
       },
-        Object.keys(state.files).sort().map(f =>
-          el('option', 
-            state.entrypoint == f
-            ? { value: f, selected: true }
-            : { value: f},
-            f == '' ? "*scratch*" : f
+        Object
+          .keys(state.files)
+          .sort()
+          .filter(f => f == '' || f.endsWith('.js') || f.endsWith('.mjs'))
+          .map(f =>
+            el('option', 
+              state.entrypoint == f
+                ? { value: f, selected: true }
+                : { value: f},
+              f == '' ? "*scratch*" : f
+            )
           )
-        )
       )
     )
   }
