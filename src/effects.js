@@ -8,13 +8,21 @@ import {
 import {FLAGS} from './feature_flags.js'
 import {exec} from './index.js'
 
+// Imports in the context of `run_window`, so global variables in loaded
+// modules refer to that window's context 
+const import_in_run_window = url => {
+  return new globalThis.run_window.Function('url', `
+    return import(url)
+  `)(url)
+}
+
 const load_external_imports = async state => {
   if(state.loading_external_imports_state == null) {
     return
   }
   const urls = state.loading_external_imports_state.external_imports
   const results = await Promise.allSettled(
-    urls.map(u => import(
+    urls.map(u => import_in_run_window(
       /^\w+:\/\//.test(u)    
         ? // starts with protocol, import as is
           u

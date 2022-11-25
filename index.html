@@ -380,6 +380,8 @@
       window.log = console.log
 
       if(new URLSearchParams(window.location.search).get('leporello') == null) {
+        await import('./src/launch.js');
+        /*
         const {init} = await import('./src/index.js');
         (
           document.readyState == 'complete'
@@ -390,6 +392,7 @@
         ).then(() => {
           init(document.getElementById('app'))
         })
+        */
       }
     </script>
   </head>

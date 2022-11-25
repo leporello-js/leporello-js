@@ -759,6 +759,7 @@ const load_dir = (state, dir) => {
     collect_files(dir).map(f => [f.path, f.contents])
   )
 
+  // Clear parse cache and rerun code
   return rerun_code({
     ...state,
     // remove cache
@@ -771,6 +772,15 @@ const load_dir = (state, dir) => {
 
 const create_file = (state, dir, current_module) => {
   return {...load_dir(state, dir), current_module}
+}
+
+const open_run_window = state => {
+  // After we reopen run window, we should reload external modules in the
+  // context of new window. Clear external_imports_cache
+  return rerun_code({
+    ...state,
+    external_imports_cache: null,
+  })
 }
 
 export const get_initial_state = state => {
@@ -798,7 +808,7 @@ export const get_initial_state = state => {
 
 export const COMMANDS = {
   input, 
-  rerun_code,
+  open_run_window,
   load_dir,
   create_file,
   step_into,

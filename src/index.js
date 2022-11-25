@@ -1,5 +1,4 @@
-import {COMMANDS, get_initial_state} from './cmd.js'
-import {active_frame} from './calltree.js'
+import {get_initial_state} from './cmd.js'
 import {UI} from './editor/ui.js'
 import {EFFECTS, render_initial_state, render_common_side_effects} from './effects.js'
 import {load_dir} from './filesystem.js'
@@ -62,10 +61,13 @@ const read_modules = async () => {
   }
 }
 
+let COMMANDS
 let ui
 let state
 
-export const init = (container) => {
+export const init = (container, _COMMANDS) => {
+  COMMANDS = _COMMANDS
+
   set_error_handler(window)
 
   read_modules().then(initial_state => {
