@@ -1,4 +1,3 @@
-import {get_initial_state} from './cmd.js'
 import {UI} from './editor/ui.js'
 import {EFFECTS, render_initial_state, render_common_side_effects} from './effects.js'
 import {load_dir} from './filesystem.js'
@@ -23,19 +22,79 @@ const set_error_handler = w => {
 // window
 globalThis.run_window = (() => {
   const iframe = document.createElement('iframe')
-  iframe.src = 'about:blank'
+  //iframe.src = 'about:blank'
+  iframe.src = '/index.html?leporello'
   iframe.setAttribute('hidden', '')
   document.body.appendChild(iframe)
   set_error_handler(iframe.contentWindow)
   return iframe.contentWindow
 })()
 
+// Open another browser window so user can interact with application
+// TODO test in another browsers
 export const open_run_window = () => {
-  if(globalThis.run_window != null) {
-    globalThis.run_window.close()
+  globalThis.run_window.close()
+
+  //const next_window = open('about:blank')
+  const next_window = globalThis.run_window = open('/index.html?leporello')
+
+  const is_loaded = () => {
+    const nav = next_window.performance.getEntriesByType("navigation")[0]
+    return nav != null && nav.loadEventEnd > 0
   }
-  globalThis.run_window = open('about:blank')
-  exec('rerun_code')
+
+  // Wait until `load` event before executing code, because service worker that
+  // is responsible for loading external modules seems not working until `load`
+  // event fired.  TODO: better register SW explicitly and don't rely on
+  // already registered SW?
+  const onload = () => {
+    exec('open_run_window')
+  }
+
+  const add_load_handler = () => {
+    /*
+      Wait until 'load event', then set unload handler. The page after
+      window.open seems to go through these steps:
+
+      - about:blank gets opened
+      - Real URL get opened
+      - 'unload' event for about:blank page
+      - 'load event for real URL
+
+      if we set unload handler right now, then it will be fired for unload
+        event for about:blank page
+    */
+    if(is_loaded()) {
+      // Already loaded
+      add_unload_handler()
+      onload()
+    } else {
+      next_window.addEventListener('load', () => {
+        add_unload_handler()
+        onload()
+      })
+    }
+  }
+
+  const add_unload_handler = () => {
+    next_window.addEventListener('unload', (e) => {
+      // Set timeout to 100ms because it takes some time for page to get closed
+      // after triggering 'unload' event
+      setTimeout(() => {
+        if(next_window.closed) {
+          // If by that time next_window.closed was set to true, then page was
+          // closed
+          // TODO get back to iframe?
+          console.log("CLOSED")
+        } else {
+          console.log("REFRESHED")
+          add_load_handler()
+        }
+      }, 100)
+    })
+  }
+
+  add_load_handler()
 }
 
 const read_modules = async () => {
@@ -71,7 +130,7 @@ export const init = (container, _COMMANDS) => {
   set_error_handler(window)
 
   read_modules().then(initial_state => {
-    state = get_initial_state({
+    state = COMMANDS.get_initial_state({
       ...initial_state, 
       on_async_call: (...args) => exec('on_async_call', ...args)
     })

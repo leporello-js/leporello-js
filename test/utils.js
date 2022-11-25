@@ -1,6 +1,6 @@
 import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
 import {eval_tree, eval_frame} from '../src/eval.js'
-import {get_initial_state} from '../src/cmd.js'
+import {COMMANDS} from '../src/cmd.js'
 
 Object.assign(globalThis, {log: console.log})
 
@@ -28,7 +28,7 @@ export const assert_code_error = (codestring, error) => {
 }
 
 export const test_initial_state = (code, state) => {
-  return get_initial_state(
+  return COMMANDS.get_initial_state(
     {
       ...state,
       files: typeof(code) == 'object' ? code : { '' : code},

@@ -783,7 +783,7 @@ const open_run_window = state => {
   })
 }
 
-export const get_initial_state = state => {
+const get_initial_state = state => {
   const with_files = state.project_dir == null
     ? state
     : load_dir(state, state.project_dir)
@@ -807,6 +807,7 @@ export const get_initial_state = state => {
 }
 
 export const COMMANDS = {
+  get_initial_state,
   input, 
   open_run_window,
   load_dir,

@@ -13,7 +13,7 @@ import {
 const entry = `
   import {parse, load_modules} from './src/parse_js.js';
 
-  import {get_initial_state} from './src/cmd.js';
+  import {COMMANDS} from './src/cmd.js';
   //console.time('p');
   //const parsed = parse(globalThis.module_cache['./src/parse_js.js']);
   //console.timeEnd('p');

@@ -1,7 +1,7 @@
 import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {parse, print_debug_node} from '../src/parse_js.js'
 import {eval_tree, eval_frame, eval_modules} from '../src/eval.js'
-import {COMMANDS, get_initial_state} from '../src/cmd.js'
+import {COMMANDS} from '../src/cmd.js'
 import {root_calltree_node, active_frame, pp_calltree, get_async_calls} 
   from '../src/calltree.js'
 import {color_file} from '../src/color.js'
@@ -2241,7 +2241,7 @@ const y = x()`
   }),
 
   test('get_initial_state toplevel not entrypoint', () => {
-    const s = get_initial_state({
+    const s = COMMANDS.get_initial_state({
       files: {
         ''  : `import {x} from 'x'; x()`,
         'x' : `export const x = () => 1; x()`,
