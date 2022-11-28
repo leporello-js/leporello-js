@@ -754,7 +754,7 @@ const on_async_call = (state, call) => {
   }
 }
 
-const load_dir = (state, dir) => {
+const do_load_dir = (state, dir) => {
   const collect_files = dir => dir.kind == 'file' 
     ? [dir]
     : dir.children.map(collect_files).flat()
@@ -763,13 +763,21 @@ const load_dir = (state, dir) => {
     collect_files(dir).map(f => [f.path, f.contents])
   )
 
-  // Clear parse cache and rerun code
-  return rerun_code({
+  return {
     ...state,
-    // remove cache
-    parse_result: null,
     project_dir: dir,
     files: {...files, ...state.files},
+  }
+}
+
+const load_dir = (state, dir) => {
+  // Clear parse cache and rerun code
+  return rerun_code({
+    ...do_load_dir(state, dir),
+    // remove cache. We have to clear cache because imports of modules that are
+    // not available because project_dir is not available have errors and the
+    // errors are cached
+    parse_result: null,
   })
 }
 
@@ -789,12 +797,13 @@ const open_run_window = state => {
 const get_initial_state = state => {
   const with_files = state.project_dir == null
     ? state
-    : load_dir(state, state.project_dir)
+    : do_load_dir(state, state.project_dir)
 
   const entrypoint = with_files.entrypoint
   const current_module = with_files.current_module
+  const html_file = with_files.html_file
 
-  const s = {
+  return {
     ...with_files,
     // If module for entrypoint or current_module does not exist, use *scratch*
     entrypoint: 
@@ -804,9 +813,10 @@ const get_initial_state = state => {
     current_module: with_files.files[current_module] == null 
       ? '' 
       : current_module,
+    html_file: with_files.files[html_file] == null 
+      ? '' 
+      : html_file,
   }
-
-  return run_code(s, 0)
 }
 
 export const COMMANDS = {

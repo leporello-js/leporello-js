@@ -58,8 +58,8 @@ type Node = ToplevelCall | Call
 
 // TODO just export const Iframe_Function?
 const make_function = (...args) => {
-  if(globalThis.run_window == null) {
-    // Tests are run in Node.js or user have not opened run_window
+  if(globalThis.process != null) {
+    // Tests are run in Node.js
     return new Function(...args)
   } else {
     // Code run in browser and user opened run_window

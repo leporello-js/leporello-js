@@ -122,12 +122,6 @@ const render_parse_result = (ui, state) => {
 export const render_initial_state = (ui, state) => {
   ensure_session(ui, state)
   ui.editor.switch_session(state.current_module)
-  render_parse_result(ui, state)
-  if(state.current_calltree_node != null) {
-    ui.render_debugger(state)
-    render_coloring(ui, state)
-  }
-  load_external_imports(state)
 }
 
 export const render_common_side_effects = (prev, next, command, ui) => {

@@ -141,18 +141,23 @@ export const init = (container, _COMMANDS) => {
 
   read_modules().then(initial_state => {
 
-    open_run_iframe(initial_state)
-
     state = COMMANDS.get_initial_state({
       ...initial_state, 
       on_async_call: (...args) => exec('on_async_call', ...args)
     })
+
     // Expose state for debugging
     globalThis.__state = state
     ui = new UI(container, state)
     // Expose for debugging
     globalThis.__ui = ui
+
     render_initial_state(ui, state)
+
+    open_run_iframe(state)
+    
+    // TODO exec on iframe load
+    exec('open_run_window')
   })
 }
 
@@ -186,7 +191,7 @@ export const exec = (cmd, ...args) => {
   }
 
   // Sanity check
-  if(state?.parse_result == null) {
+  if(state?.current_module == null) {
     console.error('command did not return state, returned', result)
     throw new Error('illegal state')
   }
