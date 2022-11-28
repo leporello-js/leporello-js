@@ -30,12 +30,13 @@ const get_html_url = state => {
 
 // By default run code in hidden iframe, until user explicitly opens visible
 // window
-const open_run_iframe = state => {
+const open_run_iframe = (state, onload) => {
   const iframe = document.createElement('iframe')
   iframe.src = get_html_url(state)
   iframe.setAttribute('hidden', '')
   document.body.appendChild(iframe)
   set_error_handler(iframe.contentWindow)
+  iframe.contentWindow.addEventListener('load', onload)
   globalThis.run_window = iframe.contentWindow
 }
 
@@ -158,10 +159,9 @@ export const init = (container, _COMMANDS) => {
 
     render_initial_state(ui, state)
 
-    open_run_iframe(state)
-    
-    // TODO exec on iframe load
-    exec('open_run_window')
+    open_run_iframe(state, () => {
+      exec('open_run_window')
+    })
   })
 }
 
