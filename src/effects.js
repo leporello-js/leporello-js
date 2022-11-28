@@ -172,6 +172,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
 
   if(!next.parse_result.ok || next.loading_external_imports_state != null) {
 
+    // TODO if loading external imports, show loading indicator
     ui.calltree.clear_calltree()
     ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
     ui.editor.unembed_value_explorer()
