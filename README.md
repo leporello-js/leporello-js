@@ -132,6 +132,39 @@ to run. See the following picture
 
 ![Entrypoint module](docs/images/entrypoint.png)
 
+## Selecting html file
+
+By default code in run in context of empty HTML file. If you want to use custom
+HTML files with third party scripts or CSS stylesheets, you should choose HTML
+file:
+
+![HTML file](docs/images/html_file.png)
+
+In typical HTML5 app you add to your html file a `script` element pointing to
+your entry js module, like this:
+
+```html
+<script type='module' src='index.js'></script>
+```
+
+Because Leporello has built in bundler, you dont point to your entry module in
+HTML file. Instead, you [select entrypoint module in
+UI](#selecting-entrypoint-module).
+
+If you want to use the same HTML file both for developing in Leporello.js and
+in production, you can do it like this:
+
+```html
+<script type='module'>
+  if(new URLSearchParams(window.location.search).get('leporello') == null) {
+    import('./src/index.js');
+  }
+</script>
+```
+
+Leporello.js appends `?leporello` query parameter to your HTML file, so you can
+test if HTML file is run in Leporello.js or in production.
+
 ## Run and debug UI code in separate window
 
 By default your code is run in invisible iframe. If you want to run and debug
@@ -154,6 +187,21 @@ that all all function calls have been recorded and you can inspect and debug
 them:
 
 ![Async calls](docs/images/async_calls.png)
+
+You can even run and debug Leporello.js in Leporello.js! To do this:
+
+- Check out Leporello.js repo and grant local filesystem access to root project directory
+- Select `src/launch.js` as an entrypoint
+- Select `index.html` as html file
+- Click "(Re)open run window"
+
+New instance of Leporello.js will be opened in new browser tab.
+
+The only problem is that both instances of Leporello.js will share the same
+localStorage. (TODO - inject localStorage implementation to opened window, that
+allows to share localStorage between host Leporello.js instance and window
+where code is run)
+
 
 ## Run Leporello locally
 To run it locally, you need to clone repo to local folder and serve it via HTTPS protocol (HTTPS is required by [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)). See [How to use HTTPS for local development](https://web.dev/how-to-use-local-https/)
