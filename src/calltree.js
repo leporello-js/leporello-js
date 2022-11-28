@@ -339,7 +339,11 @@ const arrow_down = state => {
   }
 
   if(next_node?.id == 'async_calls') {
-    next_node = next_node.children[0]
+    if(next_node.children == null) {
+      next_node = null
+    } else {
+      next_node = next_node.children[0]
+    }
   }
 
   return next_node == null 

@@ -2363,6 +2363,15 @@ const y = x()`
 
     const {state: i, on_async_call} = test_async_calls_state(code)
 
+    // When there are no async calls, and we press arrow down, nothing should
+    // happen
+    const no_async_down = 
+      COMMANDS.calltree.arrow_down(
+        COMMANDS.calltree.arrow_down(i).state
+      )
+
+    assert_equal(no_async_down.current_calltree_node.fn.name, 'normal_call')
+
     const after_async_calls = [1, 2, 3].reduce(
       (s, a) => {
         // Make async calls
