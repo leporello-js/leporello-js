@@ -1,4 +1,4 @@
-import {exec, get_state, open_run_window} from '../index.js'
+import {exec, get_state, open_run_window, reload_run_window} from '../index.js'
 import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
@@ -10,6 +10,8 @@ import {FLAGS} from '../feature_flags.js'
 export class UI {
   constructor(container, state){
     this.change_entrypoint = this.change_entrypoint.bind(this)
+    this.change_html_file = this.change_html_file.bind(this)
+    this.open_run_window = this.open_run_window.bind(this)
 
     this.files = new Files(this)
 
@@ -71,7 +73,7 @@ export class UI {
           el('a', {
             'class': 'open_run_window',
             href: 'javascript: void(0)',
-            click: open_run_window,
+            click: this.open_run_window,
           },
             '(Re)open run window (F6)'
           ),
@@ -137,7 +139,7 @@ export class UI {
       }
 
       if(e.key == 'F6'){
-        open_run_window()
+        this.open_run_window()
       }
     })
 
@@ -190,7 +192,7 @@ export class UI {
 
   render_entrypoint_select(state) {
     this.entrypoint_select.replaceChildren(
-      el('span', 'entrypoint_title', 'entrypoint'),
+      el('span', 'entrypoint_title', 'js entrypoint'),
       el('select', {
         click: e => e.stopPropagation(),
         change: this.change_entrypoint,
@@ -207,8 +209,33 @@ export class UI {
               f == '' ? "*scratch*" : f
             )
           )
-      )
+      ),
+      el('span', 'entrypoint_title', 'html page'),
+      el('select', {
+        click: e => e.stopPropagation(),
+        change: this.change_html_file,
+      },
+        ['']
+          .concat(
+            Object
+              .keys(state.files)
+              .sort()
+              .filter(f => f.endsWith('.htm') || f.endsWith('.html'))
+          )
+          .map(f =>
+            el('option', 
+              state.html_file == f
+                ? { value: f, selected: true }
+                : { value: f},
+              f == '' ? 'abount:blank' : f
+            )
+          )
+      ),
     )
+  }
+
+  open_run_window() {
+    open_run_window(get_state())
   }
 
   change_entrypoint(e) {
@@ -219,6 +246,12 @@ export class UI {
       ?? 0
     exec('change_entrypoint', file, index)
     this.editor.focus()
+  }
+
+  change_html_file(e) {
+    const html_file = e.target.value
+    exec('change_html_file', html_file)
+    reload_run_window(get_state())
   }
 
   render_debugger(state) {

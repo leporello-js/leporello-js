@@ -136,8 +136,17 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     || 
     prev.current_module != next.current_module
   ) {
-    ui.render_entrypoint_select(next)
     ui.files.render(next)
+  }
+
+  if(
+    prev.project_dir != next.project_dir 
+    || 
+    prev.entrypoint != next.entrypoint
+    ||
+    prev.html_file != next.html_file
+  ) {
+    ui.render_entrypoint_select(next)
   }
 
   if(prev.current_module != next.current_module) {
@@ -147,6 +156,10 @@ export const render_common_side_effects = (prev, next, command, ui) => {
 
   if(prev.entrypoint != next.entrypoint) {
     localStorage.entrypoint = next.entrypoint
+  }
+
+  if(prev.html_file != next.html_file) {
+    localStorage.html_file = next.html_file
   }
 
   if(prev.current_module != next.current_module) {

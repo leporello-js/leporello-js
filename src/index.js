@@ -18,25 +18,29 @@ const set_error_handler = w => {
   })
 }
 
+const get_html_url = state => {
+  return state.html_file == ''
+    ? 'about:blank'
+    : window.location.origin + '/' + state.html_file + '?leporello'
+}
+
 // By default run code in hidden iframe, until user explicitly opens visible
 // window
-globalThis.run_window = (() => {
+const open_run_iframe = state => {
   const iframe = document.createElement('iframe')
-  //iframe.src = 'about:blank'
-  iframe.src = '/index.html?leporello'
+  iframe.src = get_html_url(state)
   iframe.setAttribute('hidden', '')
   document.body.appendChild(iframe)
   set_error_handler(iframe.contentWindow)
-  return iframe.contentWindow
-})()
+  globalThis.run_window = iframe.contentWindow
+}
 
 // Open another browser window so user can interact with application
 // TODO test in another browsers
-export const open_run_window = () => {
+export const open_run_window = state => {
   globalThis.run_window.close()
 
-  //const next_window = open('about:blank')
-  const next_window = globalThis.run_window = open('/index.html?leporello')
+  const next_window = globalThis.run_window = open(get_html_url(state))
 
   const is_loaded = () => {
     const nav = next_window.performance.getEntriesByType("navigation")[0]
@@ -85,9 +89,7 @@ export const open_run_window = () => {
           // If by that time next_window.closed was set to true, then page was
           // closed
           // TODO get back to iframe?
-          console.log("CLOSED")
         } else {
-          console.log("REFRESHED")
           add_load_handler()
         }
       }, 100)
@@ -97,12 +99,20 @@ export const open_run_window = () => {
   add_load_handler()
 }
 
+export const reload_run_window = state => {
+  // TODO after window location reload, open_run_window command will be fired.
+  // Maybe we should have separate commands for open_run_window and
+  // reload_run_window?
+  globalThis.run_window.location = get_html_url(state)
+}
+
 const read_modules = async () => {
   const default_module = {'': localStorage.code || EXAMPLE}
   const current = {
     // TODO fix when there are no such modules anymore
     current_module: localStorage.current_module ?? '',
     entrypoint: localStorage.entrypoint ?? '',
+    html_file: localStorage.html_file ?? '',
   }
   const project_dir = await load_dir(false)
   if(project_dir == null) {
@@ -130,6 +140,9 @@ export const init = (container, _COMMANDS) => {
   set_error_handler(window)
 
   read_modules().then(initial_state => {
+
+    open_run_iframe(initial_state)
+
     state = COMMANDS.get_initial_state({
       ...initial_state, 
       on_async_call: (...args) => exec('on_async_call', ...args)

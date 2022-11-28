@@ -506,6 +506,10 @@ const change_entrypoint = (state, entrypoint, index) => {
   )
 }
 
+const change_html_file = (state, html_file) => {
+  return {...state, html_file}
+}
+
 const goto_definition = (state, index) => {
   if(!state.parse_result.ok){
     return {state, effects: {type: 'set_status', args: ['unresolved syntax errors']}}
@@ -766,7 +770,6 @@ const load_dir = (state, dir) => {
     parse_result: null,
     project_dir: dir,
     files: {...files, ...state.files},
-
   })
 }
 
@@ -815,6 +818,7 @@ export const COMMANDS = {
   step_into,
   change_current_module,
   change_entrypoint,
+  change_html_file,
   goto_definition,
   goto_problem,
   move_cursor,
