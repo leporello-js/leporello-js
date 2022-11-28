@@ -40,40 +40,44 @@ export class Logs {
     })
   }
 
+  rerender_logs(logs) {
+    this.el.innerHTML = ''
+    this.render_logs(null, logs)
+  }
+
   render_logs(prev_logs, logs) {
-
-    if(prev_logs?.logs != logs.logs) {
-
-      this.el.innerHTML = ''
-      for(let i = 0; i < logs.logs.length; i++) {
-        const log = logs.logs[i]
-        this.el.appendChild(
-          el('div', 
-            'log call_header ' 
-              + (log.log_fn_name == 'error' ? 'error' : '') 
-              // Currently console.log calls from native fns (like Array::map)
-              // are not recorded, so next line is dead code
-              + (log.module == null ? ' native' : '')
-            ,
-            el('a', {
-              href: 'javascript: void(0)', 
-              click: () => exec('calltree.navigate_logs_position', i),
-            },
-              (log.module == '' ? '*scratch*' : log.module)
-              + ': '
-              + (
-                log.toplevel
-                ? 'toplevel'
-                : 'fn ' + (log.parent_name == '' ? 'anonymous' : log.parent_name)
-              )
-              + ':'
-            ),
-            ' ',
-            log.args.map(a => header(a)).join(', ')
-          )
+    for(
+      let i = prev_logs == null ? 0 : prev_logs.logs.length ; 
+      i < logs.logs.length; 
+      i++
+    )
+    {
+      const log = logs.logs[i]
+      this.el.appendChild(
+        el('div', 
+          'log call_header ' 
+            + (log.log_fn_name == 'error' ? 'error' : '') 
+            // Currently console.log calls from native fns (like Array::map)
+            // are not recorded, so next line is dead code
+            + (log.module == null ? ' native' : '')
+          ,
+          el('a', {
+            href: 'javascript: void(0)', 
+            click: () => exec('calltree.navigate_logs_position', i),
+          },
+            (log.module == '' ? '*scratch*' : log.module)
+            + ': '
+            + (
+              log.toplevel
+              ? 'toplevel'
+              : 'fn ' + (log.parent_name == '' ? 'anonymous' : log.parent_name)
+            )
+            + ':'
+          ),
+          ' ',
+          log.args.map(a => header(a)).join(', ')
         )
-      }
-
+      )
     }
 
     if(prev_logs?.log_position != logs.log_position) {

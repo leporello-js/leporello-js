@@ -182,18 +182,14 @@ export const render_common_side_effects = (prev, next, command, ui) => {
 
   } else {
 
-    if(
-      // TODO refactor this condition
-      prev.current_calltree_node == null 
-      ||
-      prev.calltree_changed_token != next.calltree_changed_token
-    ) {
+    if(prev.calltree_changed_token != next.calltree_changed_token) {
       // Rerender entire calltree
       ui.render_debugger(next)
       ui.eval.clear_value_or_error()
       ui.editor.for_each_session(f => clear_coloring(ui, f))
       render_coloring(ui, next)
       ui.editor.unembed_value_explorer()
+      ui.logs.rerender_logs(next.logs)
     } else {
 
       if(get_async_calls(prev) == null && get_async_calls(next) != null) {
@@ -225,9 +221,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
       if(prev.calltree_node_by_loc != next.calltree_node_by_loc) {
         render_coloring(ui, next)
       }
-    }
 
-    if(prev.logs != next.logs) {
       ui.logs.render_logs(prev.logs, next.logs)
     }
   }
