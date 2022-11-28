@@ -29,21 +29,38 @@ self.addEventListener('message', async function(e) {
   e.ports[0].postMessage(reply)
 })
 
-// Fake URL base prepended by code responsible for module loading
-const FAKE_URL_BASE = 'https://leporello.import/'
+// Fake directory, http requests to this directory intercepted by service_worker
+const FILES_ROOT = '__leporello_files'
 
 self.addEventListener("fetch", event => {
-  if(event.request.url.startsWith(FAKE_URL_BASE)) {
-    if(dir_handle != null) {
-      const headers = new Headers([
-        ['Content-Type', 'text/javascript']
-      ])
-      const path = event.request.url.replace(FAKE_URL_BASE, '')
-      const response = read_file(dir_handle, path).then(file => 
-        new Response(file, {headers})
-      )
-      event.respondWith(response)
+  const url = new URL(event.request.url)
+  if(url.pathname.startsWith('/' + FILES_ROOT)) {
+    const path = url.pathname.replace('/' + FILES_ROOT + '/', '')
+
+    let file
+
+    if(path == '__leporello_blank.html') {
+      file = Promise.resolve('')
+    } else if(dir_handle != null) {
+      file = read_file(dir_handle, path)
+    } else {
+      // Delegate request to browser
+      return
     }
+
+    const headers = new Headers([
+      [
+        'Content-Type', 
+        path.endsWith('.js') || path.endsWith('.mjs')
+          ? 'text/javascript'
+          : 'text/html'
+      ]
+    ])
+
+    const response = file.then(file => 
+      new Response(file, {headers})
+    )
+    event.respondWith(response)
   }
 })
 

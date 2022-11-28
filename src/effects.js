@@ -6,7 +6,7 @@ import {
   get_async_calls
 } from './calltree.js'
 import {FLAGS} from './feature_flags.js'
-import {exec} from './index.js'
+import {exec, FILES_ROOT} from './index.js'
 
 // Imports in the context of `run_window`, so global variables in loaded
 // modules refer to that window's context 
@@ -26,9 +26,12 @@ const load_external_imports = async state => {
       /^\w+:\/\//.test(u)    
         ? // starts with protocol, import as is
           u
-        : //local path, load using File System Access API, see service_worker.js
-          // Append fake host that will be intercepted in service worker
-          'https://leporello.import/' + u
+        : // local path, load using File System Access API, see service_worker.js
+          // Append special URL segment that will be intercepted in service worker
+          // Note that we use the same origin as current page (where Leporello
+          // is hosted), so Leporello can access window object for custom
+          // `html_file`
+          window.location.origin + '/' + FILES_ROOT + '/' + u
     ))
   )
   const modules = Object.fromEntries(

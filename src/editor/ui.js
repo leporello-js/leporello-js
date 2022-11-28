@@ -227,7 +227,7 @@ export class UI {
               state.html_file == f
                 ? { value: f, selected: true }
                 : { value: f},
-              f == '' ? 'abount:blank' : f
+              f == '' ? 'about:blank' : f
             )
           )
       ),

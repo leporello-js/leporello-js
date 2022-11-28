@@ -382,19 +382,6 @@
 
       if(new URLSearchParams(window.location.search).get('leporello') == null) {
         await import('./src/launch.js');
-        // TODO remove?
-        /*
-        const {init} = await import('./src/index.js');
-        (
-          document.readyState == 'complete'
-            ? Promise.resolve()
-            : new Promise(resolve => 
-                window.addEventListener('load', resolve)
-              )
-        ).then(() => {
-          init(document.getElementById('app'))
-        })
-        */
       }
     </script>
   </head>

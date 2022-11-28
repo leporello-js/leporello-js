@@ -8,6 +8,9 @@ const EXAMPLE = `const fib = n =>
     : fib(n - 1) + fib(n - 2)
 fib(6)`
 
+// Fake directory, http requests to this directory intercepted by service_worker
+export const FILES_ROOT = '__leporello_files'
+
 const set_error_handler = w => {
   // TODO err.message
   w.onerror = (msg, src, lineNum, colNum, err) => {
@@ -19,9 +22,10 @@ const set_error_handler = w => {
 }
 
 const get_html_url = state => {
+  const base = window.location.origin + '/' + FILES_ROOT + '/' 
   return state.html_file == ''
-    ? 'about:blank'
-    : window.location.origin + '/' + state.html_file + '?leporello'
+    ? base + '__leporello_blank.html'
+    : base + state.html_file + '?leporello'
 }
 
 // By default run code in hidden iframe, until user explicitly opens visible
