@@ -2241,14 +2241,16 @@ const y = x()`
   }),
 
   test('get_initial_state toplevel not entrypoint', () => {
-    const s = COMMANDS.get_initial_state({
-      files: {
+    const s = test_initial_state(
+      {
         ''  : `import {x} from 'x'; x()`,
         'x' : `export const x = () => 1; x()`,
       },
-      entrypoint: '',
-      current_module: 'x',
-    })
+      {
+        entrypoint: '',
+        current_module: 'x',
+      }
+    )
     assert_equal(s.current_calltree_node.toplevel, true)
     assert_equal(s.active_calltree_node, null)
   }),

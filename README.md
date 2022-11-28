@@ -113,9 +113,9 @@ import BigNumber from './path/to/bignumber.mjs';
 
 ![External import](docs/images/external_import.png)
 
-Currently every external is loaded once and cached until Leporello is restarted 
-(TODO what happens if we load modules in iframe and then recreate iframe)
-(TODO serve modules from service worker, change host every time)
+Currently every external is loaded once and cached until Leporello is restarted
+(TODO change path to modules every time it changed on disk, since modules are
+served from service workers).
 
 ## Hotkeys
 

@@ -28,13 +28,15 @@ export const assert_code_error = (codestring, error) => {
 }
 
 export const test_initial_state = (code, state) => {
-  return COMMANDS.get_initial_state(
-    {
-      ...state,
-      files: typeof(code) == 'object' ? code : { '' : code},
-      entrypoint: '',
-      current_module: '',
-    },
+  return COMMANDS.open_run_window(
+    COMMANDS.get_initial_state(
+      {
+        files: typeof(code) == 'object' ? code : { '' : code},
+        entrypoint: '',
+        current_module: '',
+        ...state,
+      },
+    )
   )
 }
 
