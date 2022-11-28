@@ -180,6 +180,7 @@ const do_external_imports_loaded = (
       state.parse_result,
       external_imports,
       state.on_async_call,
+      state.calltree_changed_token,
     )
     const next = apply_eval_result(state, result)
 
@@ -202,6 +203,7 @@ const do_external_imports_loaded = (
     state.parse_result,
     external_imports,
     state.on_async_call,
+    state.calltree_changed_token,
     {index: node.index, module: state.current_module},
   )
 
@@ -744,7 +746,10 @@ const move_cursor = (s, index) => {
   return do_move_cursor(state, index)
 }
 
-const on_async_call = (state, call) => {
+const on_async_call = (state, call, calltree_changed_token) => {
+  if(state.calltree_changed_token != calltree_changed_token) {
+    return state
+  }
   return {...state, 
     calltree: make_calltree(
       root_calltree_node(state),

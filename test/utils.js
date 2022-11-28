@@ -40,6 +40,29 @@ export const test_initial_state = (code, state) => {
   )
 }
 
+export const test_async_calls_state = code => {
+  const {get_async_call, on_async_call} = (new Function(`
+    let call, calltree_changed_token
+    return {
+      get_async_call() {
+        return [call, calltree_changed_token]
+      },
+      on_async_call(_call, _calltree_changed_token) {
+        call = _call
+        calltree_changed_token = _calltree_changed_token
+      }
+    }
+  `))()
+
+  const state = test_initial_state(code, { on_async_call })
+
+  return {
+    state, 
+    get_async_call, 
+    on_async_call: state => COMMANDS.on_async_call(state, ...get_async_call())
+  }
+}
+
 export const stringify = val => 
   JSON.stringify(val, (key, value) => {
     // TODO do not use instanceof because currently not implemented in parser

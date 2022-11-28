@@ -257,6 +257,7 @@ export const eval_modules = (
   parse_result,
   external_imports, 
   on_async_call,
+  calltree_changed_token,
   location
 ) => {
   // TODO gensym __modules, __exports
@@ -429,7 +430,7 @@ export const eval_modules = (
             }
             const call = children[0]
             children = null
-            on_async_call(call)
+            on_async_call(call, calltree_changed_token)
           }
         }
       }
@@ -567,6 +568,7 @@ export const eval_modules = (
   const actions = make_function(
     'external_imports', 
     'on_async_call', 
+    'calltree_changed_token',
     codestring
   )(
     /* external_imports */
@@ -575,7 +577,15 @@ export const eval_modules = (
     : map_object(external_imports, (name, {module}) => module),
 
     /* on_async_call */
-    call => on_async_call(assign_code(parse_result.modules, call))
+    (call, calltree_changed_token) => {
+      return on_async_call(
+        assign_code(parse_result.modules, call),
+        calltree_changed_token,
+      )
+    },
+
+    /* calltree_changed_token */
+    calltree_changed_token
   )
 
   const calltree_actions =  {

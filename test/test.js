@@ -14,6 +14,7 @@ import {
   assert_code_error,
   parse_modules,
   test_initial_state,
+  test_async_calls_state,
   print_debug_ct_node,
 } from './utils.js'
 
@@ -2324,31 +2325,18 @@ const y = x()`
       }
     `
 
-    const {get_async_call, on_async_call} = (new Function(`
-      let call
-      return {
-        get_async_call() {
-          return call
-        },
-        on_async_call(_call) {
-          call = _call
-        }
-      }
-    `))()
-
-    const i = test_initial_state(code, { on_async_call })
+    const {state: i, on_async_call} = test_async_calls_state(code)
 
     // Make async call
     i.modules[''].fn(10)
 
-    const call = get_async_call()
+    const state = on_async_call(i)
+    assert_equal(state.logs.logs.length, 1)
+
+    const call = get_async_calls(state)[0]
     assert_equal(call.fn.name, 'fn')
     assert_equal(call.code.index, code.indexOf('() => {'))
     assert_equal(call.args, [10])
-    const state = COMMANDS.on_async_call(i, call)
-    assert_equal(get_async_calls(state), [call])
-
-    assert_equal(state.logs.logs.length, 1)
 
     // Expand call
     const {state: expanded} = COMMANDS.calltree.click(state, call.id)
@@ -2373,26 +2361,13 @@ const y = x()`
       }
     `
 
-    const {get_async_call, on_async_call} = (new Function(`
-      let call
-      return {
-        get_async_call() {
-          return call
-        },
-        on_async_call(_call) {
-          call = _call
-        }
-      }
-    `))()
-
-    const i = test_initial_state(code, { on_async_call })
+    const {state: i, on_async_call} = test_async_calls_state(code)
 
     const after_async_calls = [1, 2, 3].reduce(
       (s, a) => {
         // Make async calls
         i.modules[''].async_call(a)
-        const call = get_async_call()
-        return COMMANDS.on_async_call(s, call)
+        return on_async_call(s)
       },
       i
     )
@@ -2458,25 +2433,12 @@ const y = x()`
       }
     `
 
-    const {get_async_call, on_async_call} = (new Function(`
-      let call
-      return {
-        get_async_call() {
-          return call
-        },
-        on_async_call(_call) {
-          call = _call
-        }
-      }
-    `))()
-
-    const i = test_initial_state(code, { on_async_call })
+    const {state: i, on_async_call} = test_async_calls_state(code)
 
     // Make async call
     i.modules[''].fn()
 
-    const call = get_async_call()
-    const state = COMMANDS.on_async_call(i, call)
+    const state = on_async_call(i)
 
     const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('fn2'))
     assert_equal(moved.active_calltree_node.fn.name, 'fn')
@@ -2495,24 +2457,12 @@ const y = x()`
       export const fn = () => { /* label */ }
     `
 
-    const {get_async_call, on_async_call} = (new Function(`
-      let call
-      return {
-        get_async_call() {
-          return call
-        },
-        on_async_call(_call) {
-          call = _call
-        }
-      }
-    `))()
-
-    const i = test_initial_state(code, { on_async_call })
+    const {state: i, on_async_call} = test_async_calls_state(code)
 
     // Make async call
     i.modules[''].fn(1)
 
-    const state = COMMANDS.on_async_call(i, get_async_call())
+    const state = on_async_call(i)
 
     // find call
     const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('label'))
@@ -2520,9 +2470,27 @@ const y = x()`
     // Make async call
     i.modules[''].fn(2)
 
-    const result = COMMANDS.on_async_call(moved, get_async_call())
+    const result = on_async_call(moved)
 
     // there was a bug throwing error when added second async call
     assert_equal(get_async_calls(result).map(c => c.args), [[1], [2]])
+  }),
+
+  test('async_calls discard on code rerun', () => {
+    const code = `
+      export const fn = () => { /* label */ }
+    `
+    const {state: i, on_async_call} = test_async_calls_state(code)
+
+    const input = COMMANDS.input(i, code, 0).state
+
+    // Make async call, calling fn from previous code
+    i.modules[''].fn(1)
+
+    const result = on_async_call(input)
+
+    // Async calls must be null, because async calls from previous executions
+    // must be discarded
+    assert_equal(get_async_calls(result), null)
   }),
 ]
