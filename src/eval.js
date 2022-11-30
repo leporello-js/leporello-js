@@ -814,6 +814,7 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
           // TODO fix error messages
           error: new Error('is not a function'),
           children,
+          calls,
         }
       }
       const c = calls[0]

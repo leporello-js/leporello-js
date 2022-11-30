@@ -693,6 +693,13 @@ export const tests = [
     assert_equal(frame.children[0].result.ok, false)
   }),
 
+  test('eval_frame non-function call bug', () => {
+    const parsed = parse(`Object.assign({}, {}); null()`)
+    const tree = eval_tree(parsed.node)
+    const frame = eval_frame(tree)
+    assert_equal(frame.children[frame.children.length - 1].result.ok, false)
+  }),
+
   test('eval_frame destructuring args', () => {
     const parsed = parse(`
       const x = (...a) => a;
