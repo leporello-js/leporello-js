@@ -182,7 +182,11 @@ export const render_common_side_effects = (prev, next, command, ui) => {
 
   } else {
 
-    if(prev.calltree_changed_token != next.calltree_changed_token) {
+    if(
+      prev.calltree == null
+      ||
+      prev.calltree_changed_token != next.calltree_changed_token
+    ) {
       // Rerender entire calltree
       ui.render_debugger(next)
       ui.eval.clear_value_or_error()
