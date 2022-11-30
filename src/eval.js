@@ -240,7 +240,11 @@ const codegen = (node, cxt, parent) => {
     return do_codegen(node.key) + ' : ' + do_codegen(node.value);
   } else if(node.type == 'import') {
     const names = node.imports.map(n => n.value)
-    return `const {${names.join(',')}} = __modules['${node.full_import_path}'];`;
+    if(names.length == 0) {
+      return ''
+    } else {
+      return `const {${names.join(',')}} = __modules['${node.full_import_path}'];`;
+    }
   } else if(node.type == 'export') {
     const identifiers = collect_destructuring_identifiers(node.binding.name_node)
       .map(i => i.value)

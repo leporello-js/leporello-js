@@ -786,6 +786,24 @@ export const tests = [
     assert_equal(mods.root.is_eq, true)
   }),
 
+  test('modules empty import', () => {
+    const i = test_initial_state({
+      '':  'import {} from "a"',
+      'a': 'Object.assign(globalThis, {test_import: true})',
+    })
+    assert_equal(i.active_calltree_node.ok, true)
+    assert_equal(globalThis.test_import, true)
+  }),
+
+  test('modules bare import', () => {
+    const i = test_initial_state({
+      '':  'import "a"',
+      'a': 'Object.assign(globalThis, {test_import: true})',
+    })
+    assert_equal(i.active_calltree_node.ok, true)
+    assert_equal(globalThis.test_import, true)
+  }),
+
   test('bug parser pragma external', () => {
     const result = parse(`
       // external

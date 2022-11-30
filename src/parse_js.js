@@ -1178,16 +1178,20 @@ const import_statement =
       optional(by_type('pragma_external')),
       seq([
         literal('import'),
-        list(
-          ['{', '}'],
-          identifier,
+        optional(
+          seq([
+            list(
+              ['{', '}'],
+              identifier,
+            ),
+            literal('from'),
+          ])
         ),
-        literal('from'),
         string_literal
       ])
     ]),
     ({value: [external, imp]}) => {
-      const {value: [_import, identifiers, _from, module], ...node} = imp
+      const {value: [_import, identifiers, module], ...node} = imp
       return {
         ...node,
         not_evaluatable: true,
@@ -1196,7 +1200,7 @@ const import_statement =
         // TODO refactor hanlding of string literals. Drop quotes from value and
         // fix codegen for string_literal
         module: module.value.slice(1, module.value.length - 1),
-        children: identifiers.value,
+        children: identifiers == null ? [] : identifiers.value[0].value,
       }
     }
   )
