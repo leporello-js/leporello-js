@@ -102,7 +102,7 @@ const tokenize_js = (str) => {
     {name: 'keyword'            , re: reserved.map(r => '\\b' + r + '\\b').join('|')},
     // TODO all possible notatins for js numbers
     {name: 'number'             , re: '-?\\d*\\.?\\d+'},
-    {name: 'identifier'         , re: '[A-Za-z_][A-Za-z0-9_]*'},
+    {name: 'identifier'         , re: '[A-Za-z_$][A-Za-z0-9_$]*'},
   
     {name: 'punctuation'        , 
         re: '(' + 
