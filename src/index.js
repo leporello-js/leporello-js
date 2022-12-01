@@ -148,7 +148,7 @@ export const init = (container, _COMMANDS) => {
 
     state = COMMANDS.get_initial_state({
       ...initial_state, 
-      on_async_call: (...args) => exec('on_async_call', ...args)
+      on_deferred_call: (...args) => exec('on_deferred_call', ...args)
     })
 
     // Expose state for debugging

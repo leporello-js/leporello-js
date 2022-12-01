@@ -3,7 +3,7 @@ import {el, stringify, fn_link, scrollIntoViewIfNeeded} from './domutils.js'
 import {FLAGS} from '../feature_flags.js'
 import {stringify_for_header} from './value_explorer.js'
 import {find_node} from '../ast_utils.js'
-import {is_expandable, root_calltree_node, get_async_calls} from '../calltree.js'
+import {is_expandable, root_calltree_node, get_deferred_calls} from '../calltree.js'
 
 // TODO perf - quadratic difficulty
 const join = arr => arr.reduce(
@@ -170,23 +170,23 @@ export class CallTree {
       root_calltree_node(state),
     )
 
-    const prev_async_calls = get_async_calls(prev_state)
-    const async_calls = get_async_calls(state)
+    const prev_deferred_calls = get_deferred_calls(prev_state)
+    const deferred_calls = get_deferred_calls(state)
 
-    if(prev_async_calls != null) {
-      // Expand already existing async calls
-      for(let i = 0; i < prev_async_calls.length; i++) {
+    if(prev_deferred_calls != null) {
+      // Expand already existing deferred calls
+      for(let i = 0; i < prev_deferred_calls.length; i++) {
         this.do_render_expand_node(
           prev_state.calltree_node_is_expanded,
           state.calltree_node_is_expanded,
-          prev_async_calls[i],
-          async_calls[i],
+          prev_deferred_calls[i],
+          deferred_calls[i],
         )
       }
-      // Add new async calls
-      for(let i = prev_async_calls.length; i < async_calls.length; i++) {
-        this.async_calls_root.appendChild(
-          this.render_node(async_calls[i])
+      // Add new deferred calls
+      for(let i = prev_deferred_calls.length; i < deferred_calls.length; i++) {
+        this.deferred_calls_root.appendChild(
+          this.render_node(deferred_calls[i])
         )
       }
     }
@@ -227,14 +227,14 @@ export class CallTree {
     this.render_select_node(null, state)
   }
 
-  render_async_calls(state) {
+  render_deferred_calls(state) {
     this.state = state
     this.container.appendChild(
       el('div', 'callnode', 
         el('div', 'call_el',
-          el('i', '', 'async calls'),
-          this.async_calls_root = el('div', 'callnode',
-            get_async_calls(state).map(call => this.render_node(call))
+          el('i', '', 'deferred calls'),
+          this.deferred_calls_root = el('div', 'callnode',
+            get_deferred_calls(state).map(call => this.render_node(call))
           )
         )
       )

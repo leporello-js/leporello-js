@@ -2,7 +2,7 @@ import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {parse, print_debug_node} from '../src/parse_js.js'
 import {eval_tree, eval_frame, eval_modules} from '../src/eval.js'
 import {COMMANDS} from '../src/cmd.js'
-import {root_calltree_node, active_frame, pp_calltree, get_async_calls} 
+import {root_calltree_node, active_frame, pp_calltree, get_deferred_calls} 
   from '../src/calltree.js'
 import {color_file} from '../src/color.js'
 import {
@@ -14,7 +14,7 @@ import {
   assert_code_error,
   parse_modules,
   test_initial_state,
-  test_async_calls_state,
+  test_deferred_calls_state,
   print_debug_ct_node,
 } from './utils.js'
 
@@ -2339,7 +2339,7 @@ const y = x()`
     )
   }),
 
-  test('async calls', () => {
+  test('deferred calls', () => {
     const code = `
       export const fn = () => {
         fn2()
@@ -2350,22 +2350,22 @@ const y = x()`
       }
     `
 
-    const {state: i, on_async_call} = test_async_calls_state(code)
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
 
-    // Make async call
+    // Make deferred call
     i.modules[''].fn(10)
 
-    const state = on_async_call(i)
+    const state = on_deferred_call(i)
     assert_equal(state.logs.logs.length, 1)
 
-    const call = get_async_calls(state)[0]
+    const call = get_deferred_calls(state)[0]
     assert_equal(call.fn.name, 'fn')
     assert_equal(call.code.index, code.indexOf('() => {'))
     assert_equal(call.args, [10])
 
     // Expand call
     const {state: expanded} = COMMANDS.calltree.click(state, call.id)
-    assert_equal(get_async_calls(expanded)[0].children[0].fn.name, 'fn2')
+    assert_equal(get_deferred_calls(expanded)[0].children[0].fn.name, 'fn2')
 
     // Navigate logs
     const nav = COMMANDS.calltree.navigate_logs_position(expanded, 0)
@@ -2375,79 +2375,79 @@ const y = x()`
     assert_equal(nav2.state.current_calltree_node.fn.name, 'fn2')
   }),
 
-  test('async calls calltree nav', () => {
+  test('deferred calls calltree nav', () => {
     const code = `
       const normal_call = () => {
       }
 
       normal_call(0)
       
-      export const async_call = () => {
+      export const deferred_call = () => {
       }
     `
 
-    const {state: i, on_async_call} = test_async_calls_state(code)
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
 
-    // When there are no async calls, and we press arrow down, nothing should
+    // When there are no deferred calls, and we press arrow down, nothing should
     // happen
-    const no_async_down = 
+    const no_deferred_down = 
       COMMANDS.calltree.arrow_down(
         COMMANDS.calltree.arrow_down(i).state
       )
 
-    assert_equal(no_async_down.current_calltree_node.fn.name, 'normal_call')
+    assert_equal(no_deferred_down.current_calltree_node.fn.name, 'normal_call')
 
-    const after_async_calls = [1, 2, 3].reduce(
+    const after_deferred_calls = [1, 2, 3].reduce(
       (s, a) => {
-        // Make async calls
-        i.modules[''].async_call(a)
-        return on_async_call(s)
+        // Make deferred calls
+        i.modules[''].deferred_call(a)
+        return on_deferred_call(s)
       },
       i
     )
 
     assert_equal(
-      get_async_calls(after_async_calls).map(c => c.args[0]),
+      get_deferred_calls(after_deferred_calls).map(c => c.args[0]),
       [1,2,3]
     )
 
-    assert_equal(after_async_calls.current_calltree_node.toplevel, true)
+    assert_equal(after_deferred_calls.current_calltree_node.toplevel, true)
 
-    const down = COMMANDS.calltree.arrow_down(after_async_calls).state
+    const down = COMMANDS.calltree.arrow_down(after_deferred_calls).state
 
-    const first_async_call_selected = COMMANDS.calltree.arrow_down(
-      COMMANDS.calltree.arrow_down(after_async_calls).state
+    const first_deferred_call_selected = COMMANDS.calltree.arrow_down(
+      COMMANDS.calltree.arrow_down(after_deferred_calls).state
     ).state
 
-    // After we press arrow down, first async call gets selected
+    // After we press arrow down, first deferred call gets selected
     assert_equal(
-      first_async_call_selected.current_calltree_node.args[0],
+      first_deferred_call_selected.current_calltree_node.args[0],
       1,
     )
 
-    // One more arrow down, second async call gets selected
+    // One more arrow down, second deferred call gets selected
     assert_equal(
-      COMMANDS.calltree.arrow_down(first_async_call_selected)
+      COMMANDS.calltree.arrow_down(first_deferred_call_selected)
         .state
         .current_calltree_node
         .args[0],
       2
     )
 
-    // After we press arrow up when first async call selected, we select last
-    // visible non async call
+    // After we press arrow up when first deferred call selected, we select last
+    // visible non deferred call
     assert_equal(
-      COMMANDS.calltree.arrow_up(first_async_call_selected)
+      COMMANDS.calltree.arrow_up(first_deferred_call_selected)
         .state
         .current_calltree_node
         .args[0],
       0
     )
 
-    // After we press arrow left when first async call selected, we stay on
+    // After we press arrow left when first deferred call selected, we stay on
     // this call
     assert_equal(
-      COMMANDS.calltree.arrow_left(first_async_call_selected)
+      COMMANDS.calltree.arrow_left(first_deferred_call_selected)
         .current_calltree_node
         .args[0],
       1
@@ -2456,7 +2456,7 @@ const y = x()`
 
   }),
 
-  test('async_calls find_call', () => {
+  test('deferred_calls find_call', () => {
     const code = `
       export const fn = () => {
         fn2()
@@ -2467,12 +2467,12 @@ const y = x()`
       }
     `
 
-    const {state: i, on_async_call} = test_async_calls_state(code)
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
 
-    // Make async call
+    // Make deferred call
     i.modules[''].fn()
 
-    const state = on_async_call(i)
+    const state = on_deferred_call(i)
 
     const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('fn2'))
     assert_equal(moved.active_calltree_node.fn.name, 'fn')
@@ -2486,45 +2486,45 @@ const y = x()`
     assert_equal(move_back.active_calltree_node.fn.name, 'fn')
   }),
 
-  test('async_calls find_call then async_call bug', () => {
+  test('deferred_calls find_call then deferred_call bug', () => {
     const code = `
       export const fn = () => { /* label */ }
     `
 
-    const {state: i, on_async_call} = test_async_calls_state(code)
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
 
-    // Make async call
+    // Make deferred call
     i.modules[''].fn(1)
 
-    const state = on_async_call(i)
+    const state = on_deferred_call(i)
 
     // find call
     const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('label'))
 
-    // Make async call
+    // Make deferred call
     i.modules[''].fn(2)
 
-    const result = on_async_call(moved)
+    const result = on_deferred_call(moved)
 
-    // there was a bug throwing error when added second async call
-    assert_equal(get_async_calls(result).map(c => c.args), [[1], [2]])
+    // there was a bug throwing error when added second deferred call
+    assert_equal(get_deferred_calls(result).map(c => c.args), [[1], [2]])
   }),
 
-  test('async_calls discard on code rerun', () => {
+  test('deferred_calls discard on code rerun', () => {
     const code = `
       export const fn = () => { /* label */ }
     `
-    const {state: i, on_async_call} = test_async_calls_state(code)
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
 
     const input = COMMANDS.input(i, code, 0).state
 
-    // Make async call, calling fn from previous code
+    // Make deferred call, calling fn from previous code
     i.modules[''].fn(1)
 
-    const result = on_async_call(input)
+    const result = on_deferred_call(input)
 
-    // Async calls must be null, because async calls from previous executions
+    // deferred calls must be null, because deferred calls from previous executions
     // must be discarded
-    assert_equal(get_async_calls(result), null)
+    assert_equal(get_deferred_calls(result), null)
   }),
 ]

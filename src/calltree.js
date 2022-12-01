@@ -24,23 +24,23 @@ export const calltree_node_loc = node => node.toplevel
     ? {module: node.module}
     : node.fn.__location
 
-export const get_async_calls = state => state.calltree.children[1].children
+export const get_deferred_calls = state => state.calltree.children[1].children
 
 export const root_calltree_node = state =>
   // Returns calltree node for toplevel
   // It is either toplevel for entrypoint module, or for module that throw
   // error and prevent entrypoint module from executing.
-  // state.calltree.children[1] is async calls
+  // state.calltree.children[1] is deferred calls
   state.calltree.children[0]
 
 export const root_calltree_module = state =>
   root_calltree_node(state).module
 
-export const make_calltree = (root_calltree_node, async_calls) => ({
+export const make_calltree = (root_calltree_node, deferred_calls) => ({
   id: 'calltree',
   children: [
     root_calltree_node,
-    {id: 'async_calls', children: async_calls},
+    {id: 'deferred_calls', children: deferred_calls},
   ]
 })
 
@@ -191,7 +191,7 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
   if(
     current_calltree_node.toplevel 
     || 
-    parent.id == 'async_calls'
+    parent.id == 'deferred_calls'
   ) {
     show_body = true
   } else if(is_native_fn(current_calltree_node)) {
@@ -338,7 +338,7 @@ const arrow_down = state => {
     )
   }
 
-  if(next_node?.id == 'async_calls') {
+  if(next_node?.id == 'deferred_calls') {
     if(next_node.children == null) {
       next_node = null
     } else {
@@ -374,7 +374,7 @@ const arrow_up = state => {
   }
   let next_node
   if(next_child == null) {
-    next_node = parent.id == 'async_calls'
+    next_node = parent.id == 'deferred_calls'
       ? last(root_calltree_node(state))
       : parent
   } else {
@@ -388,7 +388,7 @@ const arrow_left = state => {
   const is_expanded = state.calltree_node_is_expanded[current.id]
   if(!is_expandable(current) || !is_expanded) {
     const [parent] = path_to_root(state.calltree, current)
-    if(parent.id == 'calltree' || parent.id == 'async_calls') {
+    if(parent.id == 'calltree' || parent.id == 'deferred_calls') {
       return state
     } else {
       return jump_calltree_node(state, parent)
@@ -637,11 +637,11 @@ export const find_call = (state, index) => {
   const {
     calltree, 
     call, 
-    is_found_async_call, 
-    async_call_index
+    is_found_deferred_call, 
+    deferred_call_index
   } = state.calltree_actions.find_call(
     loc, 
-    get_async_calls(state)
+    get_deferred_calls(state)
   )
   if(call == null) {
     return add_calltree_node_by_loc(
@@ -656,18 +656,18 @@ export const find_call = (state, index) => {
 
   let next_calltree, active_calltree_node
 
-  if(is_found_async_call) {
-    const async_calls = get_async_calls(state)
-    const prev_call = async_calls[async_call_index]
+  if(is_found_deferred_call) {
+    const deferred_calls = get_deferred_calls(state)
+    const prev_call = deferred_calls[deferred_call_index]
     const merged = merge_calltrees(prev_call, calltree)
-    const next_async_calls = async_calls.map((c, i) => 
-      i == async_call_index
+    const next_deferred_calls = deferred_calls.map((c, i) => 
+      i == deferred_call_index
         ? merged
         : c
     )
     next_calltree = make_calltree(
       root_calltree_node(state),
-      next_async_calls,
+      next_deferred_calls,
     )
     active_calltree_node = find_same_node(
       merged,
@@ -677,7 +677,7 @@ export const find_call = (state, index) => {
   } else {
     next_calltree = make_calltree(
       merge_calltrees(root_calltree_node(state), calltree),
-      get_async_calls(state),
+      get_deferred_calls(state),
     )
     active_calltree_node = find_same_node(
       root_calltree_node({calltree: next_calltree}),

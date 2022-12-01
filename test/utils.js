@@ -40,26 +40,26 @@ export const test_initial_state = (code, state) => {
   )
 }
 
-export const test_async_calls_state = code => {
-  const {get_async_call, on_async_call} = (new Function(`
+export const test_deferred_calls_state = code => {
+  const {get_deferred_call, on_deferred_call} = (new Function(`
     let call, calltree_changed_token
     return {
-      get_async_call() {
+      get_deferred_call() {
         return [call, calltree_changed_token]
       },
-      on_async_call(_call, _calltree_changed_token) {
+      on_deferred_call(_call, _calltree_changed_token) {
         call = _call
         calltree_changed_token = _calltree_changed_token
       }
     }
   `))()
 
-  const state = test_initial_state(code, { on_async_call })
+  const state = test_initial_state(code, { on_deferred_call })
 
   return {
     state, 
-    get_async_call, 
-    on_async_call: state => COMMANDS.on_async_call(state, ...get_async_call())
+    get_deferred_call, 
+    on_deferred_call: state => COMMANDS.on_deferred_call(state, ...get_deferred_call())
   }
 }
 

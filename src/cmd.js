@@ -10,7 +10,7 @@ import {find_export} from './find_definitions.js'
 import {eval_modules} from './eval.js'
 import {
   root_calltree_node, root_calltree_module, make_calltree, 
-  get_async_calls,
+  get_deferred_calls,
   calltree_commands,
   add_frame, calltree_node_loc, expand_path,
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
@@ -179,7 +179,7 @@ const do_external_imports_loaded = (
     const result = eval_modules(
       state.parse_result,
       external_imports,
-      state.on_async_call,
+      state.on_deferred_call,
       state.calltree_changed_token,
     )
     const next = apply_eval_result(state, result)
@@ -202,7 +202,7 @@ const do_external_imports_loaded = (
   const result = eval_modules(
     state.parse_result,
     external_imports,
-    state.on_async_call,
+    state.on_deferred_call,
     state.calltree_changed_token,
     {index: node.index, module: state.current_module},
   )
@@ -746,14 +746,14 @@ const move_cursor = (s, index) => {
   return do_move_cursor(state, index)
 }
 
-const on_async_call = (state, call, calltree_changed_token) => {
+const on_deferred_call = (state, call, calltree_changed_token) => {
   if(state.calltree_changed_token != calltree_changed_token) {
     return state
   }
   return {...state, 
     calltree: make_calltree(
       root_calltree_node(state),
-      [...(get_async_calls(state) ?? []), call],
+      [...(get_deferred_calls(state) ?? []), call],
     ),
     logs: {...state.logs, logs: state.logs.logs.concat(collect_logs(call))},
   }
@@ -839,6 +839,6 @@ export const COMMANDS = {
   move_cursor,
   eval_selection,
   external_imports_loaded,
-  on_async_call,
+  on_deferred_call,
   calltree: calltree_commands,
 }

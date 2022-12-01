@@ -260,7 +260,7 @@ const codegen = (node, cxt, parent) => {
 export const eval_modules = (
   parse_result,
   external_imports, 
-  on_async_call,
+  on_deferred_call,
   calltree_changed_token,
   location
 ) => {
@@ -281,7 +281,7 @@ export const eval_modules = (
     let searched_location
     let found_call
 
-    let is_recording_async_calls
+    let is_recording_deferred_calls
     let is_toplevel_call = true
 
     const set_record_call = () => {
@@ -291,14 +291,14 @@ export const eval_modules = (
     }
 
     const expand_calltree_node = (node) => {
-      is_recording_async_calls = false
+      is_recording_deferred_calls = false
       children = null
       try {
         node.fn.apply(node.context, node.args)
       } catch(e) {
         // do nothing. Exception was caught and recorded inside 'trace'
       }
-      is_recording_async_calls = true
+      is_recording_deferred_calls = true
       if(node.fn.__location != null) {
         // fn is hosted, it created call, this time with children
         const result = children[0]
@@ -315,24 +315,24 @@ export const eval_modules = (
       }
     }
 
-    const find_call = (location, async_calls) => {
+    const find_call = (location, deferred_calls) => {
       searched_location = location
-      let is_found_async_call = false
+      let is_found_deferred_call = false
       let i
 
       let {calltree} = run()
 
-      is_recording_async_calls = false
-      if(found_call == null && async_calls != null) {
-        for(i = 0; i < async_calls.length; i++) {
-          const c = async_calls[i]
+      is_recording_deferred_calls = false
+      if(found_call == null && deferred_calls != null) {
+        for(i = 0; i < deferred_calls.length; i++) {
+          const c = deferred_calls[i]
           try {
             c.fn.apply(c.context, c.args)
           } catch(e) {
             // do nothing. Exception was caught and recorded inside 'trace'
           }
           if(found_call != null) {
-            is_found_async_call = true
+            is_found_deferred_call = true
             calltree = children[0]
             children = null
             break
@@ -340,14 +340,14 @@ export const eval_modules = (
         }
       }
 
-      is_recording_async_calls = true
+      is_recording_deferred_calls = true
 
       searched_location = null
       const call = found_call
       found_call = null
       return {
-        is_found_async_call, 
-        async_call_index: i, 
+        is_found_deferred_call, 
+        deferred_call_index: i, 
         calltree, 
         call
       }
@@ -428,13 +428,13 @@ export const eval_modules = (
 
           is_toplevel_call = is_toplevel_call_copy
 
-          if(is_recording_async_calls && is_toplevel_call) {
+          if(is_recording_deferred_calls && is_toplevel_call) {
             if(children.length != 1) {
               throw new Error('illegal state')
             }
             const call = children[0]
             children = null
-            on_async_call(call, calltree_changed_token)
+            on_deferred_call(call, calltree_changed_token)
           }
         }
       }
@@ -512,7 +512,7 @@ export const eval_modules = (
 
     const run = () => {
 
-      is_recording_async_calls = false
+      is_recording_deferred_calls = false
 
       const __modules = {
         /* external_imports passed as an argument to function generated with
@@ -548,7 +548,7 @@ export const eval_modules = (
            })()
          current_call.children = children
          if(!current_call.ok) {
-           is_recording_async_calls = true
+           is_recording_deferred_calls = true
            children = null
            return { modules: __modules, calltree: current_call }
          }
@@ -557,7 +557,7 @@ export const eval_modules = (
       .join('')
     +
     `
-      is_recording_async_calls = true
+      is_recording_deferred_calls = true
       children = null
       return { modules: __modules, calltree: current_call }
     }
@@ -571,7 +571,7 @@ export const eval_modules = (
 
   const actions = make_function(
     'external_imports', 
-    'on_async_call', 
+    'on_deferred_call', 
     'calltree_changed_token',
     codestring
   )(
@@ -580,9 +580,9 @@ export const eval_modules = (
     ? null
     : map_object(external_imports, (name, {module}) => module),
 
-    /* on_async_call */
+    /* on_deferred_call */
     (call, calltree_changed_token) => {
-      return on_async_call(
+      return on_deferred_call(
         assign_code(parse_result.modules, call),
         calltree_changed_token,
       )
@@ -597,16 +597,16 @@ export const eval_modules = (
       const expanded = actions.expand_calltree_node(node)
       return assign_code(parse_result.modules, expanded)
     },
-    find_call: (loc, async_calls) => {
+    find_call: (loc, deferred_calls) => {
       const {
-        is_found_async_call, 
-        async_call_index, 
+        is_found_deferred_call, 
+        deferred_call_index, 
         calltree, 
         call
-      } = actions.find_call(loc, async_calls)
+      } = actions.find_call(loc, deferred_calls)
       return {
-        is_found_async_call,
-        async_call_index,
+        is_found_deferred_call,
+        deferred_call_index,
         calltree: assign_code(parse_result.modules, calltree),
         // TODO: `call` does not have `code` property here. Currently it is
         // worked around by callers. Refactor
