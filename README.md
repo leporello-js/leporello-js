@@ -183,7 +183,7 @@ you can calculate Fibonacci numbers:
 ![Entrypoint module](docs/images/fib_ui.png)
 
 Try to click buttons and then get back to Leporello window. Now you can see
-that all all function calls have been recorded and you can inspect and debug
+that all function calls have been recorded and you can inspect and debug
 them:
 
 ![Async calls](docs/images/async_calls.png)
