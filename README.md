@@ -186,7 +186,7 @@ Try to click buttons and then get back to Leporello window. Now you can see
 that all function calls have been recorded and you can inspect and debug
 them:
 
-![Async calls](docs/images/async_calls.png)
+![Deferred calls](docs/images/deferred_calls.png)
 
 You can even run and debug Leporello.js in Leporello.js! To do this:
 
