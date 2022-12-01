@@ -461,24 +461,61 @@ export const tests = [
   }),
 
   test('function name from object literal', () => {
-    const i = test_initial_state(`
+    const code = `
       const fns = {x: () => 1}
       fns.x()
-    `)
+      fns.x.name
+    `
+    const i = test_initial_state(code)
     assert_equal(root_calltree_node(i).children[0].fn.name, 'x')
+    assert_code_evals_to(code, 'x')
   }),
 
-  test('function name', () => {
-    // TODO
-    /*
+  test('function name from const decl', () => {
+    const code = `
+      const x = () => 1
+      x()
+      x.name
+    `
+    const i = test_initial_state(code)
+    assert_equal(root_calltree_node(i).children[0].fn.name, 'x')
     assert_code_evals_to(
-      `
-      const x = () => null();
-      x.name;
-      `,
+      code,
       'x',
     )
-    */
+  }),
+
+  test('function name deduce', () => {
+    const code = `
+      const make_fn = () => () => 1
+      const x = make_fn()
+      x()
+      x.name
+    `
+    const i = test_initial_state(code)
+    assert_equal(root_calltree_node(i).children[1].fn.name, 'x')
+    assert_code_evals_to(
+      code,
+      'x',
+    )
+  }),
+
+  test('function name dont deduce if already has name', () => {
+    const code = `
+      const make_fn = () => {
+        const y = () => 1
+        return y
+      }
+      const x = make_fn()
+      x()
+      x.name
+    `
+    const i = test_initial_state(code)
+    assert_equal(root_calltree_node(i).children[1].fn.name, 'y')
+    assert_code_evals_to(
+      code,
+      'y',
+    )
   }),
 
   test('record call chain', () => {

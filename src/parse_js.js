@@ -1452,6 +1452,44 @@ const update_children = node => {
   }
 }
 
+const do_deduce_fn_names = (node, parent) => {
+  let changed, node_result
+  if(node.children == null) {
+    node_result = node
+    changed = false
+  } else {
+    const children_results = node
+      .children
+      .map(c => do_deduce_fn_names(c, node))
+    changed = children_results.some(c => c[1])
+    if(changed) {
+      node_result = {...node, children: children_results.map(c => c[0])}
+    } else {
+      node_result = node
+    }
+  }
+
+  if(node_result.type == 'function_expr') {
+    let name
+    if(parent?.type == 'const') {
+      name = parent.name
+    } else if(parent?.type == 'key_value_pair') {
+      // unwrap quotes with JSON.parse
+      name = JSON.parse(parent.key.value)
+    } else {
+      name = 'anonymous'
+    }
+    changed = true
+    node_result = {...node_result, name}
+  }
+
+  return [node_result, changed]
+}
+
+const deduce_fn_names = node => {
+  return do_deduce_fn_names(node, null)[0]
+}
+
 export const parse = (str, is_module = false, module_name) => {
 
   // Add string to node for debugging
@@ -1499,7 +1537,12 @@ export const parse = (str, is_module = false, module_name) => {
         }],
       }
     } else {
-      const {node, undeclared} = find_definitions(update_children(result.value), null, null, module_name)
+      const {node, undeclared} = find_definitions(
+        update_children(result.value), 
+        null, 
+        null, 
+        module_name
+      )
       if(undeclared.length != 0){
         return {
           ok: false,
@@ -1516,7 +1559,7 @@ export const parse = (str, is_module = false, module_name) => {
         // property to some nodes, and children no more equal to other properties
         // of nodes by idenitity, which somehow breaks code (i dont remember how
         // exactly). Refactor it?
-        const fixed_node = update_children(populate_string(node))
+        const fixed_node = update_children(deduce_fn_names(populate_string(node)))
         const problems = analyze(fixed_node)
         if(problems.length != 0) {
           return {ok: false, problems}

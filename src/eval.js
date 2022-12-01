@@ -68,7 +68,7 @@ const make_function = (...args) => {
   }
 }
 
-const codegen_function_expr = (node, cxt, name) => {
+const codegen_function_expr = (node, cxt) => {
   const do_codegen = n => codegen(n, cxt)
 
   const args = node.function_args.children.map(do_codegen).join(',')
@@ -90,7 +90,7 @@ const codegen_function_expr = (node, cxt, name) => {
   // on first call (see `trace`)
   const get_closure = `() => ({${[...node.closed].join(',')}})`
 
-  return `trace(${call}, "${name}", ${argscount}, ${location}, ${get_closure})`
+  return `trace(${call}, "${node.name}", ${argscount}, ${location}, ${get_closure})`
 }
 
 // TODO if statically can prove that function is hosted, then do not codegen
@@ -169,19 +169,7 @@ const codegen = (node, cxt, parent) => {
   } else if(node.type == 'function_call'){
     return codegen_function_call(node, cxt)
   } else if(node.type == 'function_expr'){
-    let name
-    // TODO here we deduce fn name from left-side of assignment
-    // TODO name inference is much more sophisticated, for example
-    // `{foo: () => {...}}` infers name `foo`
-    if(parent?.type == 'const') {
-      name = parent.name
-    } else if(parent?.type == 'key_value_pair') {
-      // unwrap quotes with JSON.parse
-      name = JSON.parse(parent.key.value)
-    } else {
-      name = 'anonymous'
-    }
-    return codegen_function_expr(node, cxt, name)
+    return codegen_function_expr(node, cxt)
   } else if(node.type == 'ternary'){
     return ''
     + '(' 
@@ -193,11 +181,20 @@ const codegen = (node, cxt, parent) => {
   } else if(node.type == 'const'){
     const res = 'const ' + do_codegen(node.name_node) + ' = ' + do_codegen(node.expr, node) + ';'
     if(node.name_node.type == 'identifier' && node.expr.type == 'function_call') {
-      // generate function name
-      // TODO test it
+      // deduce function name from variable it was assigned to if anonymous
+      // works for point-free programming, like
+      // const parse_statement = either(parse_import, parse_assignment, ...)
       return res + `
-        if(typeof(${node.name_node.value}) == 'function') {
-          Object.defineProperty(${node.name_node.value}, "name", {value: "${node.name_node.value}"});
+        if(
+          typeof(${node.name_node.value}) == 'function' 
+          && 
+          ${node.name_node.value}.name == 'anonymous'
+        ) {
+          Object.defineProperty(
+            ${node.name_node.value}, 
+            "name", 
+            {value: "${node.name_node.value}"}
+          );
         }
       `
     } else {
@@ -833,11 +830,10 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
   } else if(node.type == 'function_expr'){
     // It will never be called, create empty function
     // TODO use new Function constructor with code?
-    // TODO generate function name
     const fn_placeholder = Object.defineProperty(
       () => {},
       'name',
-      {value: 'anonymous'}
+      {value: node.name}
     )
     return {
       ok: true,
