@@ -6,6 +6,10 @@
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 
+
+// TODO only test for globalThis.<GlobalObject> because we only eval code in
+// another window
+
 const has_custom_toString = object =>
   object.toString != globalThis.run_window.Object.prototype.toString
   &&
@@ -15,6 +19,11 @@ const isError = object =>
   object instanceof Error
   ||
   object instanceof globalThis.run_window.Error
+
+const isPromise = object =>
+  object instanceof Promise
+  ||
+  object instanceof globalThis.run_window.Promise
 
 const displayed_entries = object => {
   if(Array.isArray(object)) {
@@ -39,6 +48,8 @@ export const stringify_for_header = v => {
   } else if(type == 'function') {
     // TODO clickable link, 'fn', cursive
     return 'fn ' + v.name
+  } else if (isPromise(v)) {
+    return 'Promise<>'
   } else if(isError(v)) {
     return v.toString()
   } else if(type == 'object') {
@@ -70,7 +81,9 @@ export const header = object => {
   } else if(object == null) {
     return 'null'
   } else if(typeof(object) == 'object') {
-    if(isError(object)) {
+    if(isPromise(object)) {
+      return 'Promise<>'
+    } else if(isError(object)) {
       return object.toString()
     } else if(Array.isArray(object)) {
       return '['

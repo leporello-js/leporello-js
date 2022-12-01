@@ -73,7 +73,7 @@ const codegen_function_expr = (node, cxt) => {
 
   const args = node.function_args.children.map(do_codegen).join(',')
 
-  const call = `(${args}) => ` + (
+  const call = (node.is_async ? 'async ' : '') + `(${args}) => ` + (
     (node.body.type == 'do')
     ? '{' + do_codegen(node.body) + '}'
     : '(' + do_codegen(node.body) + ')'
@@ -384,7 +384,17 @@ export const eval_modules = (
         try {
           value = fn(...args)
           ok = true
-          return value
+          return value instanceof Promise.Original 
+            ? value
+                .then(v => {
+                  value.status = {ok: true, value: v}
+                  return v
+                })
+                .catch(e => {
+                  value.status = {ok: false, error: e}
+                  throw e
+                })
+            : value
         } catch(_error) {
           ok = false
           error = _error
@@ -917,6 +927,10 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
         value = typeof(expr.result.value)
       } else if(node.operator == '-') {
         value = - expr.result.value
+      } else if(node.operator == 'await') {
+        log('expr', expr.result.value.status)
+        value = expr.result.value
+        //throw new Error('not implemented')
       } else {
         throw new Error('unknown op')
       }

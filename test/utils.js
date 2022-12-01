@@ -2,6 +2,11 @@ import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
 import {eval_tree, eval_frame} from '../src/eval.js'
 import {COMMANDS} from '../src/cmd.js'
 
+// external
+import {patch_promise} from '../src/patch_promise.js'
+
+patch_promise(globalThis)
+
 Object.assign(globalThis, {log: console.log})
 
 export const parse_modules = (entry, modules) => 

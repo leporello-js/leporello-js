@@ -908,6 +908,8 @@ const object_literal =
 const function_expr =
   if_ok(
     seq([
+      optional(literal('async')),
+
       either(
         // arguments inside braces
         list_destructuring(['(', ')'], 'function_args'),
@@ -934,7 +936,7 @@ const function_expr =
     ]),
 
     ({value, ...node}) => {
-      const [args, _, body] = value
+      const [is_async, args, _, body] = value
       const function_args = args.type == 'identifier'
         ? {
             ...args, 
@@ -950,6 +952,7 @@ const function_expr =
       return {
         ...node,
         type: 'function_expr',
+        is_async: is_async != null,
         body,
         children: [function_args, body]
       }
@@ -1029,6 +1032,7 @@ const expr =
     unary('!'),
     unary('-'),
     unary('typeof'),
+    unary('await'),
     binary(['**']),
     binary(['*','/','%']),
     binary(['+','-']),

@@ -2588,4 +2588,16 @@ const y = x()`
     // must be discarded
     assert_equal(get_deferred_calls(result), null)
   }),
+
+  test_only('async/await', () => {
+    const code = `
+      const x = async () => 123
+      const y = async () => await x()
+      y()
+    `
+    const s = test_initial_state(code)
+    const move = COMMANDS.move_cursor(s, code.indexOf('await x()')).state
+    log('m', root_calltree_node(move).children[0].children[0].value)
+    //log(s.parse_result.modules[''])
+  }),
 ]

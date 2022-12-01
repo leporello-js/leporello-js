@@ -8,6 +8,7 @@ import {
 import {current_cursor_position} from './calltree.js'
 import {FLAGS} from './feature_flags.js'
 import {exec, FILES_ROOT} from './index.js'
+import {unwrap_settled_promises} from './unwrap_promises.js'
 
 // Imports in the context of `run_window`, so global variables in loaded
 // modules refer to that window's context 
@@ -128,7 +129,7 @@ export const render_initial_state = (ui, state) => {
   ui.editor.switch_session(state.current_module)
 }
 
-export const render_common_side_effects = (prev, next, command, ui) => {
+export const render_common_side_effects = async (prev, next, command, ui) => {
   if(
     prev.project_dir != next.project_dir 
     || 
@@ -186,6 +187,8 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     ui.editor.unembed_value_explorer()
 
   } else {
+
+    await unwrap_settled_promises(next.calltree)
 
     if(
       prev.calltree == null

@@ -243,6 +243,7 @@ code analysis:
 - cannot import names that are not exported from modules
 - module can be imported either as external or regular
 - cannot return from modules (even inside toplevel if statements)
+- await only in async fns
 */
 export const analyze = (node, is_toplevel = true) => {
   // TODO remove
