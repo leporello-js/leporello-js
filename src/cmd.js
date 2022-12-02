@@ -174,7 +174,7 @@ const external_imports_loaded = (
 
   const node = find_call_node(state, current_cursor_position(state))
 
-  let active_calltree_node, next
+  let toplevel, result
 
   if(
     // edit module that is not imported (maybe recursively by state.entrypoint)
@@ -183,14 +183,33 @@ const external_imports_loaded = (
     ||
     node.type == 'do' /* toplevel AST node */
   ) {
-    const result = eval_modules(
+    result = eval_modules(
       state.parse_result,
       external_imports,
       state.on_deferred_call,
       state.calltree_changed_token,
     )
-    next = apply_eval_result(state, result)
+    toplevel = true
+  } else {
+    result = eval_modules(
+      state.parse_result,
+      external_imports,
+      state.on_deferred_call,
+      state.calltree_changed_token,
+      {index: node.index, module: state.current_module},
+    )
+    toplevel = false
+  }
 
+  return modules_evaluated(state, result, node, toplevel)
+}
+
+const modules_evaluated = (state, result, node, toplevel) => {
+  const next = apply_eval_result(state, result)
+
+  let active_calltree_node
+
+  if(toplevel) {
     if(node == state.parse_result.modules[root_calltree_module(next)]) {
       active_calltree_node = root_calltree_node(next)
       return add_frame(
@@ -206,16 +225,6 @@ const external_imports_loaded = (
       active_calltree_node = null
     }
   } else {
-
-    const result = eval_modules(
-      state.parse_result,
-      external_imports,
-      state.on_deferred_call,
-      state.calltree_changed_token,
-      {index: node.index, module: state.current_module},
-    )
-    next = apply_eval_result(state, result)
-
     if(result.call == null) {
       // Unreachable call
       active_calltree_node = null
