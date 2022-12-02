@@ -170,8 +170,11 @@ const do_external_imports_loaded = (
 
   const node = find_call_node(state, index)
 
+  let active_calltree_node, next
+
   if(
     // edit module that is not imported (maybe recursively by state.entrypoint)
+    // TODO if module not imported, then do not run code on edit at all
     node == null
     ||
     node.type == 'do' /* toplevel AST node */
@@ -182,54 +185,58 @@ const do_external_imports_loaded = (
       state.on_deferred_call,
       state.calltree_changed_token,
     )
-    const next = apply_eval_result(state, result)
+    next = apply_eval_result(state, result)
 
     if(node == state.parse_result.modules[root_calltree_module(next)]) {
-      const toplevel = root_calltree_node(next)
+      active_calltree_node = root_calltree_node(next)
       return add_frame(
         default_expand_path(
-          next,
-          toplevel
+          expand_path(
+            next,
+            active_calltree_node
+          )
         ),
-        toplevel,
+        active_calltree_node,
       )
     } else {
-      const {node, state: next2} = initial_calltree_node(next)
-      return set_active_calltree_node(next2, null, node)
+      active_calltree_node = null
+    }
+  } else {
+
+    const result = eval_modules(
+      state.parse_result,
+      external_imports,
+      state.on_deferred_call,
+      state.calltree_changed_token,
+      {index: node.index, module: state.current_module},
+    )
+    next = apply_eval_result(state, result)
+
+    if(result.call == null) {
+      // Unreachable call
+      active_calltree_node = null
+    } else {
+      // We cannot use `call` because `code` was not assigned to it
+      active_calltree_node = find_node(root_calltree_node(next),
+        n => n.id == result.call.id
+      )
     }
   }
 
-  const result = eval_modules(
-    state.parse_result,
-    external_imports,
-    state.on_deferred_call,
-    state.calltree_changed_token,
-    {index: node.index, module: state.current_module},
-  )
-
-  if(result.call == null) {
-    // Unreachable call
-    const {node, state: next} = initial_calltree_node(
-      apply_eval_result(state, result)
+  if(active_calltree_node == null) {
+    const {node, state: next2} = initial_calltree_node(next)
+    return set_active_calltree_node(next2, null, node)
+  } else {
+    return add_frame(
+      default_expand_path(
+        expand_path(
+          next,
+          active_calltree_node
+        )
+      ),
+      active_calltree_node,
     )
-    return set_active_calltree_node(next, null, node)
   }
-
-  const next = apply_eval_result(state, result)
-  // We cannot use `call` because `code` was not assigned to it
-  const active_calltree_node = find_node(root_calltree_node(next),
-    n => n.id == result.call.id
-  )
-
-  return add_frame(
-    default_expand_path(
-      expand_path(
-        next,
-        active_calltree_node
-      )
-    ),
-    active_calltree_node,
-  )
 }
 
 const external_imports_loaded = (
