@@ -15,7 +15,7 @@ import {
   add_frame, calltree_node_loc, expand_path,
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
   find_call, find_call_node, set_active_calltree_node, 
-  set_caret_position, current_caret_position, set_location
+  set_cursor_position, current_cursor_position, set_location
 } from './calltree.js'
 
 const collect_logs = call => 
@@ -172,7 +172,7 @@ const external_imports_loaded = (
     }
   }
 
-  const node = find_call_node(state, current_caret_position(state))
+  const node = find_call_node(state, current_cursor_position(state))
 
   let active_calltree_node, next
 
@@ -246,7 +246,7 @@ const external_imports_loaded = (
 const input = (state, code, index) => {
   const files = {...state.files, [state.current_module]: code}
   const next = run_code(
-    set_caret_position({...state, files}, index),
+    set_cursor_position({...state, files}, index),
     [state.current_module]
   )
   const effect_save = next.current_module == ''
@@ -380,7 +380,7 @@ const get_next_selection_state = (selection_state, frame, is_expand, index) => {
               n.index <= index && n.index + n.length > index 
             )
           ??
-            // caret not inside child but in whitespace
+            // cursor not inside child but in whitespace
             selection_state.node
       } else {
         // no children, cannot collapse
@@ -523,7 +523,7 @@ const goto_definition = (state, index) => {
           loc = {module: state.current_module, index: d.index}
         }
         return {
-          state: set_caret_position(
+          state: set_cursor_position(
             {...state, current_module: loc.module}, 
             loc.index,
           )
@@ -710,7 +710,7 @@ const do_move_cursor = (state, index) => {
 
 const move_cursor = (s, index) => {
 
-  const with_cursor = set_caret_position(s, index)
+  const with_cursor = set_cursor_position(s, index)
 
   if(!s.parse_result.ok){
     return {state: with_cursor}
@@ -809,7 +809,7 @@ const get_initial_state = state => {
     entrypoint,
     current_module,
     html_file,
-    caret_position_by_file: {[current_module]: 0},
+    cursor_position_by_file: {[current_module]: 0},
   }
 }
 

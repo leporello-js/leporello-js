@@ -91,7 +91,7 @@ export class Editor {
     normalize_events(this.ace_editor, {
       on_change: () => {
         try {
-          exec('input', this.ace_editor.getValue(), this.get_caret_position())
+          exec('input', this.ace_editor.getValue(), this.get_cursor_position())
         } catch(e) {
           // Do not throw Error to ACE because it breaks typing
           console.error(e)
@@ -106,7 +106,7 @@ export class Editor {
       on_change_selection: () => {
         try {
           if(!this.is_change_selection_supressed) {
-            exec('move_cursor', this.get_caret_position())
+            exec('move_cursor', this.get_cursor_position())
           }
         } catch(e) {
           // Do not throw Error to ACE because it breaks typing
@@ -331,7 +331,7 @@ export class Editor {
     this.ace_editor.commands.addCommand({
       name: 'step_into',
       exec: (editor) => {
-        exec('step_into', this.get_caret_position())
+        exec('step_into', this.get_cursor_position())
       }
     })
 
@@ -354,13 +354,13 @@ export class Editor {
     this.ace_editor.commands.addCommand({
       name: 'expand_selection',
       exec: () => {
-        exec('eval_selection', this.get_caret_position(), true)
+        exec('eval_selection', this.get_cursor_position(), true)
       }
     })
     this.ace_editor.commands.addCommand({
       name: 'collapse_selection',
       exec: () => {
-        exec('eval_selection', this.get_caret_position(), false)
+        exec('eval_selection', this.get_cursor_position(), false)
       }
     })
     this.ace_editor.commands.bindKey("ctrl-j", 'expand_selection')
@@ -411,7 +411,7 @@ export class Editor {
   }
 
 
-  get_caret_position(file){
+  get_cursor_position(file){
     const session = file == null
       ? this.ace_editor.getSession()
       : this.get_session(file)
@@ -424,13 +424,12 @@ export class Editor {
     return session.doc.positionToIndex(session.selection.getCursor())
   }
 
-  set_caret_position(index){
+  set_cursor_position(index){
     if(index == null) {
       throw new Error('illegal state')
     }
 
     const pos = this.ace_editor.session.doc.indexToPosition(index)
-    console.log('set caret position', index, pos)
 
     this.supress_change_selection(() => {
       const pos = this.ace_editor.session.doc.indexToPosition(index)
@@ -446,7 +445,7 @@ export class Editor {
   }
 
   goto_definition(){
-    const index = this.get_caret_position()
+    const index = this.get_cursor_position()
     exec('goto_definition', index)
   }
 

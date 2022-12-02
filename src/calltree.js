@@ -13,21 +13,21 @@ export const pp_calltree = tree => ({
   children: tree.children && tree.children.map(pp_calltree)
 })
 
-export const current_caret_position = state => 
-  state.caret_position_by_file[state.current_module] 
-  // When we open file for the first time, caret set to the beginning
+export const current_cursor_position = state => 
+  state.cursor_position_by_file[state.current_module] 
+  // When we open file for the first time, cursor set to the beginning
   ?? 0
 
-export const set_caret_position = (state, caret_position) => (
+export const set_cursor_position = (state, cursor_position) => (
   {
     ...state,
-    caret_position_by_file: {
-      ...state.caret_position_by_file, [state.current_module]: caret_position
+    cursor_position_by_file: {
+      ...state.cursor_position_by_file, [state.current_module]: cursor_position
     }
   }
 )
 
-export const set_location = (state, location) => set_caret_position(
+export const set_location = (state, location) => set_cursor_position(
   {...state, current_module: location.module},
   location.index
 )
@@ -458,7 +458,7 @@ const click = (state, id) => {
   const node = find_node(state.calltree, n => n.id == id)
   const {state: nextstate, effects} = jump_calltree_node(state, node)
   if(is_expandable(node)) {
-    // `effects` are intentionally discarded, correct `set_caret_position` will
+    // `effects` are intentionally discarded, correct `set_cursor_position` will
     // be applied in `toggle_expanded`
     return toggle_expanded(nextstate)
   } else {

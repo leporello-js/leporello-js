@@ -165,7 +165,7 @@ export class UI {
       let loc
       if((loc = e.target.dataset.location) != null){
         loc = JSON.parse(loc)
-        this.editor.set_caret_position(loc.index)
+        this.editor.set_cursor_position(loc.index)
         this.editor.focus()
       }
     }

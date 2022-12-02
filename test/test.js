@@ -7,7 +7,7 @@ import {
   active_frame, 
   pp_calltree, 
   get_deferred_calls,
-  current_caret_position,
+  current_cursor_position,
 } from '../src/calltree.js'
 import {color_file} from '../src/color.js'
 import {
@@ -1109,11 +1109,11 @@ export const tests = [
 
     const x_result_1 = COMMANDS.goto_definition(s, entry.indexOf('x*x'))
     assert_equal(x_result_1.state.current_module, '')
-    assert_equal(current_caret_position(x_result_1.state), entry.indexOf('x'))
+    assert_equal(current_cursor_position(x_result_1.state), entry.indexOf('x'))
 
     const x_result_2 = COMMANDS.goto_definition(s, entry.indexOf('x'))
     assert_equal(x_result_2.state.current_module, 'a')
-    assert_equal(current_caret_position(x_result_2.state), a.indexOf('x = 2'))
+    assert_equal(current_cursor_position(x_result_2.state), a.indexOf('x = 2'))
   }),
 
   test('assignment', () => {
@@ -1179,7 +1179,7 @@ export const tests = [
     const {state, effects} = COMMANDS.step_into(initial, code.indexOf('x()'))
     const call_code = state.current_calltree_node.code
     assert_equal(call_code.index, code.indexOf('() =>'))
-    assert_equal(current_caret_position(state), code.indexOf('() =>'))
+    assert_equal(current_cursor_position(state), code.indexOf('() =>'))
     assert_equal(effects.type, 'embed_value_explorer')
   }),
 
@@ -1580,7 +1580,7 @@ const y = x()`
     const index = 0 // Where call starts
     const call = root_calltree_node(s).children[0]
     const {state, effects} = COMMANDS.calltree.click(s, call.id)
-    assert_equal(current_caret_position(state), index)
+    assert_equal(current_cursor_position(state), index)
     assert_equal(
       effects,
       {
@@ -1615,7 +1615,7 @@ const y = x()`
     const assert_loc = (s, substring, is_assert_node_by_loc) => {
       const {state, effects} = COMMANDS.calltree.arrow_right(s)
       const index = code.indexOf(substring)
-      assert_equal(current_caret_position(state), index)
+      assert_equal(current_cursor_position(state), index)
       if(is_assert_node_by_loc) {
         assert_equal(
           state.calltree_node_by_loc[''][index] == null,
@@ -1891,7 +1891,7 @@ const y = x()`
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('x()'))
-    assert_equal(current_caret_position(s3), code.indexOf('x()'))
+    assert_equal(current_cursor_position(s3), code.indexOf('x()'))
     assert_equal(effects, {type: 'set_focus'})
   }),
 
@@ -1907,7 +1907,7 @@ const y = x()`
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('1'))
-    assert_equal(current_caret_position(s3), code.indexOf('1'))
+    assert_equal(current_cursor_position(s3), code.indexOf('1'))
     assert_equal(effects, {type: 'set_focus'})
   }),
 
@@ -1923,7 +1923,7 @@ const y = x()`
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('1'))
-    assert_equal(current_caret_position(s3), code.indexOf('1'))
+    assert_equal(current_cursor_position(s3), code.indexOf('1'))
     assert_equal(effects, {type: 'set_focus'})
   }),
 
@@ -1938,7 +1938,7 @@ const y = x()`
     const s2 = COMMANDS.calltree.arrow_right(s2_0).state
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state, null)
-    assert_equal(current_caret_position(s3), code.indexOf('{'))
+    assert_equal(current_cursor_position(s3), code.indexOf('{'))
     assert_equal(effects, {type: 'set_focus'})
   }),
 
@@ -1963,7 +1963,7 @@ const y = x()`
     const s2 = COMMANDS.calltree.arrow_right(s1).state
     const s3 = COMMANDS.calltree.select_arguments(s2)
     assert_equal(s3.state.selection_state.result, {ok: true, value: [1]})
-    assert_equal(current_caret_position(s3.state), code.indexOf('(1)'))
+    assert_equal(current_cursor_position(s3.state), code.indexOf('(1)'))
     assert_equal(s3.effects, {type: 'set_focus'})
   }),
 
@@ -1979,7 +1979,7 @@ const y = x()`
     const s2 = COMMANDS.calltree.arrow_right(s2_0).state
     const s3 = COMMANDS.calltree.select_arguments(s2)
     assert_equal(s3.state.selection_state.result, {ok: true, value: {a: 1}})
-    assert_equal(current_caret_position(s3.state), code.indexOf('(a)'))
+    assert_equal(current_cursor_position(s3.state), code.indexOf('(a)'))
     assert_equal(s3.effects, {type: 'set_focus'})
   }),
 
@@ -2346,7 +2346,7 @@ const y = x()`
     const {state, effects} = COMMANDS.calltree.navigate_logs_position(i, 0)
     assert_equal(state.logs.log_position, 0)
     assert_equal(state.selection_state.result.value, [10])
-    assert_equal(current_caret_position(state), code.indexOf('(x)'))
+    assert_equal(current_cursor_position(state), code.indexOf('(x)'))
   }),
 
   test('deferred calls', () => {
