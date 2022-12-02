@@ -416,9 +416,9 @@ export class Editor {
       ? this.ace_editor.getSession()
       : this.get_session(file)
 
-    // Session was not created for file
     if(session == null) {
-      return null
+      // Session was not created for file
+      throw new Error('illegal state')
     }
 
     return session.doc.positionToIndex(session.selection.getCursor())

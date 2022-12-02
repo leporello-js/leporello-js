@@ -5,6 +5,7 @@ import {
   calltree_node_loc, 
   get_deferred_calls
 } from './calltree.js'
+import {current_caret_position} from './calltree.js'
 import {FLAGS} from './feature_flags.js'
 import {exec, FILES_ROOT} from './index.js'
 
@@ -165,6 +166,10 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     ui.editor.switch_session(next.current_module)
   }
 
+  if(current_caret_position(next) != ui.editor.get_caret_position()) {
+    ui.editor.set_caret_position(current_caret_position(next))
+  }
+
   if(prev.loading_external_imports_state != next.loading_external_imports_state) {
     load_external_imports(next)
   }
@@ -263,11 +268,8 @@ export const render_common_side_effects = (prev, next, command, ui) => {
 
 
 export const EFFECTS = {
-  set_caret_position: (state, [index, with_focus], ui) => {
-    ui.editor.set_caret_position(index)
-    if(with_focus) {
-      ui.editor.focus()
-    }
+  set_focus: (_state, _args, ui) => {
+    ui.editor.focus()
   },
 
   set_status: (state, [msg], ui) => {

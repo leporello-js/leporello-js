@@ -240,11 +240,7 @@ export class UI {
 
   change_entrypoint(e) {
     const file = e.target.value
-    const index = this.editor.get_caret_position(file)
-      // if index is null, session was not created, and index after session
-      // creation will be 0
-      ?? 0
-    exec('change_entrypoint', file, index)
+    exec('change_entrypoint', file)
     this.editor.focus()
   }
 

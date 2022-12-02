@@ -14,7 +14,8 @@ import {
   calltree_commands,
   add_frame, calltree_node_loc, expand_path,
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
-  find_call, find_call_node, set_active_calltree_node
+  find_call, find_call_node, set_active_calltree_node, 
+  set_caret_position, current_caret_position, set_location
 } from './calltree.js'
 
 const collect_logs = call => 
@@ -46,7 +47,7 @@ const apply_eval_result = (state, eval_result) => {
   }
 }
 
-const run_code = (s, index, dirty_files) => {
+const run_code = (s, dirty_files) => {
 
   const parse_result = load_modules(s.entrypoint, module => {
     if(dirty_files != null && dirty_files.includes(module)) {
@@ -107,7 +108,6 @@ const run_code = (s, index, dirty_files) => {
     // Trigger loading of external modules
     return {...state, 
       loading_external_imports_state: {
-        index,
         external_imports,
       }
     }
@@ -122,25 +122,29 @@ const run_code = (s, index, dirty_files) => {
           state.external_imports_cache,
           (module_name, module) => external_imports.includes(module_name)
         ),
-      index
     )
   }
 
 }
 
-const do_external_imports_loaded = (
-  state, 
+const external_imports_loaded = (
+  s, 
   prev_state, 
   external_imports, 
-  index,
 ) => {
   if(
-    state.loading_external_imports_state 
+    s.loading_external_imports_state 
     != 
     prev_state.loading_external_imports_state
   ) {
     // code was modified after loading started, discard
-    return state
+    return s
+  }
+
+  const state = {
+    ...s,
+    external_imports_cache: external_imports,
+    loading_external_imports_state: null
   }
 
   if(external_imports != null) {
@@ -168,7 +172,7 @@ const do_external_imports_loaded = (
     }
   }
 
-  const node = find_call_node(state, index)
+  const node = find_call_node(state, current_caret_position(state))
 
   let active_calltree_node, next
 
@@ -239,35 +243,12 @@ const do_external_imports_loaded = (
   }
 }
 
-const external_imports_loaded = (
-  state, 
-  prev_state, 
-  external_imports, 
-  maybe_index,
-) => {
-  // index saved in loading_external_imports_state maybe stale, if cursor was
-  // moved after
-  // TODO refactor, make index controlled property saved in state?
-  const index = maybe_index ?? state.loading_external_imports_state.index
-
-  // TODO after edit we should fire embed_value_explorer, but we dont do it
-  // here because we dont have cursor position (index) here (see comment
-  // above). Currently it is fixed by having `external_imports_cache`, so code
-  // goes async path only on first external imports load
-  return {
-    ...do_external_imports_loaded(state, prev_state, external_imports, index), 
-    external_imports_cache: external_imports,
-    loading_external_imports_state: null
-  }
-}
-
-// TODO refactor, make index controlled property and get it from state instead
-// of setting to zero
-const rerun_code = state => run_code(state, 0)
-
 const input = (state, code, index) => {
   const files = {...state.files, [state.current_module]: code}
-  const next = run_code({...state, files}, index, [state.current_module])
+  const next = run_code(
+    set_caret_position({...state, files}, index),
+    [state.current_module]
+  )
   const effect_save = next.current_module == ''
     ? {type: 'save_to_localstorage', args: ['code', code]}
     : {type: 'write', args: [
@@ -505,13 +486,12 @@ const change_current_module = (state, current_module) => {
   }
 }
 
-const change_entrypoint = (state, entrypoint, index) => {
+const change_entrypoint = (state, entrypoint) => {
   return run_code(
     {...state, 
       entrypoint,
       current_module: entrypoint,
-    },
-    index
+    }
   )
 }
 
@@ -543,8 +523,10 @@ const goto_definition = (state, index) => {
           loc = {module: state.current_module, index: d.index}
         }
         return {
-          state: {...state, current_module: loc.module}, 
-          effects: {type: 'set_caret_position', args: [loc.index]}
+          state: set_caret_position(
+            {...state, current_module: loc.module}, 
+            loc.index,
+          )
         }
       }
     }
@@ -553,9 +535,8 @@ const goto_definition = (state, index) => {
 
 const goto_problem = (state, p) => {
   return {
-    state: {...state, current_module: p.module},
-    // TODO set focus after jump
-    effects: {type: 'set_caret_position', args: [p.index]}
+    state: set_location(state, p),
+    effects: {type: 'set_focus'}
   }
 }
 
@@ -728,17 +709,20 @@ const do_move_cursor = (state, index) => {
 }
 
 const move_cursor = (s, index) => {
+
+  const with_cursor = set_caret_position(s, index)
+
   if(!s.parse_result.ok){
-    return {state: s}
+    return {state: with_cursor}
   }
 
   if(s.loading_external_imports_state != null) {
-    // TODO: save index in loading_external_imports_state
-    return {state: s}
+    //  Code will be executed when imports will load, do not do it right now
+    return {state: with_cursor}
   }
 
   // Remove selection on move cursor
-  const state_sel_removed = {...s, selection_state: null}
+  const state_sel_removed = {...with_cursor, selection_state: null}
 
   const state = find_call(state_sel_removed, index)
 
@@ -784,7 +768,7 @@ const do_load_dir = (state, dir) => {
 
 const load_dir = (state, dir) => {
   // Clear parse cache and rerun code
-  return rerun_code({
+  return run_code({
     ...do_load_dir(state, dir),
     // remove cache. We have to clear cache because imports of modules that are
     // not available because project_dir is not available have errors and the
@@ -800,7 +784,7 @@ const create_file = (state, dir, current_module) => {
 const open_run_window = state => {
   // After we reopen run window, we should reload external modules in the
   // context of new window. Clear external_imports_cache
-  return rerun_code({
+  return run_code({
     ...state,
     external_imports_cache: null,
   })
@@ -811,23 +795,21 @@ const get_initial_state = state => {
     ? state
     : do_load_dir(state, state.project_dir)
 
-  const entrypoint = with_files.entrypoint
-  const current_module = with_files.current_module
-  const html_file = with_files.html_file
+  const blank_if_not_exists = key =>
+    with_files.files[with_files[key]] == null 
+      ? ''
+      : with_files[key]
+
+  const entrypoint = blank_if_not_exists('entrypoint')
+  const current_module = blank_if_not_exists('current_module')
+  const html_file = blank_if_not_exists('html_file')
 
   return {
     ...with_files,
-    // If module for entrypoint or current_module does not exist, use *scratch*
-    entrypoint: 
-      with_files.files[entrypoint] == null 
-        ? ''
-        : entrypoint,
-    current_module: with_files.files[current_module] == null 
-      ? '' 
-      : current_module,
-    html_file: with_files.files[html_file] == null 
-      ? '' 
-      : html_file,
+    entrypoint,
+    current_module,
+    html_file,
+    caret_position_by_file: {[current_module]: 0},
   }
 }
 

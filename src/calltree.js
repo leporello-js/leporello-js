@@ -13,6 +13,25 @@ export const pp_calltree = tree => ({
   children: tree.children && tree.children.map(pp_calltree)
 })
 
+export const current_caret_position = state => 
+  state.caret_position_by_file[state.current_module] 
+  // When we open file for the first time, caret set to the beginning
+  ?? 0
+
+export const set_caret_position = (state, caret_position) => (
+  {
+    ...state,
+    caret_position_by_file: {
+      ...state.caret_position_by_file, [state.current_module]: caret_position
+    }
+  }
+)
+
+export const set_location = (state, location) => set_caret_position(
+  {...state, current_module: location.module},
+  location.index
+)
+
 const is_stackoverflow = node =>
   // Chrome
   node.error.message == 'Maximum call stack size exceeded'
@@ -214,35 +233,31 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
     : find_callsite(next.modules, active_calltree_node, current_calltree_node)
 
   return {
-    state: {...next, current_module: loc.module},
+    state: next.current_calltree_node.toplevel
+      ? {...next, current_module: loc.module}
+      // TODO: better jump not start of function (arguments), but start
+      // of body?
+      : set_location(next, loc),
     effects: next.current_calltree_node.toplevel
       ? {type: 'unembed_value_explorer'}
-      : [
-          {
-            type: 'set_caret_position',
-            // TODO: better jump not start of function (arguments), but start
-            // of body?
-            args: [loc.index],
-          },
-          {
-            type: 'embed_value_explorer',
-            args: [{
-              index: loc.index,
-              result: {
-                ok: true,
-                value: current_calltree_node.ok
-                  ?  {
-                    '*arguments*': current_calltree_node.args,
-                    '*return*': current_calltree_node.value,
-                  }
-                  : {
-                    '*arguments*': current_calltree_node.args,
-                    '*throws*': current_calltree_node.error,
-                  }
-              }
-            }],
-          },
-        ]
+      : {
+          type: 'embed_value_explorer',
+          args: [{
+            index: loc.index,
+            result: {
+              ok: true,
+              value: current_calltree_node.ok
+                ?  {
+                  '*arguments*': current_calltree_node.args,
+                  '*return*': current_calltree_node.value,
+                }
+                : {
+                  '*arguments*': current_calltree_node.args,
+                  '*throws*': current_calltree_node.error,
+                }
+            }
+          }],
+        }
   }
 }
 
@@ -716,8 +731,8 @@ const select_return_value = state => {
         if(return_statement == null) {
           // Fn has no return statement
           return {
-            state: {...state, current_module: loc.module},
-            effects: {type: 'set_caret_position', args: [code.body.index, true]}
+            state: set_location(state, {module: loc.module, index: code.body.index}),
+            effects: {type: 'set_focus'}
           }
         } else {
           result_node = return_statement.children[0]
@@ -743,15 +758,15 @@ const select_return_value = state => {
   }
 
   return {
-    state: {...state, 
-      current_module: loc.module,
+    state: {
+      ...set_location(state, {module: loc.module, index: node.index}),
       selection_state: {
         node,
         initial_is_expand: true,
         result: result_node.result,
       }
     }, 
-    effects: {type: 'set_caret_position', args: [node.index, true]}
+    effects: {type: 'set_focus'}
   }
 
 }
@@ -785,15 +800,17 @@ const select_arguments = (state, with_focus = true) => {
   }
 
   return {
-    state: {...state, 
-      current_module: loc.module,
+    state: {
+      ...set_location(state, {module: loc.module, index: node.index}),
       selection_state: {
         node,
         initial_is_expand: true,
         result,
       }
     }, 
-    effects: {type: 'set_caret_position', args: [node.index, with_focus]}
+    effects: with_focus
+      ? {type: 'set_focus'}
+      : null,
   }
 }
 
