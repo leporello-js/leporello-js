@@ -12,6 +12,8 @@ import {
   map_tree,
 } from './ast_utils.js'
 
+import {has_toplevel_await} from './find_definitions.js'
+
 // TODO: fix error messages. For example, "__fn is not a function"
 
 /*
@@ -255,6 +257,16 @@ const codegen = (node, cxt, parent) => {
   }
 }
 
+/* TODO remove
+const sync_promise = value => {
+  if(value instanceof run_window.Promise.Original) {
+    return value
+  } else {
+    return {is_sync_promise: true, then: fn => sync_promise(fn(value))}
+  }
+}
+*/
+
 export const eval_modules = (
   parse_result,
   external_imports, 
@@ -265,6 +277,8 @@ export const eval_modules = (
   // TODO gensym __modules, __exports
 
   // TODO bug if module imported twice, once as external and as regular
+
+  const is_async = has_toplevel_await(parse_result.modules)
 
   const codestring = 
     `
@@ -530,7 +544,7 @@ export const eval_modules = (
       }
     }
 
-    const run = () => {
+    const run = ${is_async ? 'async' : ''} () => {
 
       is_recording_deferred_calls = false
 
@@ -554,18 +568,17 @@ export const eval_modules = (
            module: current_module, 
            id: call_counter++
          }
-         __modules[current_module] = 
-           (() => {
-              try {
-                const __exports = {};
-                ${codegen(parse_result.modules[m], {module: m})};
-                current_call.ok = true
-                return __exports
-              } catch(error) {
-                current_call.ok = false
-                current_call.error = error
-              }
-           })()
+         __modules[current_module] = ${is_async ? 'await (async' : '('} () => {
+            try {
+              const __exports = {};
+              ${codegen(parse_result.modules[m], {module: m})};
+              current_call.ok = true
+              return __exports
+            } catch(error) {
+              current_call.ok = false
+              current_call.error = error
+            }
+         })()
          current_call.children = children
          if(!current_call.ok) {
            is_recording_deferred_calls = true
@@ -639,12 +652,16 @@ export const eval_modules = (
     ? actions.run()
     : calltree_actions.find_call(location)
 
-  return {
+  const make_result = result => ({
     modules: result.modules,
     calltree: assign_code(parse_result.modules, result.calltree),
     call: result.call,
     calltree_actions,
-  }
+  })
+
+  return is_async 
+    ? result.then(make_result)
+    : make_result(result)
 }
 
 // TODO: assign_code: benchmark and use imperative version for perf?

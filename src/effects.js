@@ -129,6 +129,7 @@ export const render_initial_state = (ui, state) => {
   ui.editor.switch_session(state.current_module)
 }
 
+// TODO remove async
 export const render_common_side_effects = async (prev, next, command, ui) => {
   if(
     prev.project_dir != next.project_dir 
@@ -188,7 +189,8 @@ export const render_common_side_effects = async (prev, next, command, ui) => {
 
   } else {
 
-    await unwrap_settled_promises(next.calltree)
+    // TODO remove
+    // await unwrap_settled_promises(next.calltree)
 
     if(
       prev.calltree == null

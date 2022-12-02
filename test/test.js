@@ -2593,7 +2593,7 @@ const y = x()`
     const code = `
       const x = async () => 123
       const y = async () => await x()
-      y()
+      await y()
     `
     const s = test_initial_state(code)
     const move = COMMANDS.move_cursor(s, code.indexOf('await x()')).state
