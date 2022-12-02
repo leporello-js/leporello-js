@@ -201,10 +201,18 @@ const external_imports_loaded = (
     toplevel = false
   }
 
-  return modules_evaluated(state, result, node, toplevel)
+  if(result.then != null) {
+    return {...state, 
+      eval_modules_state: {
+        promise: result, node, toplevel,
+      }
+    }
+  } else {
+    return eval_modules_finished(state, result, node, toplevel)
+  }
 }
 
-const modules_evaluated = (state, result, node, toplevel) => {
+const eval_modules_finished = (state, result, node, toplevel) => {
   const next = apply_eval_result(state, result)
 
   let active_calltree_node
@@ -837,6 +845,7 @@ export const COMMANDS = {
   move_cursor,
   eval_selection,
   external_imports_loaded,
+  eval_modules_finished,
   on_deferred_call,
   calltree: calltree_commands,
 }

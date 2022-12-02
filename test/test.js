@@ -2589,7 +2589,7 @@ const y = x()`
     assert_equal(get_deferred_calls(result), null)
   }),
 
-  test_only('async/await', () => {
+  test('async/await', () => {
     const code = `
       const x = async () => 123
       const y = async () => await x()
