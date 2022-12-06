@@ -573,7 +573,7 @@ export const tests = [
     assert_code_evals_to('typeof 1', 'number')
   }),
 
-  test_only('eval_frame unary minus', () => {
+  test('eval_frame unary minus', () => {
     assert_code_evals_to(`-(1)`, -1)
     assert_code_evals_to(`-1`, -1)
     assert_code_evals_to(`-(-1)`, 1)
@@ -585,6 +585,11 @@ export const tests = [
     `)
     const tree = eval_tree(parsed.node)
     assert_equal(eval_frame(tree).children[0].result.value, 2)
+  }),
+
+  test('eval_frame instanceof', () => {
+    assert_code_evals_to('1 instanceof Object', false)
+    assert_code_evals_to('{} instanceof Object', true)
   }),
 
   test('eval_frame grouping', () => {

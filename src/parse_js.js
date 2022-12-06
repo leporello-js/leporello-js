@@ -1023,7 +1023,7 @@ const expr =
     binary(['**']),
     binary(['*','/','%']),
     binary(['+','-']),
-    binary(['<','>','<=','>=']),
+    binary(['<','>','<=','>=', 'instanceof']),
     binary(['===', '==', '!==', '!=']),
     binary(['&&']),
     binary(['||', '??']),
