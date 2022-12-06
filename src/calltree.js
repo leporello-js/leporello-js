@@ -7,6 +7,7 @@ import {eval_frame} from './eval.js'
 export const pp_calltree = tree => ({
   id: tree.id,
   ok: tree.ok,
+  value: tree.value,
   is_log: tree.is_log,
   has_more_children: tree.has_more_children,
   string: tree.code?.string,

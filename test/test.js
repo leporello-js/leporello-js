@@ -2600,12 +2600,40 @@ const y = x()`
     )
   }),
 
-  test('async/await await Promise', async () => {
+  test('async/await await resolved Promise', async () => {
     await assert_code_evals_to_async(
       `
         await Promise.resolve(123)
       `,
       123
+    )
+  }),
+
+  test('async/await await Promise resolved with resolved Promise', async () => {
+    await assert_code_evals_to_async(
+      `
+        await Promise.resolve(Promise.resolve(123))
+      `,
+      123
+    )
+  }),
+
+  test('async/await await Promise resolved with async', async () => {
+    await assert_code_evals_to_async(
+      `
+        const x = async () => 1
+        await Promise.resolve(x())
+      `,
+      1
+    )
+  }),
+
+  test('async/await await Promise resolved with rejected Promise', async () => {
+    await assert_code_error_async(
+      `
+        await Promise.resolve(Promise.reject('boom'))
+      `,
+      'boom',
     )
   }),
 
@@ -2640,15 +2668,6 @@ const y = x()`
     )
   }),
 
-  test('async/await await rejected Promise', async () => {
-    await assert_code_error_async(
-      `
-        await Promise.reject('boom')
-      `,
-      'boom'
-    )
-  }),
-
   test('async/await await rejected Promise returned from async', async () => {
     await assert_code_error_async(
       `
@@ -2659,10 +2678,14 @@ const y = x()`
     )
   }),
 
-    // TODO
-    //assert_equal('s', active_frame
-    //const result = await s.eval_modules_state
-    //const move = COMMANDS.move_cursor(s, code.indexOf('await x()')).state
-    //log('m', root_calltree_node(move).children[0].children[0].value)
-    //log(s.parse_result.modules[''])
+  test('async/await Promise.all', async () => {
+    await assert_code_evals_to_async(
+      `
+        const x = async i => i
+        await Promise.all([x(0), x(1), x(2)])
+      `,
+      [0,1,2]
+    )
+  }),
+
 ]

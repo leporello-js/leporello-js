@@ -177,7 +177,11 @@ export const render_common_side_effects = async (prev, next, command, ui) => {
     load_external_imports(next)
   }
 
-  if(prev.eval_modules_state != next.eval_modules_state) {
+  if(
+    prev.eval_modules_state != next.eval_modules_state 
+    && 
+    next.eval_modules_state != null
+  ) {
     const s = next.eval_modules_state
     s.promise.then(result => {
       exec('eval_modules_finished', result, s.node, s.toplevel)
@@ -188,7 +192,13 @@ export const render_common_side_effects = async (prev, next, command, ui) => {
     render_parse_result(ui, next)
   }
 
-  if(!next.parse_result.ok || next.loading_external_imports_state != null) {
+  if(
+      !next.parse_result.ok 
+      || 
+      next.loading_external_imports_state != null
+      ||
+      next.eval_modules_state != null
+  ) {
 
     // TODO if loading external imports, show loading indicator
     ui.calltree.clear_calltree()

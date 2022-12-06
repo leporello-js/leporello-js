@@ -260,16 +260,6 @@ const codegen = (node, cxt, parent) => {
   }
 }
 
-/* TODO remove
-const sync_promise = value => {
-  if(value instanceof run_window.Promise.Original) {
-    return value
-  } else {
-    return {is_sync_promise: true, then: fn => sync_promise(fn(value))}
-  }
-}
-*/
-
 export const eval_modules = (
   parse_result,
   external_imports, 
@@ -955,6 +945,7 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
         ok = true
         value = typeof(expr.result.value)
       } else if(node.operator == '-') {
+        ok = true
         value = - expr.result.value
       } else if(node.operator == 'await') {
         const run_window = globalThis.run_window ?? globalThis

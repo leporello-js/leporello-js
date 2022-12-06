@@ -1,6 +1,6 @@
 import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
 import {eval_tree, eval_frame} from '../src/eval.js'
-import {active_frame} from '../src/calltree.js'
+import {active_frame, pp_calltree} from '../src/calltree.js'
 import {COMMANDS} from '../src/cmd.js'
 
 Object.assign(globalThis, {log: console.log})

@@ -203,9 +203,20 @@ export const topsort_modules = (modules) => {
 }
 
 export const has_toplevel_await = modules =>
-  Object.values(modules).some(m =>
-    m.children.find(c => c.type == 'unary' && c.operator == 'await' ) != null
-  )
+  Object.values(modules).some(m => node_has_toplevel_await(m))
+
+const node_has_toplevel_await = node => {
+  if(node.type == 'unary' && node.operator == 'await') {
+    return true
+  }
+  if(node.type == 'function_expr') {
+    return false
+  }
+  if(node.children == null) {
+    return false
+  }
+  return node.children.find(c => node_has_toplevel_await(c)) != null
+}
 
 // TODO not implemented
 // TODO detect cycles when loading modules

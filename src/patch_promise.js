@@ -13,11 +13,23 @@ export const patch_promise = window => {
         (resolve, reject) => {
           fn(
             (value) => {
-              status = {ok: true, value}
-              if(is_constructor_finished) {
-                this.status = status
+              if(value instanceof window.Promise.Original) {
+                value
+                  .then(v => {
+                    this.status = {ok: true, value: v}
+                    resolve(v)
+                  })
+                  .catch(e => {
+                    this.status = {ok: false, error: e}
+                    reject(e)
+                  })
+              } else {
+                status = {ok: true, value}
+                if(is_constructor_finished) {
+                  this.status = status
+                }
+                resolve(value)
               }
-              resolve(value)
             },
             (error) => {
               status = {ok: false, error}
