@@ -902,6 +902,8 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
         value = !expr.result.value
       } else if(node.operator == 'typeof') {
         value = typeof(expr.result.value)
+      } else if(node.operator == '-') {
+        value = - expr.result.value
       } else {
         throw new Error('unknown op')
       }

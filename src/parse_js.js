@@ -101,7 +101,7 @@ const tokenize_js = (str) => {
                                         .join('|')},
     {name: 'keyword'            , re: reserved.map(r => '\\b' + r + '\\b').join('|')},
     // TODO all possible notatins for js numbers
-    {name: 'number'             , re: '-?\\d*\\.?\\d+'},
+    {name: 'number'             , re: '\\d*\\.?\\d+'},
     {name: 'identifier'         , re: '[A-Za-z_$][A-Za-z0-9_$]*'},
   
     {name: 'punctuation'        , 
@@ -1012,13 +1012,13 @@ const primary = if_fail(
 )
 
 // operator precedence https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Operator_Precedence
-// TODO unary minus
 // TODO instanceof
 const expr =
   [
     grouping,
     function_call_or_member_access,
     unary('!'),
+    unary('-'),
     unary('typeof'),
     binary(['**']),
     binary(['*','/','%']),

@@ -573,9 +573,10 @@ export const tests = [
     assert_code_evals_to('typeof 1', 'number')
   }),
 
-  test('eval_frame unary minus', () => {
-    // TODO
-    //assert_code_evals_to(`-(1)`, -1)
+  test_only('eval_frame unary minus', () => {
+    assert_code_evals_to(`-(1)`, -1)
+    assert_code_evals_to(`-1`, -1)
+    assert_code_evals_to(`-(-1)`, 1)
   }),
 
   test('eval_frame binary', () => {
