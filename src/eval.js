@@ -14,6 +14,9 @@ import {
 
 import {has_toplevel_await} from './find_definitions.js'
 
+// external
+import {patch_promise} from './patch_promise.js'
+
 // TODO: fix error messages. For example, "__fn is not a function"
 
 /*
@@ -277,6 +280,13 @@ export const eval_modules = (
   // TODO gensym __modules, __exports
 
   // TODO bug if module imported twice, once as external and as regular
+
+  patch_promise(
+    globalThis.run_window 
+    ?? 
+    // Code executed in test env
+    globalThis
+  )
 
   const is_async = has_toplevel_await(parse_result.modules)
 
@@ -937,21 +947,35 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
       return {ok: false, children, calls}
     } else {
       const expr = children[0]
-      let value
+      let ok, value, error
       if(node.operator == '!') {
+        ok = true
         value = !expr.result.value
       } else if(node.operator == 'typeof') {
+        ok = true
         value = typeof(expr.result.value)
       } else if(node.operator == '-') {
         value = - expr.result.value
       } else if(node.operator == 'await') {
-        log('expr', expr.result.value.status)
-        value = expr.result.value
-        //throw new Error('not implemented')
+        const run_window = globalThis.run_window ?? globalThis
+        if(expr.result.value instanceof run_window.Promise.Original) {
+          const status = expr.result.value.status
+          if(status == null) {
+            // Promise must be already resolved
+            throw new Error('illegal state')
+          } else {
+            ok = status.ok
+            error = status.error
+            value = status.value
+          }
+        } else {
+          ok = true
+          value = expr.result.value
+        }
       } else {
         throw new Error('unknown op')
       }
-      return {ok: true, children, calls, value}
+      return {ok, children, calls, value, error}
     }
   } else if(node.type == 'binary' && !['&&', '||', '??'].includes(node.operator)){
 

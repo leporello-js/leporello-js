@@ -8,6 +8,7 @@ import {
 import {current_cursor_position} from './calltree.js'
 import {FLAGS} from './feature_flags.js'
 import {exec, FILES_ROOT} from './index.js'
+// TODO remove
 import {unwrap_settled_promises} from './unwrap_promises.js'
 
 // Imports in the context of `run_window`, so global variables in loaded

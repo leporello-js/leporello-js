@@ -1,6 +1,6 @@
 export const globals = new Set([
   'globalThis',
-  // TODO Promise,
+  'Promise',
   // TODO Symbol
   'URL',
   'Set', 

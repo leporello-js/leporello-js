@@ -220,15 +220,6 @@ const eval_modules_finished = (state, result, node, toplevel) => {
   if(toplevel) {
     if(node == state.parse_result.modules[root_calltree_module(next)]) {
       active_calltree_node = root_calltree_node(next)
-      return add_frame(
-        default_expand_path(
-          expand_path(
-            next,
-            active_calltree_node
-          )
-        ),
-        active_calltree_node,
-      )
     } else {
       active_calltree_node = null
     }
@@ -244,11 +235,13 @@ const eval_modules_finished = (state, result, node, toplevel) => {
     }
   }
 
+  let result_state
+
   if(active_calltree_node == null) {
     const {node, state: next2} = initial_calltree_node(next)
-    return set_active_calltree_node(next2, null, node)
+    result_state = set_active_calltree_node(next2, null, node)
   } else {
-    return add_frame(
+    result_state = add_frame(
       default_expand_path(
         expand_path(
           next,
@@ -258,6 +251,10 @@ const eval_modules_finished = (state, result, node, toplevel) => {
       active_calltree_node,
     )
   }
+
+  return result_state.eval_modules_state == null
+    ? result_state
+    : {...result_state, eval_modules_state: null}
 }
 
 const input = (state, code, index) => {

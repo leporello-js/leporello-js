@@ -1,8 +1,8 @@
 export const patch_promise = window => {
 
-  // TODO check that it is not already patched
   if(window.Promise.Original != null) {
-    throw new Error('already patched')
+    // already patched
+    return
   }
 
   class PromiseWithStatus extends Promise {

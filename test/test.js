@@ -15,10 +15,10 @@ import {
   test_only,
   assert_equal, 
   stringify, 
-  assert_code_evals_to,
-  assert_code_error,
+  assert_code_evals_to, assert_code_evals_to_async,
+  assert_code_error, assert_code_error_async,
   parse_modules,
-  test_initial_state,
+  test_initial_state, test_initial_state_async,
   test_deferred_calls_state,
   print_debug_ct_node,
 } from './utils.js'
@@ -2589,15 +2589,80 @@ const y = x()`
     assert_equal(get_deferred_calls(result), null)
   }),
 
-  test('async/await', () => {
-    const code = `
-      const x = async () => 123
-      const y = async () => await x()
-      await y()
-    `
-    const s = test_initial_state(code)
-    const move = COMMANDS.move_cursor(s, code.indexOf('await x()')).state
-    log('m', root_calltree_node(move).children[0].children[0].value)
-    //log(s.parse_result.modules[''])
+  test('async/await return from async function', async () => {
+    await assert_code_evals_to_async(
+      `
+        const x = async () => 123
+        const y = async () => await x()
+        await y()
+      `,
+      123
+    )
   }),
+
+  test('async/await await Promise', async () => {
+    await assert_code_evals_to_async(
+      `
+        await Promise.resolve(123)
+      `,
+      123
+    )
+  }),
+
+  test('async/await await Promise returned from async function', async () => {
+    await assert_code_evals_to_async(
+      `
+        const x = async () => {
+          return Promise.resolve(123)
+        }
+        await x()
+      `,
+      123
+    )
+  }),
+
+  test('async/await throw from async function', async () => {
+    await assert_code_error_async(
+      `
+        const x = async () => { throw 'boom' }
+        await x()
+      `,
+      'boom'
+    )
+  }),
+
+  test('async/await await rejected Promise', async () => {
+    await assert_code_error_async(
+      `
+        await Promise.reject('boom')
+      `,
+      'boom'
+    )
+  }),
+
+  test('async/await await rejected Promise', async () => {
+    await assert_code_error_async(
+      `
+        await Promise.reject('boom')
+      `,
+      'boom'
+    )
+  }),
+
+  test('async/await await rejected Promise returned from async', async () => {
+    await assert_code_error_async(
+      `
+        const x = async () => Promise.reject('boom')
+        await x()
+      `,
+      'boom'
+    )
+  }),
+
+    // TODO
+    //assert_equal('s', active_frame
+    //const result = await s.eval_modules_state
+    //const move = COMMANDS.move_cursor(s, code.indexOf('await x()')).state
+    //log('m', root_calltree_node(move).children[0].children[0].value)
+    //log(s.parse_result.modules[''])
 ]

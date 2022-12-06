@@ -1,11 +1,7 @@
 import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
 import {eval_tree, eval_frame} from '../src/eval.js'
+import {active_frame} from '../src/calltree.js'
 import {COMMANDS} from '../src/cmd.js'
-
-// external
-import {patch_promise} from '../src/patch_promise.js'
-
-patch_promise(globalThis)
 
 Object.assign(globalThis, {log: console.log})
 
@@ -32,6 +28,22 @@ export const assert_code_error = (codestring, error) => {
   assert_equal(result.error, error)
 }
 
+export const assert_code_evals_to_async = async (codestring, expected) => {
+  const s = await test_initial_state_async(codestring)
+  const frame = active_frame(s)
+  const result = frame.children[frame.children.length - 1].result
+  assert_equal(result.ok, true)
+  assert_equal(result.value, expected)
+}
+
+export const assert_code_error_async = async (codestring, error) => {
+  const s = await test_initial_state_async(codestring)
+  const frame = active_frame(s)
+  const result = frame.children[frame.children.length - 1].result
+  assert_equal(result.ok, false)
+  assert_equal(result.error, error)
+}
+
 export const test_initial_state = (code, state) => {
   return COMMANDS.open_run_window(
     COMMANDS.get_initial_state(
@@ -42,6 +54,18 @@ export const test_initial_state = (code, state) => {
         ...state,
       },
     )
+  )
+}
+
+export const test_initial_state_async = async code => {
+  const s = test_initial_state(code)
+  assert_equal(s.eval_modules_state != null, true)
+  const result = await s.eval_modules_state.promise
+  return COMMANDS.eval_modules_finished(
+    s, 
+    result, 
+    s.eval_modules_state.node, 
+    s.eval_modules_state.toplevel
   )
 }
 
@@ -119,10 +143,13 @@ export const test_only = (message, t) => test(message, t, true)
 // Wrap to Function constructor to hide from calltree view
 // TODO in calltree view, hide fn which has special flag set (see
 // filter_calltree)
-export const run = Object.defineProperty(new Function('tests', `
-    const run_test = t => {
+
+const AsyncFunction = new Function(`return (async () => {}).constructor`)()
+
+export const run = Object.defineProperty(new AsyncFunction('tests', `
+    const run_test = async t => {
       try {
-        t.test()
+        await t.test()
       } catch(e) {
         if(globalThis.process != null) {
           // In node.js runner, fail fast
@@ -142,12 +169,13 @@ export const run = Object.defineProperty(new Function('tests', `
       const only = tests.find(t => t.only)
       const tests_to_run = only == null ? tests : [only]
 
-      // Exec each test. After all tests are done, we rethrow first failer if
+      // Exec each test. After all tests are done, we rethrow first error if
       // any. So we will mark root calltree node if one of tests failed
-      const failure = tests_to_run.reduce(
-        (failure, t) => {
-          const next_failure = run_test(t)
-          return failure ?? next_failure
+      const failure = await tests_to_run.reduce(
+        async (failureP, t) => {
+          const failure = await failureP
+          const next_failure = await run_test(t)
+          return (await failure) ?? next_failure
         },
         null
       )
@@ -165,7 +193,7 @@ export const run = Object.defineProperty(new Function('tests', `
       if(test == null) {
         throw new Error('test not found')
       } else {
-        run_test(test)
+        await run_test(test)
         if(globalThis.process != null) {
           console.log('Ok')
         }
