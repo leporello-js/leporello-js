@@ -216,7 +216,11 @@ const codegen = (node, cxt, parent) => {
       + do_codegen(node.property)  
       + ']'
   } else if(node.type == 'unary') {
-    return '(' + node.operator + ' ' + do_codegen(node.expr) + ')'
+    if(node.operator == 'await') {
+      return `(await __with_restore_children(${do_codegen(node.expr)}))`
+    } else {
+      return '(' + node.operator + ' ' + do_codegen(node.expr) + ')'
+    }
   } else if(node.type == 'binary'){
     return ''
       + do_codegen(node.args[0])
@@ -267,7 +271,7 @@ export const eval_modules = (
   calltree_changed_token,
   location
 ) => {
-  // TODO gensym __modules, __exports
+  // TODO gensym __modules, __exports, children
 
   // TODO bug if module imported twice, once as external and as regular
 
@@ -362,6 +366,22 @@ export const eval_modules = (
         deferred_call_index: i, 
         calltree, 
         call
+      }
+    }
+
+    const __with_restore_children = async value => {
+      // children is an array of child calls for current function call. But it
+      // can be null to save one empty array allocation in case it has no child
+      // calls. Allocate array now, so we can have a reference to this array
+      // which will be used after await
+      if(children == null) {
+        children = []
+      }
+      const children_copy = children
+      try {
+        return await value
+      } finally {
+        children = children_copy
       }
     }
 

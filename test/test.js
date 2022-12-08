@@ -2589,6 +2589,15 @@ const y = x()`
     assert_equal(get_deferred_calls(result), null)
   }),
 
+  test('async/await await non promise', async () => {
+    await assert_code_evals_to_async(
+      `
+        await 1
+      `,
+      1
+    )
+  }),
+
   test('async/await return from async function', async () => {
     await assert_code_evals_to_async(
       `
@@ -2687,5 +2696,39 @@ const y = x()`
       [0,1,2]
     )
   }),
+
+  //test('async/await calltree', async () => {
+  //  const i = await test_initial_state_async(`
+  //    const x = () => 1
+  //    const delay = async time => {
+  //      await 1 //Promise.resolve()
+  //      x()
+  //    }
+  //    await delay(3)
+  //    /* TODO
+  //    await Promise.all([
+  //      delay(3),
+  //    ])
+  //    */
+  //  `)
+  //  log(pp_calltree(root_calltree_node(i)))
+  //  assert_equal(root_calltree_node(i).children.length, 1)
+  //}),
+
+  test('async/await logs out of order', async () => {
+    const i = await test_initial_state_async(`
+      const delay = async time => {
+        await new Promise(res => globalThis.setTimeout(res, time*10))
+        console.log(time)
+      }
+      await Promise.all([
+        delay(3),
+        delay(2),
+        delay(1),
+      ])
+    `)
+    const logs = i.logs.logs.map(l => l.args[0])
+    assert_equal(logs, [1,2,3])
+  })
 
 ]
