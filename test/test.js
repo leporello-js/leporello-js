@@ -25,6 +25,20 @@ import {
 
 export const tests = [
 
+  // TODO
+  /*
+  test('trace', () => {
+    assert_code_evals_to(`
+      const trace = () => 1;
+      trace()
+
+    `,
+
+    1
+    )
+  }),
+  */
+
   test('invalid token in the beginning', () => {
     const result = parse('# import')
     assert_equal(result, { 
@@ -2697,38 +2711,57 @@ const y = x()`
     )
   }),
 
-  //test('async/await calltree', async () => {
-  //  const i = await test_initial_state_async(`
-  //    const x = () => 1
-  //    const delay = async time => {
-  //      await 1 //Promise.resolve()
-  //      x()
-  //    }
-  //    await delay(3)
-  //    /* TODO
-  //    await Promise.all([
-  //      delay(3),
-  //    ])
-  //    */
-  //  `)
-  //  log(pp_calltree(root_calltree_node(i)))
-  //  assert_equal(root_calltree_node(i).children.length, 1)
-  //}),
+  test('async/await calltree', async () => {
+    const i = await test_initial_state_async(`
+      const x = () => 1
+      const delay = async time => {
+        await 1 //TODO Promise.resolve()
+        x()
+      }
+      await delay(3)
+      /* TODO
+      await Promise.all([
+        delay(3),
+      ])
+      */
+    `)
+    const root = root_calltree_node(i)
+    assert_equal(root.children.length, 1)
+    const call_delay = root.children[0]
+    assert_equal(call_delay.fn.name, 'delay')
+    assert_equal(call_delay.fn.name, 'delay')
+  }),
 
+  // TODO
   test('async/await logs out of order', async () => {
     const i = await test_initial_state_async(`
       const delay = async time => {
         await new Promise(res => globalThis.setTimeout(res, time*10))
         console.log(time)
       }
-      await Promise.all([
-        delay(3),
-        delay(2),
-        delay(1),
-      ])
+
+      await Promise.all([delay(2), delay(1)])
     `)
     const logs = i.logs.logs.map(l => l.args[0])
-    assert_equal(logs, [1,2,3])
-  })
+    assert_equal(logs, [1, 2])
+  }),
+
+  test('async/await logs out of order', async () => {
+    const i = await test_initial_state_async(`
+      // Init promises p1 and p2 that are resolved in different order (p2 then
+      // p1)
+      const p2 = Promise.resolve(2)
+      const p1 = p2.then(() => 1)
+
+      const log = async p => {
+        const v = await p
+        console.log(v)
+      }
+
+      await Promise.all([log(p1), log(p2)])
+    `)
+    const logs = i.logs.logs.map(l => l.args[0])
+    assert_equal(logs, [2, 1])
+  }),
 
 ]

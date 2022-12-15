@@ -290,6 +290,8 @@ export const eval_modules = (
     // TODO use native array for stack for perf?
     const stack = new Array() 
 
+    let logs = []
+
     let call_counter = 0
 
     let current_module
@@ -336,7 +338,7 @@ export const eval_modules = (
       let is_found_deferred_call = false
       let i
 
-      let {calltree} = run()
+      let {calltree, logs} = run()
 
       is_recording_deferred_calls = false
       if(found_call == null && deferred_calls != null) {
@@ -365,7 +367,8 @@ export const eval_modules = (
         is_found_deferred_call, 
         deferred_call_index: i, 
         calltree, 
-        call
+        call,
+        logs,
       }
     }
 
@@ -418,17 +421,20 @@ export const eval_modules = (
         try {
           value = fn(...args)
           ok = true
-          return value instanceof Promise.Original 
-            ? value
-                .then(v => {
-                  value.status = {ok: true, value: v}
-                  return v
-                })
-                .catch(e => {
-                  value.status = {ok: false, error: e}
-                  throw e
-                })
-            : value
+          if(value instanceof Promise.Original) {
+            set_record_call()
+            return value
+              .then(v => {
+                value.status = {ok: true, value: v}
+                return v
+              })
+              .catch(e => {
+                value.status = {ok: false, error: e}
+                throw e
+              })
+          } else {
+            return value
+          }
         } catch(_error) {
           ok = false
           error = _error
@@ -476,7 +482,9 @@ export const eval_modules = (
             }
             const call = children[0]
             children = null
-            on_deferred_call(call, calltree_changed_token)
+            const _logs = logs
+            logs = []
+            on_deferred_call(call, calltree_changed_token, _logs)
           }
         }
       }
@@ -547,6 +555,11 @@ export const eval_modules = (
           is_log,
           is_new,
         }
+        
+        if(is_log) {
+          // TODO do not collect logs on find_call?
+          logs.push(call)
+        }
 
         const should_record_call = stack.pop()
 
@@ -602,8 +615,10 @@ export const eval_modules = (
          current_call.children = children
          if(!current_call.ok) {
            is_recording_deferred_calls = true
+           const _logs = logs
+           logs = []
            children = null
-           return { modules: __modules, calltree: current_call }
+           return { modules: __modules, calltree: current_call, logs: _logs }
          }
         `
       )
@@ -611,8 +626,10 @@ export const eval_modules = (
     +
     `
       is_recording_deferred_calls = true
+      const _logs = logs
+      logs = []
       children = null
-      return { modules: __modules, calltree: current_call }
+      return { modules: __modules, calltree: current_call, logs: _logs }
     }
 
     return {
@@ -634,10 +651,11 @@ export const eval_modules = (
     : map_object(external_imports, (name, {module}) => module),
 
     /* on_deferred_call */
-    (call, calltree_changed_token) => {
+    (call, calltree_changed_token, logs) => {
       return on_deferred_call(
         assign_code(parse_result.modules, call),
         calltree_changed_token,
+        logs,
       )
     },
 
@@ -655,7 +673,8 @@ export const eval_modules = (
         is_found_deferred_call, 
         deferred_call_index, 
         calltree, 
-        call
+        call,
+        logs,
       } = actions.find_call(loc, deferred_calls)
       return {
         is_found_deferred_call,
@@ -664,6 +683,7 @@ export const eval_modules = (
         // TODO: `call` does not have `code` property here. Currently it is
         // worked around by callers. Refactor
         call,
+        logs,
       }
     }
   }
@@ -676,6 +696,7 @@ export const eval_modules = (
     modules: result.modules,
     calltree: assign_code(parse_result.modules, result.calltree),
     call: result.call,
+    logs: result.logs,
     calltree_actions,
   })
 

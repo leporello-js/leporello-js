@@ -71,14 +71,13 @@ export const test_initial_state_async = async code => {
 
 export const test_deferred_calls_state = code => {
   const {get_deferred_call, on_deferred_call} = (new Function(`
-    let call, calltree_changed_token
+    let args
     return {
       get_deferred_call() {
-        return [call, calltree_changed_token]
+        return args
       },
-      on_deferred_call(_call, _calltree_changed_token) {
-        call = _call
-        calltree_changed_token = _calltree_changed_token
+      on_deferred_call(..._args) {
+        args = _args
       }
     }
   `))()

@@ -18,31 +18,39 @@ import {
   set_cursor_position, current_cursor_position, set_location
 } from './calltree.js'
 
-const collect_logs = call => 
-  collect_nodes_with_parents(call, n => n.is_log)
-  .map(({parent, node}) => (
-    {
-      id: node.id,
-      toplevel: parent.toplevel,
-      module: parent.toplevel 
-        ? parent.module
-        : parent.fn.__location.module,
-      parent_name: parent.fn?.name,
-      args: node.args,
-      log_fn_name: node.fn.name,
-    }
-  ))
+const collect_logs = (logs, call) => {
+  const id_to_log = new Map(
+    collect_nodes_with_parents(call, n => n.is_log)
+    .map(({parent, node}) => (
+      [
+        node.id,
+        {
+          id: node.id,
+          toplevel: parent.toplevel,
+          module: parent.toplevel 
+            ? parent.module
+            : parent.fn.__location.module,
+          parent_name: parent.fn?.name,
+          args: node.args,
+          log_fn_name: node.fn.name,
+        }
+      ]
+    ))
+  )
+  return logs.map(l => id_to_log.get(l.id))
+}
 
 const apply_eval_result = (state, eval_result) => {
   // TODO what if console.log called from native fn (like Array::map)?
   // Currently it is not recorded. Maybe we should monkey patch `console`?
-  const logs = collect_logs(eval_result.calltree)
-    
   return {
     ...state,
     calltree: make_calltree(eval_result.calltree, null),
     calltree_actions: eval_result.calltree_actions,
-    logs: {logs, log_position: null},
+    logs: {
+      logs: collect_logs(eval_result.logs, eval_result.calltree), 
+      log_position: null
+    },
     modules: eval_result.modules,
   }
 }
@@ -751,7 +759,7 @@ const move_cursor = (s, index) => {
   return do_move_cursor(state, index)
 }
 
-const on_deferred_call = (state, call, calltree_changed_token) => {
+const on_deferred_call = (state, call, calltree_changed_token, logs) => {
   if(state.calltree_changed_token != calltree_changed_token) {
     return state
   }
@@ -760,7 +768,10 @@ const on_deferred_call = (state, call, calltree_changed_token) => {
       root_calltree_node(state),
       [...(get_deferred_calls(state) ?? []), call],
     ),
-    logs: {...state.logs, logs: state.logs.logs.concat(collect_logs(call))},
+    logs: {
+      ...state.logs, 
+      logs: state.logs.logs.concat(collect_logs(logs, call))
+    },
   }
 }
 
