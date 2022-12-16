@@ -1,5 +1,5 @@
 export const patch_promise = window => {
-
+  
   if(window.Promise.Original != null) {
     // already patched
     return
@@ -7,42 +7,32 @@ export const patch_promise = window => {
 
   class PromiseWithStatus extends Promise {
     constructor(fn) {
-      let status 
-      let is_constructor_finished = false
-      super(
-        (resolve, reject) => {
-          fn(
-            (value) => {
-              if(value instanceof window.Promise.Original) {
-                value
-                  .then(v => {
-                    this.status = {ok: true, value: v}
-                    resolve(v)
-                  })
-                  .catch(e => {
-                    this.status = {ok: false, error: e}
-                    reject(e)
-                  })
-              } else {
-                status = {ok: true, value}
-                if(is_constructor_finished) {
-                  this.status = status
-                }
-                resolve(value)
-              }
-            },
-            (error) => {
-              status = {ok: false, error}
-              if(is_constructor_finished) {
-                this.status = status
-              }
-              reject(error)
-            },
-          )
-        }
-      )
-      is_constructor_finished = true
-      this.status = status
+      const p = new Promise.Original((resolve, reject) => {
+        fn(
+          (value) => {
+            if(value instanceof window.Promise) {
+              value
+                .then(v => {
+                  p.status = {ok: true, value: v}
+                  resolve(v)
+                })
+                .catch(e => {
+                  p.status = {ok: false, error: e}
+                  reject(e)
+                })
+            } else {
+              p.status = {ok: true, value}
+              resolve(value)
+            }
+          },
+          (error) => {
+            p.status = {ok: false, error}
+            reject(error)
+          },
+        )
+      })
+
+      return p
     }
   }
 

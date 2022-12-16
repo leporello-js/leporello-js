@@ -2612,6 +2612,15 @@ const y = x()`
     )
   }),
 
+  test('async/await await Promise resolved immediately', async () => {
+    await assert_code_evals_to_async(
+      `
+        await new Promise(resolve => resolve(1))
+      `,
+      1
+    )
+  }),
+
   test('async/await return from async function', async () => {
     await assert_code_evals_to_async(
       `
@@ -2745,6 +2754,20 @@ const y = x()`
     const logs = i.logs.logs.map(l => l.args[0])
     assert_equal(logs, [1, 2])
   }),
+
+
+  /* TODO
+  test('p', async () => {
+    const i = await assert_code_evals_to_async(`
+      const res = Promise.resolve(1)
+      Object.assign(res, {mark: 'resolved'})
+      await Object.assign(new Promise(resolve => resolve()), {mark: 'w'})
+    `,
+    1
+    )
+
+  }),
+  */
 
   test('async/await logs out of order', async () => {
     const i = await test_initial_state_async(`
