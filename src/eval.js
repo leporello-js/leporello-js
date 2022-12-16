@@ -222,7 +222,8 @@ const codegen = (node, cxt, parent) => {
   } else if(node.type == 'spread'){
     return '...(' + do_codegen(node.expr) + ')'
   } else if(node.type == 'new') {
-    return '(new (' + codegen(node.constructor) + ')(' + node.args.map(do_codegen).join(',') + '))'
+    const args = `[${node.args.children.map(do_codegen).join(',')}]`
+    return `trace_call(${do_codegen(node.constructor)}, null, ${args}, true)`
   } else if(node.type == 'grouping'){
     return '(' + do_codegen(node.expr) + ')'
   } else if(node.type == 'array_destructuring') {
@@ -441,13 +442,20 @@ export const eval_modules = (
       return result
     }
 
-    const trace_call = (fn, context, args) => {
-      if(fn != null && fn.__location != null) {
+    const trace_call = (fn, context, args, is_new = false) => {
+      if(fn != null && fn.__location != null && !is_new) {
+        // Call will be traced, because tracing code is already embedded inside
+        // fn
         return fn(...args)
       }
 
       if(typeof(fn) != 'function') {
-        return fn.apply(context, args)
+        // Raise error
+        if(is_new) {
+          return new fn(...args)
+        } else {
+          return fn.apply(context, args)
+        }
       }
 
       const children_copy = children
@@ -465,7 +473,11 @@ export const eval_modules = (
 
       try {
         if(!is_log) {
-          value = fn.apply(context, args)
+          if(is_new) {
+            value = new fn(...args)
+          } else {
+            value = fn.apply(context, args)
+          }
         } else {
           value = undefined
         }
@@ -489,6 +501,7 @@ export const eval_modules = (
           args,
           context,
           is_log,
+          is_new,
         }
 
         const should_record_call = stack.pop()
@@ -799,7 +812,7 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
       {}
     )
     return {ok, children, value, calls}
-  } else if(node.type == 'function_call'){
+  } else if(node.type == 'function_call' || node.type == 'new'){
     const {ok, children, calls} = eval_children(node, scope, callsleft)
     if(!ok) {
       return {ok: false, children, calls}
@@ -940,15 +953,6 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
       return eval_binary_expr(node, scope, callsleft)
     }
 
-  } else if(node.type == 'new') {
-    const {ok, children, calls} = eval_children(node, scope, callsleft)
-    if(!ok) {
-      return {ok, children, calls}
-    } else {
-      const [constructor, ...args] = children
-      const value = new (constructor.result.value)(...args.map(a => a.result.value))
-      return {ok, children, value, calls}
-    }
   } else if(node.type == 'grouping'){
     const {ok, children, calls} = eval_children(node, scope, callsleft)
     if(!ok) {

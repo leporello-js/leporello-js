@@ -112,8 +112,8 @@ export class CallTree {
                 + (n.fn.__location == null ? ' native' : '')
             ,
             // TODO show `this` argument
-            n.fn.name
-            ,
+            (n.is_new ? 'new ' : ''),
+            n.fn.name,
             '(' ,
              ...join(
                n.args.map(

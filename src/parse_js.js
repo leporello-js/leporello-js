@@ -984,11 +984,20 @@ const new_expr = if_ok(
       array_element,
     )
   ]),
-  ({value, ...node}) => ({
-    ...node,
-    type: 'new',
-    children: [value[1], ...value[2].value],
-  })
+  ({value, ...node}) => {
+    const {value: args, ..._call_args} = value[2]
+    const call_args = {
+      ..._call_args,
+      children: args,
+      not_evaluatable: args.length == 0,
+      type: 'call_args',
+    }
+    return {
+      ...node,
+      type: 'new',
+      children: [value[1], call_args],
+    }
+  }
 )
 
 const primary = if_fail(
@@ -1384,7 +1393,7 @@ const update_children_not_rec = (node, children = node.children) => {
       expr: children[0]
     }
   } else if(node.type == 'new') {
-    return {...node, constructor: children[0], args: children.slice(1)}
+    return {...node, constructor: children[0], args: children[1]}
   } else if(node.type == 'grouping') {
     return {...node, expr: children[0]}
   } else if(node.type == 'return') {

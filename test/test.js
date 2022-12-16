@@ -423,6 +423,35 @@ export const tests = [
     `, 'test')
   }),
 
+  test('new calls are recorded in calltree', () => {
+    const code = `
+      const make_class = new Function("return class { constructor(x) { x() } }")
+      const clazz = make_class()
+      const x = () => 1
+      new clazz(x)
+    `
+    const i = test_initial_state(code)
+    const find_call = COMMANDS.move_cursor(i, code.indexOf('1')).state
+    assert_equal(root_calltree_node(find_call).children.length, 3)
+    const x_call = root_calltree_node(find_call).children[2].children[0]
+    assert_equal(x_call.fn.name, 'x')
+  }),
+
+  test('new calls step into', () => {
+    const code = `new Set()`
+    const i = test_initial_state(code)
+    const into = COMMANDS.calltree.arrow_down(i)
+    assert_equal(into.state.current_calltree_node.fn.name, 'Set')
+    assert_equal(into.state.current_calltree_node.is_new, true)
+  }),
+
+  test('new call non-constructor', () => {
+    assert_code_error(
+      `const x = () => 1; new x()`,
+      'TypeError: fn is not a constructor'
+    )
+  }),
+
   test('method chaining', () => {
     assert_code_evals_to(
       `
@@ -1676,7 +1705,7 @@ const y = x()`
       const y = () => 1
       const deep_error = x => {
         if(x == 10) {
-          throw new Error('deep_error')
+          throw 'deep_error'
         } else {
           y()
           deep_error(x + 1)
@@ -1701,7 +1730,7 @@ const y = x()`
 
     assert_equal(depth(first), 10)
     assert_equal(first.ok, false)
-    assert_equal(first.error.message, 'deep_error')
+    assert_equal(first.error, 'deep_error')
   }),
 
   /* Test when node where error occured has subcalls */
@@ -1958,6 +1987,14 @@ const y = x()`
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, [1, 1, 1])
   }),
+
+  test('select_return_value new call', () => {
+    const code = `new String('1')`
+    const s1 = test_initial_state(code)
+    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
+    assert_equal(s3.selection_state.result.value, '1')
+  }),
   
   test('select_arguments not_expanded', () => {
     const code = `
@@ -1987,6 +2024,14 @@ const y = x()`
     assert_equal(s3.state.selection_state.result, {ok: true, value: {a: 1}})
     assert_equal(current_cursor_position(s3.state), code.indexOf('(a)'))
     assert_equal(s3.effects, {type: 'set_focus'})
+  }),
+
+  test('select_arguments new call', () => {
+    const code = `new String("1")`
+    const s1 = test_initial_state(code)
+    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const s3 = COMMANDS.calltree.select_arguments(s2).state
+    assert_equal(s3.selection_state.result, {ok: true, value: ["1"]})
   }),
 
   test('move_cursor arguments', () => {

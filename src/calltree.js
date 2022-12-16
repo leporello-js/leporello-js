@@ -750,7 +750,7 @@ const select_return_value = state => {
 
   } else {
     result_node = find_node(frame, n => 
-      n.type == 'function_call'
+      (n.type == 'function_call' || n.type == 'new')
       && n.result != null
       && n.result.call.id == state.current_calltree_node.id
     )
@@ -790,7 +790,7 @@ const select_arguments = (state, with_focus = true) => {
 
   } else {
     const call = find_node(frame, n => 
-      n.type == 'function_call'
+      (n.type == 'function_call' || n.type == 'new')
       && n.result != null
       && n.result.call.id == state.current_calltree_node.id
     )
