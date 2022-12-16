@@ -2724,15 +2724,10 @@ const y = x()`
     const i = await test_initial_state_async(`
       const x = () => 1
       const delay = async time => {
-        await 1 //TODO Promise.resolve()
+        await 1
         x()
       }
       await delay(3)
-      /* TODO
-      await Promise.all([
-        delay(3),
-      ])
-      */
     `)
     const root = root_calltree_node(i)
     assert_equal(root.children.length, 1)
@@ -2740,34 +2735,6 @@ const y = x()`
     assert_equal(call_delay.fn.name, 'delay')
     assert_equal(call_delay.fn.name, 'delay')
   }),
-
-  // TODO
-  test('async/await logs out of order', async () => {
-    const i = await test_initial_state_async(`
-      const delay = async time => {
-        await new Promise(res => globalThis.setTimeout(res, time*10))
-        console.log(time)
-      }
-
-      await Promise.all([delay(2), delay(1)])
-    `)
-    const logs = i.logs.logs.map(l => l.args[0])
-    assert_equal(logs, [1, 2])
-  }),
-
-
-  /* TODO
-  test('p', async () => {
-    const i = await assert_code_evals_to_async(`
-      const res = Promise.resolve(1)
-      Object.assign(res, {mark: 'resolved'})
-      await Object.assign(new Promise(resolve => resolve()), {mark: 'w'})
-    `,
-    1
-    )
-
-  }),
-  */
 
   test('async/await logs out of order', async () => {
     const i = await test_initial_state_async(`
@@ -2785,6 +2752,19 @@ const y = x()`
     `)
     const logs = i.logs.logs.map(l => l.args[0])
     assert_equal(logs, [2, 1])
+  }),
+
+  test('async/await logs out of order', async () => {
+    const i = await test_initial_state_async(`
+      const delay = async time => {
+        await new Promise(res => globalThis.setTimeout(res, time*10))
+        console.log(time)
+      }
+
+      await Promise.all([delay(2), delay(1)])
+    `)
+    const logs = i.logs.logs.map(l => l.args[0])
+    assert_equal(logs, [1, 2])
   }),
 
 ]
