@@ -21,8 +21,8 @@ const isError = object =>
   object instanceof globalThis.run_window.Error
 
 const isPromise = object =>
-  object instanceof Promise
-  ||
+    object instanceof Promise
+    ||
   object instanceof globalThis.run_window.Promise
 
 const displayed_entries = object => {
@@ -49,7 +49,15 @@ export const stringify_for_header = v => {
     // TODO clickable link, 'fn', cursive
     return 'fn ' + v.name
   } else if (isPromise(v)) {
-    return 'Promise<>'
+    if(v.status == null) {
+      return `Promise<pending>`
+    } else {
+      if(status.ok) {
+        return `Promise<fulfilled: ${stringify_for_header(status.value)}>`
+      } else {
+        return `Promise<fulfilled: ${stringify_for_header(status.error)}>`
+      }
+    }
   } else if(isError(v)) {
     return v.toString()
   } else if(type == 'object') {

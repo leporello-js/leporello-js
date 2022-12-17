@@ -5,11 +5,11 @@ export const patch_promise = window => {
     return
   }
 
-  class PromiseWithStatus extends Promise {
+  class PromiseWithStatus extends window.Promise {
     constructor(fn) {
       let status 
       let is_constructor_finished = false
-      const p = new Promise.Original(
+      const p = new window.Promise.Original(
         (resolve, reject) => {
           fn(
             (value) => {
@@ -47,7 +47,7 @@ export const patch_promise = window => {
     }
   }
 
-  PromiseWithStatus.Original = Promise
+  PromiseWithStatus.Original = window.Promise
 
   window.Promise = PromiseWithStatus
 }

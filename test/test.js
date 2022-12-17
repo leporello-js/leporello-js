@@ -2767,4 +2767,16 @@ const y = x()`
     assert_equal(logs, [1, 2])
   }),
 
+  test('async/await bug', async () => {
+    const code = `
+      const f = async () => {
+        console.log('f')
+      }
+
+      await f()
+    `
+    const i = await test_initial_state_async(code)
+    const cursor = COMMANDS.move_cursor(i, code.indexOf('console'))
+  }),
+
 ]
