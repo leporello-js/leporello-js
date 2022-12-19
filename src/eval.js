@@ -372,6 +372,24 @@ export const eval_modules = (
       }
     }
 
+    const set_promise_status = value => {
+      if(value instanceof Promise.Original) {
+        // record stack for async calls, so expand calls works sync
+        set_record_call()
+        return value
+          .then(v => {
+            value.status = {ok: true, value: v}
+            return v
+          })
+          .catch(e => {
+            value.status = {ok: false, error: e}
+            throw e
+          })
+      } else {
+        return value
+      }
+    }
+
     const __with_restore_children = async value => {
       // children is an array of child calls for current function call. But it
       // can be null to save one empty array allocation in case it has no child
@@ -421,20 +439,7 @@ export const eval_modules = (
         try {
           value = fn(...args)
           ok = true
-          if(value instanceof Promise.Original) {
-            set_record_call()
-            return value
-              .then(v => {
-                value.status = {ok: true, value: v}
-                return v
-              })
-              .catch(e => {
-                value.status = {ok: false, error: e}
-                throw e
-              })
-          } else {
-            return value
-          }
+          return set_promise_status(value)
         } catch(_error) {
           ok = false
           error = _error
@@ -534,7 +539,7 @@ export const eval_modules = (
           value = undefined
         }
         ok = true
-        return value
+        return set_promise_status(value)
       } catch(_error) {
         ok = false
         error = _error

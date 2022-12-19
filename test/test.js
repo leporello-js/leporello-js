@@ -2767,7 +2767,29 @@ const y = x()`
     assert_equal(logs, [1, 2])
   }),
 
+  test('async/await external async fn', async () => {
+    await assert_code_evals_to_async(
+      `
+        const AsyncFunction = 
+          new Function('return (async () => {}).constructor')()
+        const async_fn = new AsyncFunction('return 1')
+        await async_fn()
+      `,
+      1
+    )
+  }),
+
+  // TODO
   /*
+  test('async/await Promise.then creates subcall', async () => {
+    const i = await test_initial_state_async(`
+      await Promise.resolve(1).then(x => {
+      })
+    `)
+    console.log('i', root_calltree_node(i))
+
+  }),
+
   test('async/await bug', async () => {
     const code = `
       const f = async () => {
