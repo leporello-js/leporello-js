@@ -63,14 +63,8 @@ type Node = ToplevelCall | Call
 
 // TODO just export const Iframe_Function?
 const make_function = (...args) => {
-  if(globalThis.run_window == null) {
-    // Code is executed in test env
-    return new Function(...args)
-  } else {
-    // Code run in browser and user opened run_window
-    const fn_constructor = globalThis.run_window.Function
-    return new fn_constructor(...args)
-  }
+  const fn_constructor = globalThis.run_window.Function
+  return new fn_constructor(...args)
 }
 
 const codegen_function_expr = (node, cxt) => {
@@ -275,12 +269,7 @@ export const eval_modules = (
 
   // TODO bug if module imported twice, once as external and as regular
 
-  patch_promise(
-    globalThis.run_window 
-    ?? 
-    // Code executed in test env
-    globalThis
-  )
+  patch_promise(globalThis.run_window)
 
   const is_async = has_toplevel_await(parse_result.modules)
 
@@ -994,8 +983,7 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
         ok = true
         value = - expr.result.value
       } else if(node.operator == 'await') {
-        const run_window = globalThis.run_window ?? globalThis
-        if(expr.result.value instanceof run_window.Promise.Original) {
+        if(expr.result.value instanceof globalThis.run_window.Promise.Original) {
           const status = expr.result.value.status
           if(status == null) {
             // Promise must be already resolved

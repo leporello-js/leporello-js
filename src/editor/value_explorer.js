@@ -6,23 +6,13 @@
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 
-
-// TODO only test for globalThis.<GlobalObject> because we only eval code in
-// another window
-
 const has_custom_toString = object =>
   object.toString != globalThis.run_window.Object.prototype.toString
-  &&
-  object.toString != Object.prototype.toString
 
 const isError = object => 
-  object instanceof Error
-  ||
   object instanceof globalThis.run_window.Error
 
 const isPromise = object =>
-    object instanceof Promise
-    ||
   object instanceof globalThis.run_window.Promise
 
 const displayed_entries = object => {

@@ -3,7 +3,15 @@ import {eval_tree, eval_frame} from '../src/eval.js'
 import {active_frame, pp_calltree} from '../src/calltree.js'
 import {COMMANDS} from '../src/cmd.js'
 
-Object.assign(globalThis, {log: console.log})
+Object.assign(globalThis, 
+  {
+    // for convenince, to type just `log` instead of `console.log`
+    log: console.log,
+
+    // For test env, set globalThis.run_window to just globalThis
+    run_window: globalThis,
+  }
+)
 
 export const parse_modules = (entry, modules) => 
   load_modules(entry, module_name => modules[module_name])
