@@ -1,82 +1,87 @@
+/*
+  Loads Leporello then runs tests inside Leporello.
+  Benchmarks how fast test suite is executed inside leporello
+*/
+
 import fs from 'fs'
+import * as pathlib from 'path'
+import {COMMANDS} from '../src/cmd.js'
+import {root_calltree_node} from '../src/calltree.js'
+import { assert_equal, test_initial_state, } from './utils.js'
 
-import {load_modules} from '../src/parse_js.js'
-import {eval_modules, eval_frame} from '../src/eval.js'
+// Should work same as src/filesystem.js:load_dir
+const load_dir = path => {
+  const kind = fs.statSync(path).isDirectory() ? 'directory' : 'file'
 
-import {
-  assert_equal, 
-  run, 
-  stringify, 
-  test, 
-} from './utils.js'
+  const props = {
+    path,
+    name: pathlib.basename(path),
+    kind,
+  }
 
-const entry = `
-  import {parse, load_modules} from './src/parse_js.js';
-
-  import {COMMANDS} from './src/cmd.js';
-  //console.time('p');
-  //const parsed = parse(globalThis.module_cache['./src/parse_js.js']);
-  //console.timeEnd('p');
-  //const parsed = parse('1');
-
-  const loader = module => globalThis.module_cache[module];
-  console.time('p2');
-  load_modules('src/parse_js.js', (m) => {
-    return loader(m)
-
-  });
-  console.timeEnd('p2')
-  //import {} from './test/test.js'
-`
-
-globalThis.module_cache = {}
-
-const load_module = (dir, module) => {
-  return (globalThis.module_cache[module] = fs.readFileSync(dir + module, 'utf8'))
-}
-const loader = module => {
-  return module == ''
-    ? entry
-    : load_module('./', module)
-}
-
-run([
-  test('self-hosted', () => {
-    //console.time('p0')
-    const parsed = load_modules('', loader)
-    //log('cache', Object.keys(globalThis.module_cache))
-    //console.log('p', parsed)
-    //console.timeEnd('p0')
-    if(!parsed.ok) {
-      const p = parsed.problems[0]
-      console.error('FAIL', p.index, p.message, p.module)
-      console.log(loader(p.module).slice(p.index, p.index + 100))
-    } else {
-      assert_equal(parsed.ok, true)
-      console.time('eval')
-      const result = eval_modules(parsed).calltree
-      console.timeEnd('eval')
-
-      /* TODO remove
-
-      const count_nodes = node => node.children == null
-        ? 1
-        : 1 + node.children.reduce(
-            (total, c) => total + count_nodes(c),
-            0,
-          )
-      console.log(
-        Object.entries(result)
-          .map(([k,v]) => count_nodes(v.calls))
-          .reduce((total, c) => total +c)
-      )
-      */
-      ///const frame = eval_frame(result[''].calls, result)
-      ///log('f', frame.children[frame.children.length - 1])
-      ///assert_equal(
-      ///  frame.children[frame.children.length - 1].result.value.value,
-      ///  1
-      ///)
+  if(kind == 'file') {
+    return  {...props, contents: fs.readFileSync(path, 'utf8')}
+  } else {
+    return {
+      ...props, 
+      children: fs.readdirSync(path)
+        .filter(f => !f.startsWith('.'))
+        .map(file => 
+          load_dir(pathlib.join(path, file))
+        )
     }
-  })
-])
+  }
+}
+
+// Convert path to modules relative to '.' into path relative to this file
+const adjust_path = path => {
+  return pathlib.join(
+    pathlib.relative(
+      pathlib.dirname(import.meta.url.replace('file://', '')),
+      pathlib.resolve('.'), 
+    ),
+    path
+  )
+}
+
+const load_external_modules = async state => {
+  const urls = state.loading_external_imports_state.external_imports
+  const results = await Promise.all(
+    urls.map(u => import(adjust_path(u)))
+  )
+  return Object.fromEntries(
+    results.map((module, i) => (
+      [
+        urls[i],
+        {
+          ok: true,
+          module,
+        }
+      ]
+    ))
+  )
+}
+
+const dir = load_dir('.')
+
+console.time('run')
+
+const i = test_initial_state(
+  `
+    import './test/run.js'
+  `,
+  {project_dir: dir}
+)
+assert_equal(i.loading_external_imports_state != null, true)
+
+const external_imports = await load_external_modules(i)
+const loaded = COMMANDS.external_imports_loaded(i, i, external_imports)
+
+assert_equal(loaded.eval_modules_state != null, true)
+const s = loaded.eval_modules_state
+const result = await s.promise
+const state = COMMANDS.eval_modules_finished(loaded , result, s.node, s.toplevel)
+
+assert_equal(root_calltree_node(state).ok, true)
+
+console.timeEnd('run')

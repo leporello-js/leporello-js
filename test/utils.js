@@ -174,7 +174,7 @@ export const run = Object.defineProperty(new AsyncFunction('tests', `
         async (failureP, t) => {
           const failure = await failureP
           const next_failure = await run_test(t)
-          return (await failure) ?? next_failure
+          return failure ?? next_failure
         },
         null
       )
