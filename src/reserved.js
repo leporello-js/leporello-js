@@ -3,7 +3,9 @@
 export const reserved = [
 'break',
 'case',
-'catch',
+// TODO: fix parser to allow catch be an Object key, as other reserved words.
+// Currently we make exception for promise.catch
+// 'catch', 
 'class',
 'const',
 'continue',
@@ -14,7 +16,9 @@ export const reserved = [
 'else',
 'export',
 'extends',
-'finally',
+// TODO: fix parser to allow finally be an Object key, as other reserved words.
+// Currently we make exception for promise.finally
+// 'finally', 
 'for',
 'function',
 'if',

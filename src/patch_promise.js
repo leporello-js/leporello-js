@@ -5,11 +5,36 @@ export const patch_promise = window => {
     return
   }
 
+  class PromiseRecordChildren extends Promise {
+    then(on_resolve, on_reject) {
+      let children = window.get_children()
+      if(children == null) {
+        children = []
+        window.set_children(children)
+      }
+      return super.then(
+        on_resolve == null
+          ? null
+          : value => {
+              window.set_children(children)
+              return on_resolve(value)
+            },
+
+        on_reject == null
+          ? null
+          : error => {
+            window.set_children(children)
+            return on_reject(error)
+          }
+      )
+    }
+  }
+
   class PromiseWithStatus extends window.Promise {
     constructor(fn) {
       let status 
       let is_constructor_finished = false
-      const p = new window.Promise.Original(
+      const p = new PromiseRecordChildren(
         (resolve, reject) => {
           fn(
             (value) => {

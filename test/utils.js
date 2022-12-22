@@ -151,21 +151,20 @@ export const test_only = (message, t) => test(message, t, true)
 // TODO in calltree view, hide fn which has special flag set (see
 // filter_calltree)
 
-const AsyncFunction = new Function(`return (async () => {}).constructor`)()
-
-export const run = Object.defineProperty(new AsyncFunction('tests', `
-    const run_test = async t => {
-      try {
-        await t.test()
-      } catch(e) {
-        if(globalThis.process != null) {
-          // In node.js runner, fail fast
-          console.error('Failed: ' + t.message)
-          throw e
-        } else {
-          return e
-        }
-      }
+export const run = Object.defineProperty(new Function('tests', `
+    // Runs test, return failure or null if not failed
+    const run_test = t => {
+      return Promise.resolve(t.test())
+        .then(() => null)
+        .catch(e => {
+          if(globalThis.process != null) {
+            // In node.js runner, fail fast
+            console.error('Failed: ' + t.message)
+            throw e
+          } else {
+            return e
+          }
+        })
     }
 
     // If not run in node, then dont apply filter
@@ -178,32 +177,35 @@ export const run = Object.defineProperty(new AsyncFunction('tests', `
 
       // Exec each test. After all tests are done, we rethrow first error if
       // any. So we will mark root calltree node if one of tests failed
-      const failure = await tests_to_run.reduce(
-        async (failureP, t) => {
-          const failure = await failureP
-          const next_failure = await run_test(t)
-          return failure ?? next_failure
-        },
+      return tests_to_run.reduce(
+        (failureP, t) => 
+          Promise.resolve(failureP).then(failure => 
+            run_test(t).then(next_failure => failure ?? next_failure)
+          )
+        ,
         null
-      )
+      ).then(failure => {
 
-      if(failure != null) {
-        throw failure
-      } else {
-        if(globalThis.process != null) {
-          console.log('Ok')
+        if(failure != null) {
+          throw failure
+        } else {
+          if(globalThis.process != null) {
+            console.log('Ok')
+          }
         }
-      }
+
+      })
 
     } else {
       const test = tests.find(t => t.message.includes(filter))
       if(test == null) {
         throw new Error('test not found')
       } else {
-        await run_test(test)
-        if(globalThis.process != null) {
-          console.log('Ok')
-        }
+        return run_test(test).then(() => {
+          if(globalThis.process != null) {
+            console.log('Ok')
+          }
+        })
       }
     }
 `), 'name', {value: 'run'})

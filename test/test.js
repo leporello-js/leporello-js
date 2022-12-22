@@ -2779,18 +2779,38 @@ const y = x()`
     )
   }),
 
-  // TODO
-  /*
   test('async/await Promise.then creates subcall', async () => {
     const i = await test_initial_state_async(`
-      await Promise.resolve(1).then(x => {
-      })
+      const x = () => 1
+      await Promise.resolve(1).then(x)
     `)
-    console.log('i', root_calltree_node(i))
-
+    const root = root_calltree_node(i)
+    assert_equal(root.children.at(-1).children[0].fn.name, 'x')
   }),
 
-  test('async/await bug', async () => {
+  test('async/await Promise.catch creates subcall', async () => {
+    const i = await test_initial_state_async(`
+      const x = () => 1
+      await Promise.reject(1).catch(x)
+    `)
+    const root = root_calltree_node(i)
+    assert_equal(root.children.at(-1).children[0].fn.name, 'x')
+  }),
+
+
+  test_only('async/await native Promise.then creates subcall', async () => {
+    const i = await test_initial_state_async(`
+      const x = () => 1
+      const async_fn = async () => 1
+      await async_fn().then(x)
+    `)
+    const root = root_calltree_node(i)
+    assert_equal(root.children.at(-1).children[0].fn.name, 'x')
+  }),
+
+  /*
+  // TODO
+  test('async/await move_cursor', async () => {
     const code = `
       const f = async () => {
         console.log('f')

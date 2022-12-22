@@ -276,6 +276,11 @@ export const eval_modules = (
   const codestring = 
     `
     let children, prev_children
+
+    // TODO refactor, move patch_promise here
+    globalThis.get_children = () => children
+    globalThis.set_children = (_children) => children = _children
+
     // TODO use native array for stack for perf?
     const stack = new Array() 
 

@@ -67,10 +67,8 @@ const dir = load_dir('.')
 console.time('run')
 
 const i = test_initial_state(
-  `
-    import './test/run.js'
-  `,
-  {project_dir: dir}
+  {}, // files
+  {project_dir: dir, entrypoint: 'test/run.js'}
 )
 assert_equal(i.loading_external_imports_state != null, true)
 
@@ -81,6 +79,8 @@ assert_equal(loaded.eval_modules_state != null, true)
 const s = loaded.eval_modules_state
 const result = await s.promise
 const state = COMMANDS.eval_modules_finished(loaded , result, s.node, s.toplevel)
+const root = root_calltree_node(state)
+const run = root.children[0]
 
 assert_equal(root_calltree_node(state).ok, true)
 
