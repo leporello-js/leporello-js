@@ -42,10 +42,10 @@ export const stringify_for_header = v => {
     if(v.status == null) {
       return `Promise<pending>`
     } else {
-      if(status.ok) {
-        return `Promise<fulfilled: ${stringify_for_header(status.value)}>`
+      if(v.status.ok) {
+        return `Promise<fulfilled: ${stringify_for_header(v.status.value)}>`
       } else {
-        return `Promise<fulfilled: ${stringify_for_header(status.error)}>`
+        return `Promise<rejected: ${stringify_for_header(v.status.error)}>`
       }
     }
   } else if(isError(v)) {

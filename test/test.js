@@ -2754,7 +2754,7 @@ const y = x()`
     assert_equal(logs, [2, 1])
   }),
 
-  test('async/await logs out of order', async () => {
+  test('async/await logs out of order timeout', async () => {
     const i = await test_initial_state_async(`
       const delay = async time => {
         await new Promise(res => globalThis.setTimeout(res, time*10))
@@ -2779,12 +2779,25 @@ const y = x()`
     )
   }),
 
+  test('async/await then bug', async () => {
+    await assert_code_evals_to_async(
+      `
+        const p2 = Promise.resolve(2)
+        const p1 = p2.then(() => 1)
+        const x = () => 1
+        await x()
+      `,
+      1
+    )
+  }),
+
   test('async/await Promise.then creates subcall', async () => {
     const i = await test_initial_state_async(`
       const x = () => 1
       await Promise.resolve(1).then(x)
     `)
     const root = root_calltree_node(i)
+    assert_equal(root.children.at(-1).fn.name, 'then')
     assert_equal(root.children.at(-1).children[0].fn.name, 'x')
   }),
 
@@ -2794,11 +2807,11 @@ const y = x()`
       await Promise.reject(1).catch(x)
     `)
     const root = root_calltree_node(i)
+    assert_equal(root.children.at(-1).fn.name, 'catch')
     assert_equal(root.children.at(-1).children[0].fn.name, 'x')
   }),
 
-
-  test_only('async/await native Promise.then creates subcall', async () => {
+  test('async/await native Promise.then creates subcall', async () => {
     const i = await test_initial_state_async(`
       const x = () => 1
       const async_fn = async () => 1

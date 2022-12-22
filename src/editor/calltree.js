@@ -13,6 +13,17 @@ const join = arr => arr.reduce(
   [],
 )
 
+const is_error = n =>
+  !n.ok 
+  || 
+  ( 
+    n.value instanceof globalThis.run_window.Promise 
+    && 
+    n.value.status != null
+    &&
+    !n.value.status.ok
+  )
+
 export class CallTree {
   constructor(ui, container) {
     this.ui = ui
@@ -108,7 +119,7 @@ export class CallTree {
           )
         : el('span', 
               'call_header ' 
-                + (n.ok ? '' : 'error') 
+                + (is_error(n) ? 'error' : '') 
                 + (n.fn.__location == null ? ' native' : '')
             ,
             // TODO show `this` argument

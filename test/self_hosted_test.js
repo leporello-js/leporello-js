@@ -84,4 +84,7 @@ const run = root.children[0]
 
 assert_equal(root_calltree_node(state).ok, true)
 
+// Assert that run children are tests
+assert_equal(run.children.length > 100, true)
+
 console.timeEnd('run')

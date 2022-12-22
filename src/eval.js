@@ -367,7 +367,7 @@ export const eval_modules = (
     }
 
     const set_promise_status = value => {
-      if(value instanceof Promise.Original) {
+      if(value instanceof Promise) {
         // record stack for async calls, so expand calls works sync
         set_record_call()
         return value
@@ -988,7 +988,7 @@ const do_eval_frame_expr = (node, scope, callsleft) => {
         ok = true
         value = - expr.result.value
       } else if(node.operator == 'await') {
-        if(expr.result.value instanceof globalThis.run_window.Promise.Original) {
+        if(expr.result.value instanceof globalThis.run_window.Promise) {
           const status = expr.result.value.status
           if(status == null) {
             // Promise must be already resolved
