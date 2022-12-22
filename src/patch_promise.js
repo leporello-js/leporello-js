@@ -5,9 +5,9 @@ export const patch_promise = window => {
     return
   }
 
-  const _then = Promise.prototype.then
+  const _then = window.Promise.prototype.then
 
-  Promise.prototype.then = function then(on_resolve, on_reject) {
+  window.Promise.prototype.then = function then(on_resolve, on_reject) {
     let children = window.get_children()
     if(children == null) {
       children = []

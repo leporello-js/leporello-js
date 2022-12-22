@@ -154,7 +154,7 @@ export const test_only = (message, t) => test(message, t, true)
 export const run = Object.defineProperty(new Function('tests', `
     // Runs test, return failure or null if not failed
     const run_test = t => {
-      return Promise.resolve(t.test())
+      return Promise.resolve().then(t.test)
         .then(() => null)
         .catch(e => {
           if(globalThis.process != null) {

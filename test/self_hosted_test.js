@@ -8,6 +8,7 @@ import * as pathlib from 'path'
 import {COMMANDS} from '../src/cmd.js'
 import {root_calltree_node} from '../src/calltree.js'
 import { assert_equal, test_initial_state, } from './utils.js'
+import {tests} from './test.js'
 
 // Should work same as src/filesystem.js:load_dir
 const load_dir = path => {
@@ -85,6 +86,6 @@ const run = root.children[0]
 assert_equal(root_calltree_node(state).ok, true)
 
 // Assert that run children are tests
-assert_equal(run.children.length > 100, true)
+assert_equal(run.children.length, tests.length)
 
 console.timeEnd('run')
