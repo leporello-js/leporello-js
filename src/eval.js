@@ -211,7 +211,7 @@ const codegen = (node, cxt, parent) => {
       + ']'
   } else if(node.type == 'unary') {
     if(node.operator == 'await') {
-      return `(await __with_restore_children(${do_codegen(node.expr)}))`
+      return `(await __do_await(${do_codegen(node.expr)}))`
     } else {
       return '(' + node.operator + ' ' + do_codegen(node.expr) + ')'
     }
@@ -367,9 +367,15 @@ export const eval_modules = (
     }
 
     const set_promise_status = value => {
+      // TODO refactor, put is_status_requested inside status
       if(value instanceof Promise) {
+        if(value.is_status_requested) {
+          return value
+        }
+        value.is_status_requested = true
         // record stack for async calls, so expand calls works sync
         set_record_call()
+        // TODO why we set status for wrapped value and not for wrapper?
         return value
           .then(v => {
             value.status = {ok: true, value: v}
@@ -384,7 +390,7 @@ export const eval_modules = (
       }
     }
 
-    const __with_restore_children = async value => {
+    const __do_await = async value => {
       // children is an array of child calls for current function call. But it
       // can be null to save one empty array allocation in case it has no child
       // calls. Allocate array now, so we can have a reference to this array
@@ -393,6 +399,17 @@ export const eval_modules = (
         children = []
       }
       const children_copy = children
+      if(value instanceof Promise && !value.is_status_requested) {
+        value.is_status_requested = true
+        value.then(
+          v => {
+            value.status = {ok: true, value: v}
+          },
+          e => {
+            value.status = {ok: false, error: e}
+          }
+        )
+      }
       try {
         return await value
       } finally {

@@ -2821,6 +2821,19 @@ const y = x()`
     assert_equal(root.children.at(-1).children[0].fn.name, 'x')
   }),
 
+  test('async/await await promise wrapped to some data structure', async () => {
+    const i = await assert_code_evals_to_async(
+      `
+        const async_fn = async () => 1
+        const x = () => {
+          return {promise: async_fn()}
+        }
+        await x().promise
+      `,
+      1
+    )
+  }),
+
   /*
   // TODO
   test('async/await move_cursor', async () => {
