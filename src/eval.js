@@ -269,19 +269,13 @@ export const eval_modules = (
 
   // TODO bug if module imported twice, once as external and as regular
 
-  patch_promise(globalThis.run_window)
-
   const is_async = has_toplevel_await(parse_result.modules)
 
-  const codestring = 
-    `
+  const codestring = `
+
     let children, prev_children
 
-    // TODO refactor, move patch_promise here
-    globalThis.get_children = () => children
-    globalThis.set_children = (_children) => children = _children
-
-    // TODO use native array for stack for perf?
+    // TODO use native array for stack for perf? stack contains booleans
     const stack = new Array() 
 
     let logs = []
@@ -295,6 +289,44 @@ export const eval_modules = (
 
     let is_recording_deferred_calls
     let is_toplevel_call = true
+
+    let promise_then
+
+    function apply_promise_patch() {
+
+      promise_then = Promise.prototype.then
+
+      Promise.prototype.then = function then(on_resolve, on_reject) {
+        if(children == null) {
+          children = []
+        }
+        let children_copy = children
+
+        const make_callback = cb => cb == null
+          ? null
+          : value => {
+              const current = children
+              children = children_copy
+              try {
+                return cb(value)
+              } finally {
+                children = current
+              }
+            }
+
+        return promise_then.call(
+          this,
+          make_callback(on_resolve),
+          make_callback(on_reject),
+        )
+      }
+    }
+
+    function remove_promise_patch() {
+      Promise.prototype.then = promise_then
+    }
+
+    apply_promise_patch()
 
     const set_record_call = () => {
       for(let i = 0; i < stack.length; i++) {
@@ -634,6 +666,7 @@ export const eval_modules = (
            const _logs = logs
            logs = []
            children = null
+           remove_promise_patch()
            return { modules: __modules, calltree: current_call, logs: _logs }
          }
         `
@@ -645,6 +678,7 @@ export const eval_modules = (
       const _logs = logs
       logs = []
       children = null
+      remove_promise_patch()
       return { modules: __modules, calltree: current_call, logs: _logs }
     }
 
