@@ -14,9 +14,6 @@ import {
 
 import {has_toplevel_await} from './find_definitions.js'
 
-// external
-import {patch_promise} from './patch_promise.js'
-
 // TODO: fix error messages. For example, "__fn is not a function"
 
 /*
@@ -399,12 +396,7 @@ export const eval_modules = (
     }
 
     const set_promise_status = value => {
-      // TODO refactor, put is_status_requested inside status
       if(value instanceof Promise) {
-        if(value.is_status_requested) {
-          return value
-        }
-        value.is_status_requested = true
         // record stack for async calls, so expand calls works sync
         set_record_call()
         // TODO why we set status for wrapped value and not for wrapper?
@@ -431,8 +423,7 @@ export const eval_modules = (
         children = []
       }
       const children_copy = children
-      if(value instanceof Promise && !value.is_status_requested) {
-        value.is_status_requested = true
+      if(value instanceof Promise) {
         value.then(
           v => {
             value.status = {ok: true, value: v}
