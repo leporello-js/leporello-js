@@ -395,24 +395,6 @@ export const eval_modules = (
       }
     }
 
-    const set_promise_status = value => {
-      if(value instanceof Promise) {
-        // record stack for async calls, so expand calls works sync
-        set_record_call()
-        // TODO why we set status for wrapped value and not for wrapper?
-        return value
-          .then(v => {
-            value.status = {ok: true, value: v}
-            return v
-          })
-          .catch(e => {
-            value.status = {ok: false, error: e}
-            throw e
-          })
-      } else {
-        return value
-      }
-    }
 
     const __do_await = async value => {
       // children is an array of child calls for current function call. But it
@@ -473,7 +455,10 @@ export const eval_modules = (
         try {
           value = fn(...args)
           ok = true
-          return set_promise_status(value)
+          if(value instanceof Promise) {
+            set_record_call()
+          }
+          return value
         } catch(_error) {
           ok = false
           error = _error
@@ -573,7 +558,10 @@ export const eval_modules = (
           value = undefined
         }
         ok = true
-        return set_promise_status(value)
+        if(value instanceof Promise) {
+          set_record_call()
+        }
+        return value
       } catch(_error) {
         ok = false
         error = _error
