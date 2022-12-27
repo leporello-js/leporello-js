@@ -1524,6 +1524,30 @@ const y = x()`
     assert_equal(active.index, edited.indexOf('() =>'))
   }),
 
+  test('edit function modules bug', () => {
+    const s1 = test_initial_state({
+      '' : `
+        import {x} from 'x.js'
+        const fn = () => {
+        }
+      `,
+      'x.js': `
+        export const x = 1
+      `
+    })
+
+    const edited = `
+        import {x} from 'x.js'
+        const fn = () => {
+          1
+        }
+      `
+
+    const {state: s2} = COMMANDS.input(s1, edited, edited.indexOf('1'))
+    const s3 = COMMANDS.move_cursor(s2, edited.indexOf('import'))
+    assert_equal(s3.effects.args[0].result.value.x, 1)
+  }),
+
   test('edit toplevel', () => {
     const code = `
       const x = () => {

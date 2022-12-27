@@ -364,7 +364,7 @@ export const eval_modules = (
       let is_found_deferred_call = false
       let i
 
-      let {calltree, logs} = run()
+      let {calltree, modules, logs} = run()
 
       is_recording_deferred_calls = false
       if(found_call == null && deferred_calls != null) {
@@ -394,6 +394,7 @@ export const eval_modules = (
         deferred_call_index: i, 
         calltree, 
         call,
+        modules,
         logs,
       }
     }
@@ -706,6 +707,7 @@ export const eval_modules = (
         deferred_call_index, 
         calltree, 
         call,
+        modules,
         logs,
       } = actions.find_call(loc, deferred_calls)
       return {
@@ -715,6 +717,7 @@ export const eval_modules = (
         // TODO: `call` does not have `code` property here. Currently it is
         // worked around by callers. Refactor
         call,
+        modules,
         logs,
       }
     }
