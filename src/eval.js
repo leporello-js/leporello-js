@@ -75,9 +75,12 @@ const codegen_function_expr = (node, cxt) => {
     : '(' + do_codegen(node.body) + ')'
   )
 
-  const argscount = node.function_args.children.find(a => a.type == 'rest') != null
-    ? node.function_args.children.length
-    : null
+  const argscount = node
+    .function_args
+    .children
+    .find(a => a.type == 'destructuring_rest') == null
+      ? node.function_args.children.length
+      : null
 
   const location = `{index: ${node.index}, length: ${node.length}, module: '${cxt.module}'}`
 

@@ -1838,9 +1838,9 @@ const y = x()`
       const z = () => z2()
       const y2 = () => 1
       const z2 = () => 2
-      const target = () => target2()
-      const target2 = () => target3()
-      const target3 = () => 3
+      const target = (x) => target2(x)
+      const target2 = (x) => target3(x)
+      const target3 = (x) => 3
       const deep_call = x => {
         if(x == 10) {
           target(x)
@@ -1853,12 +1853,12 @@ const y = x()`
       deep_call(0)
     `
     const s1 = test_initial_state(code)
-    const {state: s2} = COMMANDS.move_cursor(s1, code.indexOf('target2()'))
+    const {state: s2} = COMMANDS.move_cursor(s1, code.indexOf('target2(x)'))
 
     assert_equal(s2.current_calltree_node.id, s2.active_calltree_node.id)
 
     assert_equal(s2.current_calltree_node.args, [10])
-    assert_equal(s2.current_calltree_node.code.index, code.indexOf('() => target2'))
+    assert_equal(s2.current_calltree_node.code.index, code.indexOf('(x) => target2'))
 
     const root = root_calltree_node(s2)
     const first = root.children[0]
@@ -2416,8 +2416,8 @@ const y = x()`
 
   test('deferred calls', () => {
     const code = `
-      export const fn = () => {
-        fn2()
+      export const fn = (x) => {
+        fn2(x)
       }
       
       const fn2 = () => {
@@ -2435,7 +2435,7 @@ const y = x()`
 
     const call = get_deferred_calls(state)[0]
     assert_equal(call.fn.name, 'fn')
-    assert_equal(call.code.index, code.indexOf('() => {'))
+    assert_equal(call.code.index, code.indexOf('(x) => {'))
     assert_equal(call.args, [10])
 
     // Expand call
@@ -2452,12 +2452,12 @@ const y = x()`
 
   test('deferred calls calltree nav', () => {
     const code = `
-      const normal_call = () => {
+      const normal_call = (x) => {
       }
 
       normal_call(0)
       
-      export const deferred_call = () => {
+      export const deferred_call = (x) => {
       }
     `
 
@@ -2563,7 +2563,7 @@ const y = x()`
 
   test('deferred_calls find_call then deferred_call bug', () => {
     const code = `
-      export const fn = () => { /* label */ }
+      export const fn = (x) => { /* label */ }
     `
 
     const {state: i, on_deferred_call} = test_deferred_calls_state(code)
