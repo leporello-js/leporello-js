@@ -359,6 +359,33 @@ export const eval_modules = (
       }
     }
 
+    const run_and_find_call = (location) => {
+      searched_location = location
+
+      const run_result = run()
+
+      const after_run = ({calltree, modules, logs}) => {
+        searched_location = null
+        const call = found_call
+        found_call = null
+
+        return {
+          calltree, 
+          modules,
+          logs,
+          call,
+        }
+      }
+
+      // Support to paths, one for async 'run', and one for sync, to avoid
+      // refactoring code (mostly test code) to always async
+      if(run_result instanceof Promise) {
+        return run_result.then(after_run)
+      } else {
+        return after_run(run_result)
+      }
+    }
+
     const find_call = (location, deferred_calls) => {
       searched_location = location
       let is_found_deferred_call = false
@@ -667,6 +694,7 @@ export const eval_modules = (
 
     return {
       run,
+      run_and_find_call,
       expand_calltree_node,
       find_call,
     }
@@ -725,7 +753,7 @@ export const eval_modules = (
 
   const result = location == null
     ? actions.run()
-    : calltree_actions.find_call(location)
+    : actions.run_and_find_call(location)
 
   const make_result = result => ({
     modules: result.modules,

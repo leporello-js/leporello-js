@@ -2858,19 +2858,29 @@ const y = x()`
     )
   }),
 
-  /*
-  // TODO
-  test('async/await move_cursor', async () => {
+  test('async/await edit', async () => {
     const code = `
       const f = async () => {
-        console.log('f')
-      }
 
+      }
       await f()
     `
     const i = await test_initial_state_async(code)
-    const cursor = COMMANDS.move_cursor(i, code.indexOf('console'))
+    const code2 = `
+      const f = async () => {
+        1
+      }
+      await f()
+    `
+    const {state: after_edit} = COMMANDS.input(i, code2, code2.indexOf('1'))
+    const result = await after_edit.eval_modules_state.promise
+    const after_edit_finished = COMMANDS.eval_modules_finished(
+      after_edit, 
+      result, 
+      after_edit.eval_modules_state.node, 
+      after_edit.eval_modules_state.toplevel
+    )
+    assert_equal(after_edit_finished.active_calltree_node.fn.name, 'f')
   }),
-  */
 
 ]
