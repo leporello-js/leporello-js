@@ -2912,5 +2912,22 @@ const y = x()`
     const {state: after_move} = await COMMANDS.move_cursor(i, code.indexOf('1'))
     assert_equal(after_move.active_calltree_node.fn.name, 'f')
   }),
+  
+  test('async/await await argument bug', async () => {
+    await assert_code_evals_to_async(
+      `
+        Object.assign({}, await {foo: 1})
+      `,
+      {foo: 1}
+    )
+  }),
+
+  /*
+  test('async/await move_cursor bug', async () => {
+    const i = await test_initial_state_async(`
+      await new Promise(resolve => globalThis.setTimeout(resolve, 1))
+    `)
+  }),
+  */
 
 ]

@@ -72,8 +72,8 @@ const codegen_function_expr = (node, cxt) => {
 
   const call = (node.is_async ? 'async ' : '') + `(${args}) => ` + (
     (node.body.type == 'do')
-    ? '{' + do_codegen(node.body) + '}'
-    : '(' + do_codegen(node.body) + ')'
+    ? '{ let __obj, __fn;        ' + do_codegen(node.body) + '}'
+    : '{ let __obj, __fn; return ' + do_codegen(node.body) + '}'
   )
 
   const argscount = node
@@ -103,18 +103,17 @@ const codegen_function_call = (node, cxt) => {
 
   let call
   if(node.fn.type == 'member_access') {
-    // Wrap to IIFE to create scope to calculate obj.
-    // We cant do `codegen(obj)[prop].bind(codegen(obj))` because codegen(obj)
-    // can be expr we dont want to eval twice
-
     const op = node.fn.is_optional_chaining ? '?.' : ''
 
     // TODO gensym __obj, __fn
-    return `((() => {
-      const __obj = ${do_codegen(node.fn.object)};
-      const __fn = __obj${op}[${do_codegen(node.fn.property)}]
-      return trace_call(__fn, __obj, ${args})
-    })())`
+    // We cant do `codegen(obj)[prop].bind(codegen(obj))` because codegen(obj)
+    // can be expr we dont want to eval twice. Use comma operator to perform
+    // assignments in expression context
+    return `(
+      __obj = ${do_codegen(node.fn.object)},
+      __fn = __obj${op}[${do_codegen(node.fn.property)}],
+      trace_call(__fn, __obj, ${args})
+    )`
   } else {
     return `trace_call(${do_codegen(node.fn)}, null, ${args})`
   }
