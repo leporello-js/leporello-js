@@ -71,6 +71,7 @@ export const test_initial_state_async = async code => {
   const result = await s.eval_modules_state.promise
   return COMMANDS.eval_modules_finished(
     s, 
+    s,
     result, 
     s.eval_modules_state.node, 
     s.eval_modules_state.toplevel

@@ -2876,6 +2876,7 @@ const y = x()`
     const result = await after_edit.eval_modules_state.promise
     const after_edit_finished = COMMANDS.eval_modules_finished(
       after_edit, 
+      after_edit,
       result, 
       after_edit.eval_modules_state.node, 
       after_edit.eval_modules_state.toplevel

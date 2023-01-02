@@ -216,11 +216,15 @@ const external_imports_loaded = (
       }
     }
   } else {
-    return eval_modules_finished(state, result, node, toplevel)
+    return eval_modules_finished(state, state, result, node, toplevel)
   }
 }
 
-const eval_modules_finished = (state, result, node, toplevel) => {
+const eval_modules_finished = (state, prev_state, result, node, toplevel) => {
+  if(state.calltree_changed_token != prev_state.calltree_changed_token) {
+    // code was modified after prev vesion of code was executed, discard
+    return state
+  }
   const next = apply_eval_result(state, result)
 
   let active_calltree_node
