@@ -117,6 +117,43 @@ Currently every external is loaded once and cached until Leporello is restarted
 (TODO change path to modules every time it changed on disk, since modules are
 served from service workers).
 
+<!---
+## IO
+
+To support livecoding experience, Leporello.js continuously run code while you
+typing and navigating it. You don't even notice it while the code is pure, but
+what about functions performing IO?
+
+Leporello.js caches all IO calls when the code is run for the first time. Next
+time, after you edit your code, functions that perform IO will not be called if
+there is cached result.
+
+Builtin IO functions are mocked to cache IO. Current list of builtin cached
+functions is:
+- `Math.random()`
+- `fetch`
+
+If you want to make your own own function IO-caching, or import third party
+function and make it IO-caching, then you should use `IO` pragma.
+
+// TODO document IO pragma
+// TODO hotkey to bust cache
+
+Caching algorithm is:
+
+- Cached calls are expected to be in the same order, as in the non-cached
+  execution. For example, if you first call `write` and then `read` and results
+  are cached, and then you modify code to first call `read` and then `write`,
+  then cache will be busted and Leporello will call non-cached `read` and
+  `write`
+
+- Arguments to IO-caching functions are expected to be deep equal to non-cached
+  call, for cache to be used
+
+- If there is a call that is not cached, then cache is busted and entire
+  execution is restarted
+-->
+
 ## Hotkeys
 
 See built-in Help
