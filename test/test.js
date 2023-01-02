@@ -2943,12 +2943,12 @@ const y = x()`
     )
   }),
 
-  /* TODO
-  test('async/await move_cursor bug', async () => {
-    const i = await test_initial_state_async(`
+  test('async/await move_cursor before code evaluated', async () => {
+    const i = test_initial_state(`
       await new Promise(resolve => globalThis.setTimeout(resolve, 1))
     `)
+    const moved = COMMANDS.move_cursor(i, 0)
+    // No assertion, must not throw
   }),
-  */
 
 ]

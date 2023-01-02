@@ -742,8 +742,8 @@ const move_cursor = (s, index) => {
     return {state: with_cursor}
   }
 
-  if(s.loading_external_imports_state != null) {
-    //  Code will be executed when imports will load, do not do it right now
+  if(s.loading_external_imports_state != null || s.eval_modules_state != null) {
+    // Code will be executed when imports will load, do not do it right now
     return {state: with_cursor}
   }
 
