@@ -338,7 +338,11 @@ export const eval_modules = (
       is_recording_deferred_calls = false
       children = null
       try {
-        node.fn.apply(node.context, node.args)
+        if(node.is_new) {
+          new node.fn(...node.args)
+        } else {
+          node.fn.apply(node.context, node.args)
+        }
       } catch(e) {
         // do nothing. Exception was caught and recorded inside 'trace'
       }

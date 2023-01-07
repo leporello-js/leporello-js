@@ -1639,6 +1639,22 @@ const y = x()`
     assert_equal(first2.code, first2.children[0].code)
   }),
 
+  test('expand_calltree_node new', () => {
+    const code = `
+      const make_class = new Function("return class { constructor(x) { x() } }")
+      const clazz = make_class()
+      const x = () => 1
+      new clazz(x)
+    `
+    const s = test_initial_state(code)
+    const new_call = root_calltree_node(s).children.at(-1)
+    const expanded_new_call = COMMANDS.calltree.click(s, new_call.id).state
+    const x_call = root_calltree_node(expanded_new_call)
+      .children.at(-1)
+      .children[0]
+    assert_equal(x_call.fn.name, 'x')
+  }),
+
   test('expand_calltree_node native', () => {
     const s = test_initial_state(`[1,2,3].map(x => x + 1)`)
     const map = root_calltree_node(s).children[0]
