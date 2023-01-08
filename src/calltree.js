@@ -468,76 +468,6 @@ const click = (state, id) => {
   }
 }
 
-/*
-After find_call, we have two calltrees that have common subtree (starting from
-root node). Nodes in these subtrees are the same, but have different ids. Copy
-nodes that are in the second tree that are not in the first tree
-*/
-const merge_calltrees = (a, b) => do_merge_calltrees(a, b)[1]
-
-const do_merge_calltrees = (a, b) => {
-  // TODO Quick workaround, should be fixed by not saving stack in eval.js in
-  // case of stackoverflow
-  if(!a.ok && is_stackoverflow(a)) {
-    return [false, a]
-  }
-
-  if(a.has_more_children) {
-    if(b.has_more_children) {
-      return [false, a]
-    } else {
-      // Preserve id
-      return [true, {...b, id: a.id}]
-    }
-  }
-
-  if(a.children == null) {
-    return [false, a]
-  }
-  
-  if(b.has_more_children) {
-    return [false, a]
-  }
-
-  const [has_update, children] = map_accum(
-    (has_update, c, i) => {
-      const [upd, merged] = do_merge_calltrees(c, b.children[i])
-      return [has_update || upd, merged]
-    },
-    false,
-    a.children
-  )
-
-  if(has_update) {
-    return [true, {...a, children}]
-  } else {
-    return [false, a]
-  }
-}
-
-/*
-  Finds node in calltree `a` that has the same position that node with id `id`
-  in calltree `b`. Null if not found
-*/
-const find_same_node = (a, b, id) => {
-  if(b == null) {
-    return null
-  }
-
-  if(b.id == id) {
-    return a
-  }
-
-  if(a.children == null || b.children == null) {
-    return null
-  }
-
-  return map_find(
-    a.children,
-    (c, i) => find_same_node(c, b.children[i], id)
-  )
-}
-
 export const expand_path = (state, node) => ({
   ...state,
   calltree_node_is_expanded: {
@@ -651,55 +581,48 @@ export const find_call = (state, index) => {
   }
 
   const loc = {index: node.index, module: state.current_module}
-  const {
-    calltree, 
-    call, 
-    is_found_deferred_call, 
-    deferred_call_index
-  } = state.calltree_actions.find_call(
-    loc, 
-    get_deferred_calls(state)
+  
+  // First try to find node among existing calltree nodes
+  const call = find_node(state.calltree, node => 
+    true
+    && node.fn != null
+    && node.fn.__location != null
+    && node.fn.__location.index == loc.index
+    && node.fn.__location.module == loc.module
   )
-  if(call == null) {
-    return add_calltree_node_by_loc(
-      // Remove active_calltree_node
-      // current_calltree_node may stay not null, because it is calltree node
-      // explicitly selected by user in calltree view
-      set_active_calltree_node(state, null),
-      loc,
-      null
-    )
-  }
 
   let next_calltree, active_calltree_node
 
-  if(is_found_deferred_call) {
-    const deferred_calls = get_deferred_calls(state)
-    const prev_call = deferred_calls[deferred_call_index]
-    const merged = merge_calltrees(prev_call, calltree)
-    const next_deferred_calls = deferred_calls.map((c, i) => 
-      i == deferred_call_index
-        ? merged
-        : c
-    )
-    next_calltree = make_calltree(
-      root_calltree_node(state),
-      next_deferred_calls,
-    )
-    active_calltree_node = find_same_node(
-      merged,
-      calltree,
-      call.id
-    )
+  if(call != null) {
+    if(call.has_more_children) {
+      active_calltree_node = state.calltree_actions.expand_calltree_node(call)
+      next_calltree = replace_calltree_node(
+        state.calltree, 
+        call, 
+        active_calltree_node
+      )
+    } else {
+      active_calltree_node = call
+      next_calltree = state.calltree
+    }
   } else {
-    next_calltree = make_calltree(
-      merge_calltrees(root_calltree_node(state), calltree),
-      get_deferred_calls(state),
-    )
-    active_calltree_node = find_same_node(
-      root_calltree_node({calltree: next_calltree}),
-      calltree, 
-      call.id
+    const find_result = state.calltree_actions.find_call(state.calltree, loc)
+    if(find_result == null) {
+      return add_calltree_node_by_loc(
+        // Remove active_calltree_node
+        // current_calltree_node may stay not null, because it is calltree node
+        // explicitly selected by user in calltree view
+        set_active_calltree_node(state, null),
+        loc,
+        null
+      )
+    }
+
+    active_calltree_node = find_result.call
+    next_calltree = replace_calltree_node(
+      state.calltree, 
+      find_node(state.calltree, n => n.id == find_result.node.id),
+      find_result.node,
     )
   }
 

@@ -7,6 +7,7 @@ import {
 
 import {
   find_fn_by_location, 
+  find_node,
   collect_destructuring_identifiers,
   map_destructuring_identifiers,
   map_tree,
@@ -334,19 +335,7 @@ export const eval_modules = (
       }
     }
 
-    const expand_calltree_node = (node) => {
-      is_recording_deferred_calls = false
-      children = null
-      try {
-        if(node.is_new) {
-          new node.fn(...node.args)
-        } else {
-          node.fn.apply(node.context, node.args)
-        }
-      } catch(e) {
-        // do nothing. Exception was caught and recorded inside 'trace'
-      }
-      is_recording_deferred_calls = true
+    const do_expand_calltree_node = node => {
       if(node.fn.__location != null) {
         // fn is hosted, it created call, this time with children
         const result = children[0]
@@ -361,6 +350,22 @@ export const eval_modules = (
           has_more_children: false,
         }
       }
+    }
+
+    const expand_calltree_node = (node) => {
+      is_recording_deferred_calls = false
+      children = null
+      try {
+        if(node.is_new) {
+          new node.fn(...node.args)
+        } else {
+          node.fn.apply(node.context, node.args)
+        }
+      } catch(e) {
+        // do nothing. Exception was caught and recorded inside 'trace'
+      }
+      is_recording_deferred_calls = true
+      return do_expand_calltree_node(node)
     }
 
     const run_and_find_call = (location) => {
@@ -390,46 +395,75 @@ export const eval_modules = (
       }
     }
 
-    const find_call = (location, deferred_calls) => {
-      searched_location = location
-      let is_found_deferred_call = false
-      let i
 
-      let {calltree, modules, logs} = run()
+    /*
+      Try to find call of function with given 'location'
 
-      is_recording_deferred_calls = false
-      if(found_call == null && deferred_calls != null) {
-        for(i = 0; i < deferred_calls.length; i++) {
-          const c = deferred_calls[i]
+      Function is synchronous, because we recorded calltree nodes for all async
+      function calls. Here we walk over calltree, find leaves that have
+      'has_more_children' set to true, and rerunning fns in these leaves with
+      'searched_location' being set, until we find find call or no children
+      left.
+
+      We dont rerun entire execution because we want find_call to be
+      synchronous for simplicity
+    */
+    const find_call = (calltree, location) => {
+      // TODO remove
+      if(children != null) {
+        throw new Error('illegal state')
+      }
+
+      const do_find = node => {
+        if(node.children != null) {
+          for(let c of node.children) {
+            const result = do_find(c)
+            if(result != null) {
+              return result
+            }
+          }
+          // call was not find in children, return null
+          return null
+        }
+
+
+        if(node.has_more_children) {
           try {
-            c.fn.apply(c.context, c.args)
+            if(node.is_new) {
+              new node.fn(...node.args)
+            } else {
+              node.fn.apply(node.context, node.args)
+            }
           } catch(e) {
             // do nothing. Exception was caught and recorded inside 'trace'
           }
+
           if(found_call != null) {
-            is_found_deferred_call = true
-            calltree = children[0]
+            return {
+              node: do_expand_calltree_node(node),
+              call: found_call,
+            }
+          } else {
             children = null
-            break
           }
         }
+
+        // node has no children, return null
+        return null
       }
 
+      is_recording_deferred_calls = false
+      searched_location = location
+
+      const result = do_find(calltree)
+
+      children = null
+      searched_location = null
+      found_call = null
       is_recording_deferred_calls = true
 
-      searched_location = null
-      const call = found_call
-      found_call = null
-      return {
-        is_found_deferred_call, 
-        deferred_call_index: i, 
-        calltree, 
-        call,
-        modules,
-        logs,
-      }
+      return result
     }
-
 
     const __do_await = async value => {
       // children is an array of child calls for current function call. But it
@@ -733,24 +767,17 @@ export const eval_modules = (
       const expanded = actions.expand_calltree_node(node)
       return assign_code(parse_result.modules, expanded)
     },
-    find_call: (loc, deferred_calls) => {
-      const {
-        is_found_deferred_call, 
-        deferred_call_index, 
-        calltree, 
-        call,
-        modules,
-        logs,
-      } = actions.find_call(loc, deferred_calls)
+    find_call: (calltree, location) => {
+      const result = actions.find_call(calltree, location)
+      if(result == null) {
+        return null
+      }
+      const {node, call} = result
+      const node_with_code = assign_code(parse_result.modules, node)
+      const call_with_code = find_node(node_with_code, n => n.id == call.id)
       return {
-        is_found_deferred_call,
-        deferred_call_index,
-        calltree: assign_code(parse_result.modules, calltree),
-        // TODO: `call` does not have `code` property here. Currently it is
-        // worked around by callers. Refactor
-        call,
-        modules,
-        logs,
+        node: node_with_code,
+        call: call_with_code,
       }
     }
   }

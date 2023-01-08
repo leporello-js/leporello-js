@@ -1397,6 +1397,7 @@ export const tests = [
 
   test('coloring nested', () => {
     const code = 
+    // TODO reformat using .trim()
     `const x = () => {
    return () => {
      return 123
@@ -1801,7 +1802,7 @@ const y = x()`
     assert_equal(s.current_calltree_node.toplevel, true)
   }),
 
-  //TODO this test is fine standalone, but it breaks self-hosted
+  //TODO this test is fine standalone, but it breaks self-hosted test
   /*
   test('unwind_stack overflow', () => {
     const s = test_initial_state(`
