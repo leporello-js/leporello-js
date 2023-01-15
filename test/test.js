@@ -2901,4 +2901,16 @@ const y = x()`
     assert_equal(after_edit_finished.active_calltree_node.fn.name, 'f')
   }),
 
+  test('async/await move_cursor', async () => {
+    const code = `
+      const f = async () => {
+        1
+      }
+      await f()
+    `
+    const i = await test_initial_state_async(code)
+    const {state: after_move} = await COMMANDS.move_cursor(i, code.indexOf('1'))
+    assert_equal(after_move.active_calltree_node.fn.name, 'f')
+  }),
+
 ]
