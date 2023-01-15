@@ -234,31 +234,29 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
     ? calltree_node_loc(next.active_calltree_node)
     : find_callsite(next.modules, active_calltree_node, current_calltree_node)
 
-  return {
-    state: next.current_calltree_node.toplevel
-      ? {...next, current_module: loc.module}
-      // TODO: better jump not start of function (arguments), but start
-      // of body?
-      : set_location(next, loc),
-    effects: next.current_calltree_node.toplevel
-      ? {type: 'unembed_value_explorer'}
+  const with_location = next.current_calltree_node.toplevel
+    ? {...next, current_module: loc.module}
+    // TODO: better jump not start of function (arguments), but start
+    // of body?
+    : set_location(next, loc)
+
+  return {...with_location,
+    value_explorer: next.current_calltree_node.toplevel
+      ? null
       : {
-          type: 'embed_value_explorer',
-          args: [{
-            index: loc.index,
-            result: {
-              ok: true,
-              value: current_calltree_node.ok
-                ?  {
-                  '*arguments*': current_calltree_node.args,
-                  '*return*': current_calltree_node.value,
-                }
-                : {
-                  '*arguments*': current_calltree_node.args,
-                  '*throws*': current_calltree_node.error,
-                }
-            }
-          }],
+          index: loc.index,
+          result: {
+            ok: true,
+            value: current_calltree_node.ok
+              ?  {
+                '*arguments*': current_calltree_node.args,
+                '*return*': current_calltree_node.value,
+              }
+              : {
+                '*arguments*': current_calltree_node.args,
+                '*throws*': current_calltree_node.error,
+              }
+          }
         }
   }
 }
@@ -458,13 +456,11 @@ export const toggle_expanded = (state, is_exp) => {
 
 const click = (state, id) => {
   const node = find_node(state.calltree, n => n.id == id)
-  const {state: nextstate, effects} = jump_calltree_node(state, node)
+  const nextstate = jump_calltree_node(state, node)
   if(is_expandable(node)) {
-    // `effects` are intentionally discarded, correct `set_cursor_position` will
-    // be applied in `toggle_expanded`
     return toggle_expanded(nextstate)
   } else {
-    return {state: nextstate, effects}
+    return nextstate
   }
 }
 
@@ -761,13 +757,13 @@ const navigate_logs_position = (state, log_position) => {
     n.id == state.logs.logs[log_position].id
   )
   const {state: next, effects} = select_arguments(
-    expand_path(jump_calltree_node(state, node).state, node),
+    expand_path(jump_calltree_node(state, node), node),
     false,
   )
-  return {
-    state: {...next, logs: {...state.logs, log_position}},
-    effects,
+  if(effects != null) {
+    throw new Error('illegal state')
   }
+  return {...next, logs: {...state.logs, log_position}}
 }
 
 export const calltree_commands = {

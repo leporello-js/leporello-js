@@ -445,7 +445,7 @@ export const tests = [
       new clazz(x)
     `
     const i = test_initial_state(code)
-    const find_call = COMMANDS.move_cursor(i, code.indexOf('1')).state
+    const find_call = COMMANDS.move_cursor(i, code.indexOf('1'))
     assert_equal(root_calltree_node(find_call).children.length, 3)
     const x_call = root_calltree_node(find_call).children[2].children[0]
     assert_equal(x_call.fn.name, 'x')
@@ -455,8 +455,8 @@ export const tests = [
     const code = `new Set()`
     const i = test_initial_state(code)
     const into = COMMANDS.calltree.arrow_down(i)
-    assert_equal(into.state.current_calltree_node.fn.name, 'Set')
-    assert_equal(into.state.current_calltree_node.is_new, true)
+    assert_equal(into.current_calltree_node.fn.name, 'Set')
+    assert_equal(into.current_calltree_node.is_new, true)
   }),
 
   test('new call non-constructor', () => {
@@ -1019,15 +1019,14 @@ export const tests = [
       foo_var
     `
 
-    const {state, effects} = COMMANDS.input(
+    const {state} = COMMANDS.input(
       next, 
       edited, 
       edited.lastIndexOf('foo_var'),
     )
 
     // If cache was not used then effects will be `load_external_imports`
-    const embed = effects.find(e => e.type == 'embed_value_explorer')
-    assert_equal(embed.args[0].result.value, 'foo_value')
+    assert_equal(state.value_explorer.result.value, 'foo_value')
   }),
 
   test('module external cache error bug', () => {
@@ -1054,7 +1053,7 @@ export const tests = [
     `
 
     // edit code
-    const {state, effects} = COMMANDS.input(
+    const {state} = COMMANDS.input(
       next, 
       edited, 
       edited.lastIndexOf('foo_var'),
@@ -1225,11 +1224,11 @@ export const tests = [
       }
     `
     const initial = test_initial_state(code)
-    const {state, effects} = COMMANDS.step_into(initial, code.indexOf('x()'))
+    const state = COMMANDS.step_into(initial, code.indexOf('x()'))
     const call_code = state.current_calltree_node.code
     assert_equal(call_code.index, code.indexOf('() =>'))
     assert_equal(current_cursor_position(state), code.indexOf('() =>'))
-    assert_equal(effects.type, 'embed_value_explorer')
+    assert_equal(state.value_explorer.index, code.indexOf('() =>'))
   }),
 
   test('step_into deepest', () => {
@@ -1239,7 +1238,7 @@ export const tests = [
     `
     const initial = test_initial_state(code)
     const next = COMMANDS.step_into(initial, code.indexOf('3'))
-    const cn = next.state.current_calltree_node.code
+    const cn = next.current_calltree_node.code
     assert_equal(cn.index, code.indexOf('() => 1'))
   }),
 
@@ -1252,7 +1251,7 @@ export const tests = [
     `
     const initial = test_initial_state(code)
     const next = COMMANDS.step_into(initial, code.indexOf('y()'))
-    const cn = next.state.current_calltree_node.code
+    const cn = next.current_calltree_node.code
     assert_equal(cn.index, code.indexOf('() => x()'))
   }),
 
@@ -1282,7 +1281,7 @@ export const tests = [
       ]
     )
 
-    const step_into = COMMANDS.calltree.click(initial, 1).state
+    const step_into = COMMANDS.calltree.click(initial, 1)
     assert_equal(
       color_file(step_into, '').sort((a,b) => a.index - b.index),
       [
@@ -1335,7 +1334,7 @@ export const tests = [
 
       x()`
     const initial = test_initial_state(code)
-    const step_into = COMMANDS.calltree.click(initial, 1).state
+    const step_into = COMMANDS.calltree.click(initial, 1)
 
     assert_equal(
       color_file(step_into, '').sort((c1, c2) => c1.index - c2.index),
@@ -1405,7 +1404,7 @@ export const tests = [
 }
 const y = x()`
     const initial = test_initial_state(code)
-    const s = COMMANDS.move_cursor(initial, code.indexOf('return')).state
+    const s = COMMANDS.move_cursor(initial, code.indexOf('return'))
     const coloring = color_file(s, '').sort((c1, c2) => c1.index - c2.index)
     // Checked by eye, test for regression
     assert_equal(
@@ -1464,7 +1463,7 @@ const y = x()`
     const s2 = COMMANDS.calltree.click(
       s, 
       root_calltree_node(s).children[0].id,
-    ).state
+    )
 
     // Make code invalid
     const invalid = `
@@ -1505,9 +1504,9 @@ const y = x()`
     const s1 = test_initial_state(code)
 
     // Go into first call of `x`
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
-    const s3 = COMMANDS.calltree.arrow_right(s2).state
-    const s4 = COMMANDS.calltree.arrow_right(s3).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
+    const s3 = COMMANDS.calltree.arrow_right(s2)
+    const s4 = COMMANDS.calltree.arrow_right(s3)
     
     assert_equal(s4.current_calltree_node.code.index, code.indexOf('() =>'))
 
@@ -1546,7 +1545,7 @@ const y = x()`
 
     const {state: s2} = COMMANDS.input(s1, edited, edited.indexOf('1'))
     const s3 = COMMANDS.move_cursor(s2, edited.indexOf('import'))
-    assert_equal(s3.effects.args[0].result.value.x, 1)
+    assert_equal(s3.value_explorer.result.value.x, 1)
   }),
 
   test('edit toplevel', () => {
@@ -1559,8 +1558,8 @@ const y = x()`
     const s1 = test_initial_state(code)
 
     // Go into call of `x`
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
-    const s3 = COMMANDS.calltree.arrow_right(s2).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
+    const s3 = COMMANDS.calltree.arrow_right(s2)
     
     assert_equal(s3.current_calltree_node.code.index, code.indexOf('() =>'))
 
@@ -1603,8 +1602,8 @@ const y = x()`
     const s1 = test_initial_state(code)
 
     // Go into call of `x`
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
-    const s3 = COMMANDS.calltree.arrow_right(s2).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
+    const s3 = COMMANDS.calltree.arrow_right(s2)
     
     const edited = `
       const x = () => {
@@ -1616,7 +1615,7 @@ const y = x()`
       x()
     `
 
-    const moved = COMMANDS.move_cursor(s3, code.indexOf('2')).state
+    const moved = COMMANDS.move_cursor(s3, code.indexOf('2'))
     const e = COMMANDS.input(moved, edited, edited.indexOf('3')).state
     assert_equal(e.active_calltree_node, null)
     assert_equal(e.current_calltree_node.toplevel, true)
@@ -1632,7 +1631,7 @@ const y = x()`
     assert_equal(first.children, undefined)
     assert_equal(first.has_more_children, true)
     assert_equal(first.value, 10)
-    const s2 = COMMANDS.calltree.click(s, first.id).state
+    const s2 = COMMANDS.calltree.click(s, first.id)
     const first2 = root_calltree_node(s2).children[0]
     assert_equal(first2.children[0].value, 9)
     assert_equal(first2.children[0].children, undefined)
@@ -1649,7 +1648,7 @@ const y = x()`
     `
     const s = test_initial_state(code)
     const new_call = root_calltree_node(s).children.at(-1)
-    const expanded_new_call = COMMANDS.calltree.click(s, new_call.id).state
+    const expanded_new_call = COMMANDS.calltree.click(s, new_call.id)
     const x_call = root_calltree_node(expanded_new_call)
       .children.at(-1)
       .children[0]
@@ -1660,7 +1659,7 @@ const y = x()`
     const s = test_initial_state(`[1,2,3].map(x => x + 1)`)
     const map = root_calltree_node(s).children[0]
     assert_equal(map.children, null)
-    const s2 = COMMANDS.calltree.click(s, map.id).state
+    const s2 = COMMANDS.calltree.click(s, map.id)
     const map_expanded = root_calltree_node(s2).children[0]
     assert_equal(map_expanded.children.length, 3)
   }),
@@ -1669,26 +1668,21 @@ const y = x()`
     const s = test_initial_state(`Object.fromEntries([])`)
     const index = 0 // Where call starts
     const call = root_calltree_node(s).children[0]
-    const {state, effects} = COMMANDS.calltree.click(s, call.id)
+    const state = COMMANDS.calltree.click(s, call.id)
     assert_equal(current_cursor_position(state), index)
     assert_equal(
-      effects,
+      state.value_explorer,
       {
-        "type": "embed_value_explorer",
-        "args": [
-          {
-            index,
-            result: {
-              "ok": true,
-              "value": {
-                "*arguments*": [
-                  []
-                ],
-                "*return*": {}
-              }
-            }
+        index,
+        result: {
+          "ok": true,
+          "value": {
+            "*arguments*": [
+              []
+            ],
+            "*return*": {}
           }
-        ]
+        }
       }
     )
   }),
@@ -1703,7 +1697,7 @@ const y = x()`
     `
 
     const assert_loc = (s, substring, is_assert_node_by_loc) => {
-      const {state, effects} = COMMANDS.calltree.arrow_right(s)
+      const state = COMMANDS.calltree.arrow_right(s)
       const index = code.indexOf(substring)
       assert_equal(current_cursor_position(state), index)
       if(is_assert_node_by_loc) {
@@ -1749,7 +1743,7 @@ const y = x()`
     `
     const s = test_initial_state(code)
     const call_fn = root_calltree_node(s).children[0].children[0]
-    const s2 = COMMANDS.calltree.click(s, call_fn.id).state
+    const s2 = COMMANDS.calltree.click(s, call_fn.id)
     const good = s2.current_calltree_node.children[0]
     assert_equal(good.code.index, code.indexOf('() => {/*good'))
   }),
@@ -1841,7 +1835,7 @@ const y = x()`
     assert_equal(s3.selection_state.node.index, code.indexOf('2'))
     assert_equal(s3.selection_state.node.length, 3)
 
-    const s4 = COMMANDS.step_into(s0, code.indexOf('x()')).state
+    const s4 = COMMANDS.step_into(s0, code.indexOf('x()'))
     const s5 = COMMANDS.eval_selection(s4, code.indexOf('2'))
     assert_equal(s5.effects, {type: 'set_status', args: ['out of scope']})
 
@@ -1894,7 +1888,7 @@ const y = x()`
       deep_call(0)
     `
     const s1 = test_initial_state(code)
-    const {state: s2} = COMMANDS.move_cursor(s1, code.indexOf('target2(x)'))
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('target2(x)'))
 
     assert_equal(s2.current_calltree_node.id, s2.active_calltree_node.id)
 
@@ -1945,11 +1939,10 @@ const y = x()`
     `
 
     const s1 = test_initial_state(code)
-    const {state, effects} = COMMANDS.move_cursor(s1, code.indexOf('1'))
+    const state = COMMANDS.move_cursor(s1, code.indexOf('1'))
     assert_equal(state.active_calltree_node, null)
     assert_equal(state.current_calltree_node.toplevel, true)
-    assert_equal(effects.type, 'unembed_value_explorer')
-
+    assert_equal(state.value_explorer === null, true)
   }),
 
   test('find_call with native call', () => {
@@ -1957,7 +1950,7 @@ const y = x()`
       [1,2,3].map(x => x + 1)
     `
     const s1 = test_initial_state(code)
-    const {state: s2, effects} = COMMANDS.move_cursor(s1, code.indexOf('x + 1'))
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('x + 1'))
     assert_equal(s2.current_calltree_node.code.index, code.indexOf('x =>'))
   }),
 
@@ -1967,7 +1960,7 @@ const y = x()`
       rec(10)
     `
     const s1 = test_initial_state(code)
-    const {state, effects} = COMMANDS.move_cursor(s1, code.indexOf('i == 0'))
+    const state = COMMANDS.move_cursor(s1, code.indexOf('i == 0'))
     assert_equal(state.current_calltree_node.args, [10])
   }),
   
@@ -1977,7 +1970,7 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('x()'))
@@ -1991,9 +1984,9 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2_0 = COMMANDS.calltree.arrow_right(s1).state
+    const s2_0 = COMMANDS.calltree.arrow_right(s1)
     // Expand
-    const s2 = COMMANDS.calltree.arrow_right(s2_0).state
+    const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('1'))
@@ -2007,9 +2000,9 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2_0 = COMMANDS.calltree.arrow_right(s1).state
+    const s2_0 = COMMANDS.calltree.arrow_right(s1)
     // Expand
-    const s2 = COMMANDS.calltree.arrow_right(s2_0).state
+    const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('1'))
@@ -2023,9 +2016,9 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2_0 = COMMANDS.calltree.arrow_right(s1).state
+    const s2_0 = COMMANDS.calltree.arrow_right(s1)
     // Expand
-    const s2 = COMMANDS.calltree.arrow_right(s2_0).state
+    const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state, null)
     assert_equal(current_cursor_position(s3), code.indexOf('{'))
@@ -2038,7 +2031,7 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     // Select map
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, [1, 1, 1])
   }),
@@ -2046,7 +2039,7 @@ const y = x()`
   test('select_return_value new call', () => {
     const code = `new String('1')`
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
     assert_equal(s3.selection_state.result.value, '1')
   }),
@@ -2058,7 +2051,7 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     // focus call
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
     const s3 = COMMANDS.calltree.select_arguments(s2)
     assert_equal(s3.state.selection_state.result, {ok: true, value: [1]})
     assert_equal(current_cursor_position(s3.state), code.indexOf('(1)'))
@@ -2072,9 +2065,9 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     // focus call
-    const s2_0 = COMMANDS.calltree.arrow_right(s1).state
+    const s2_0 = COMMANDS.calltree.arrow_right(s1)
     // expand call
-    const s2 = COMMANDS.calltree.arrow_right(s2_0).state
+    const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const s3 = COMMANDS.calltree.select_arguments(s2)
     assert_equal(s3.state.selection_state.result, {ok: true, value: {a: 1}})
     assert_equal(current_cursor_position(s3.state), code.indexOf('(a)'))
@@ -2084,7 +2077,7 @@ const y = x()`
   test('select_arguments new call', () => {
     const code = `new String("1")`
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
     const s3 = COMMANDS.calltree.select_arguments(s2).state
     assert_equal(s3.selection_state.result, {ok: true, value: ["1"]})
   }),
@@ -2096,15 +2089,14 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     // focus call
-    const s2 = COMMANDS.calltree.arrow_right(s1).state
+    const s2 = COMMANDS.calltree.arrow_right(s1)
     // expand call
-    const s3 = COMMANDS.calltree.arrow_right(s2).state
+    const s3 = COMMANDS.calltree.arrow_right(s2)
     const s4 = COMMANDS.move_cursor(s3, code.indexOf('a'))
-    assert_equal(s4.effects.type, 'embed_value_explorer')
-    assert_equal(s4.effects.args, [{
+    assert_equal(s4.value_explorer, {
       index: code.indexOf('(a, b)'),
       result: {ok: true, value: {a: 1, b: 2}},
-    }])
+    })
   }),
 
   test('move_cursor concise fn', () => {
@@ -2114,11 +2106,10 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('2'))
-    assert_equal(s2.effects.type, 'embed_value_explorer')
-    assert_equal(s2.effects.args, [{
+    assert_equal(s2.value_explorer, {
       index: code.indexOf('y*2'),
       result: {ok: true, value: 4},
-    }])
+    })
   }),
 
   test('move_cursor let', () => {
@@ -2128,19 +2119,17 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('x'))
-    assert_equal(s2.effects.type, 'embed_value_explorer')
-    assert_equal(s2.effects.args, [{
+    assert_equal(s2.value_explorer, {
       index: code.indexOf('let x'),
       result: {ok: true, value: {x: 1}},
-    }])
+    })
   }),
 
   test('move_cursor after type toplevel', () => {
     const code = `1`
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('1') + 1)
-    assert_equal(s2.effects.type, 'embed_value_explorer')
-    assert_equal(s2.effects.args[0].result.value, 1)
+    assert_equal(s2.value_explorer.result.value, 1)
   }),
 
   test('move_cursor after type fn', () => {
@@ -2149,10 +2138,9 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.step_into(s1, code.indexOf('x()')).state
+    const s2 = COMMANDS.step_into(s1, code.indexOf('x()'))
     const s3 = COMMANDS.move_cursor(s2, code.indexOf('1') + 1)
-    assert_equal(s3.effects.type, 'embed_value_explorer')
-    assert_equal(s3.effects.args[0].result.value, 1)
+    assert_equal(s3.value_explorer.result.value, 1)
   }),
 
   test('move_cursor between statements', () => {
@@ -2164,7 +2152,7 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('/') - 1)
-    assert_equal(s2.effects.type, 'unembed_value_explorer')
+    assert_equal(s2.value_explorer === null, true)
   }),
 
   test('move_cursor step_into fn', () => {
@@ -2175,7 +2163,7 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('1'))
-    assert_equal(s2.effects.type, 'unembed_value_explorer')
+    assert_equal(s2.value_explorer === null, true)
   }),
 
   test('move_cursor brace', () => {
@@ -2186,7 +2174,7 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('{'))
-    assert_equal(s2.effects.type, 'unembed_value_explorer')
+    assert_equal(s2.value_explorer === null, true)
   }),
 
   test('move_cursor concise fn throws', () => {
@@ -2200,8 +2188,8 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const {effects} = COMMANDS.move_cursor(s1, code.indexOf('throws()'))
-    assert_equal(effects.args[0].result.error.message, 'boom')
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('throws()'))
+    assert_equal(s2.value_explorer.result.error.message, 'boom')
   }),
 
 
@@ -2213,7 +2201,7 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('const')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('const'))
     assert_equal(s2.current_calltree_node.toplevel, true)
     assert_equal(s2.active_calltree_node.toplevel, true)
   }),
@@ -2227,10 +2215,10 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1'))
     assert_equal(s2.current_calltree_node.code.index, code.indexOf('() =>'))
     // Move within current node
-    const s3 = COMMANDS.move_cursor(s2, code.indexOf('2')).state
+    const s3 = COMMANDS.move_cursor(s2, code.indexOf('2'))
     assert_equal(s3.current_calltree_node.code.index, code.indexOf('() =>'))
   }),
 
@@ -2242,10 +2230,10 @@ const y = x()`
       x()
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1'))
 
     // Go back toplevel
-    const s3 = COMMANDS.move_cursor(s2, code.indexOf('const')).state
+    const s3 = COMMANDS.move_cursor(s2, code.indexOf('const'))
     assert_equal(s3.current_calltree_node.toplevel, true)
 
     // Go back to fn
@@ -2256,7 +2244,7 @@ const y = x()`
         calltree_actions: null
       },
       code.indexOf('1')
-    ).state
+    )
     assert_equal(s4.current_calltree_node.code.index, code.indexOf('() =>'))
   }),
 
@@ -2279,10 +2267,10 @@ const y = x()`
     const s1 = test_initial_state(code)
 
     // goto x()
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1'))
 
     // goto y()
-    const s3 = COMMANDS.move_cursor(s2, code.indexOf('2')).state
+    const s3 = COMMANDS.move_cursor(s2, code.indexOf('2'))
 
     assert_equal(s3.active_calltree_node.code.index, code.indexOf('() => {/*y'))
   }),
@@ -2296,7 +2284,7 @@ const y = x()`
       x(5)
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1'))
     assert_equal(s2.current_calltree_node.code.index, code.indexOf('() =>'))
   }),
 
@@ -2312,8 +2300,8 @@ const y = x()`
       x(5)
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1')).state
-    const s3 = COMMANDS.move_cursor(s2, code.indexOf('z()')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1'))
+    const s3 = COMMANDS.move_cursor(s2, code.indexOf('z()'))
     assert_equal(s3.current_calltree_node.code.index, code.indexOf('() =>'))
     // Check that node for `y` call was reused
     assert_equal(
@@ -2331,7 +2319,7 @@ const y = x()`
       }
     `
     const s1 = test_initial_state(code)
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('1'))
     assert_equal(s2.current_calltree_node.toplevel, true)
     assert_equal(s2.active_calltree_node, null)
 
@@ -2355,7 +2343,7 @@ const y = x()`
     const s2 = COMMANDS.move_cursor(
       {...s1, current_module: 'x'}, 
       x_code.indexOf('1')
-    ).state
+    )
     assert_equal(root_calltree_node(s2).module, '')
   }),
 
@@ -2376,11 +2364,11 @@ const y = x()`
     const s1 = test_initial_state(code)
 
     // Expand call of x(), id will be changed (bug)
-    const s2 = COMMANDS.move_cursor(s1, code.indexOf('y()')).state
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('y()'))
 
     // Step into from toplevel to call of x(), the stale id will be used
-    const s3 = COMMANDS.move_cursor(s2, code.indexOf('x()')).state
-    const s4 = COMMANDS.step_into(s3, code.indexOf('x()')).state
+    const s3 = COMMANDS.move_cursor(s2, code.indexOf('x()'))
+    const s4 = COMMANDS.step_into(s3, code.indexOf('x()'))
 
     assert_equal(s4.active_calltree_node.code.index, code.indexOf('() => {/*x'))
   }),
@@ -2419,9 +2407,9 @@ const y = x()`
       COMMANDS.change_current_module(s, 'x'),
       s.files['x'].indexOf('throw')
     )
-    assert_equal(s2.effects.type, 'embed_value_explorer')
+    assert_equal(s2.value_explorer.index, s.files['x'].indexOf('throw'))
 
-    const s3 = COMMANDS.calltree.arrow_right(s).state
+    const s3 = COMMANDS.calltree.arrow_right(s)
     assert_equal(s3.current_calltree_node.fn.name, 'has_child_calls')
 
   }),
@@ -2449,7 +2437,7 @@ const y = x()`
     const i = test_initial_state(code)
     assert_equal(i.logs.logs.length, 1)
     assert_equal(i.logs.logs[0].args, [10])
-    const {state, effects} = COMMANDS.calltree.navigate_logs_position(i, 0)
+    const state = COMMANDS.calltree.navigate_logs_position(i, 0)
     assert_equal(state.logs.log_position, 0)
     assert_equal(state.selection_state.result.value, [10])
     assert_equal(current_cursor_position(state), code.indexOf('(x)'))
@@ -2480,15 +2468,15 @@ const y = x()`
     assert_equal(call.args, [10])
 
     // Expand call
-    const {state: expanded} = COMMANDS.calltree.click(state, call.id)
+    const expanded = COMMANDS.calltree.click(state, call.id)
     assert_equal(get_deferred_calls(expanded)[0].children[0].fn.name, 'fn2')
 
     // Navigate logs
     const nav = COMMANDS.calltree.navigate_logs_position(expanded, 0)
-    assert_equal(nav.state.current_calltree_node.is_log, true)
+    assert_equal(nav.current_calltree_node.is_log, true)
 
-    const nav2 = COMMANDS.calltree.arrow_left(nav.state)
-    assert_equal(nav2.state.current_calltree_node.fn.name, 'fn2')
+    const nav2 = COMMANDS.calltree.arrow_left(nav)
+    assert_equal(nav2.current_calltree_node.fn.name, 'fn2')
   }),
 
   test('deferred calls calltree nav', () => {
@@ -2508,7 +2496,7 @@ const y = x()`
     // happen
     const no_deferred_down = 
       COMMANDS.calltree.arrow_down(
-        COMMANDS.calltree.arrow_down(i).state
+        COMMANDS.calltree.arrow_down(i)
       )
 
     assert_equal(no_deferred_down.current_calltree_node.fn.name, 'normal_call')
@@ -2529,11 +2517,11 @@ const y = x()`
 
     assert_equal(after_deferred_calls.current_calltree_node.toplevel, true)
 
-    const down = COMMANDS.calltree.arrow_down(after_deferred_calls).state
+    const down = COMMANDS.calltree.arrow_down(after_deferred_calls)
 
     const first_deferred_call_selected = COMMANDS.calltree.arrow_down(
-      COMMANDS.calltree.arrow_down(after_deferred_calls).state
-    ).state
+      COMMANDS.calltree.arrow_down(after_deferred_calls)
+    )
 
     // After we press arrow down, first deferred call gets selected
     assert_equal(
@@ -2544,7 +2532,6 @@ const y = x()`
     // One more arrow down, second deferred call gets selected
     assert_equal(
       COMMANDS.calltree.arrow_down(first_deferred_call_selected)
-        .state
         .current_calltree_node
         .args[0],
       2
@@ -2554,7 +2541,6 @@ const y = x()`
     // visible non deferred call
     assert_equal(
       COMMANDS.calltree.arrow_up(first_deferred_call_selected)
-        .state
         .current_calltree_node
         .args[0],
       0
@@ -2590,14 +2576,14 @@ const y = x()`
 
     const state = on_deferred_call(i)
 
-    const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('fn2'))
+    const moved = COMMANDS.move_cursor(state, code.indexOf('fn2'))
     assert_equal(moved.active_calltree_node.fn.name, 'fn')
 
     // Move cursor to toplevel and back, find cached (calltree_node_by_loc) call
     const move_back = COMMANDS.move_cursor(
-      COMMANDS.move_cursor(moved, 0).state,
+      COMMANDS.move_cursor(moved, 0),
       code.indexOf('fn2')
-    ).state
+    )
 
     assert_equal(move_back.active_calltree_node.fn.name, 'fn')
   }),
@@ -2615,7 +2601,7 @@ const y = x()`
     const state = on_deferred_call(i)
 
     // find call
-    const {state: moved} = COMMANDS.move_cursor(state, code.indexOf('label'))
+    const moved = COMMANDS.move_cursor(state, code.indexOf('label'))
 
     // Make deferred call
     i.modules[''].fn(2)
@@ -2909,7 +2895,7 @@ const y = x()`
       await f()
     `
     const i = await test_initial_state_async(code)
-    const {state: after_move} = await COMMANDS.move_cursor(i, code.indexOf('1'))
+    const after_move = await COMMANDS.move_cursor(i, code.indexOf('1'))
     assert_equal(after_move.active_calltree_node.fn.name, 'f')
   }),
 
@@ -2929,8 +2915,7 @@ const y = x()`
     i.modules[''].fn()
 
     const state = on_deferred_call(i)
-    const moved_state = (await COMMANDS.move_cursor(state, code.indexOf('1')))
-      .state
+    const moved_state = COMMANDS.move_cursor(state, code.indexOf('1'))
     assert_equal(moved_state.active_calltree_node.fn.name, 'fn2')
   }),
   

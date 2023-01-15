@@ -206,7 +206,6 @@ export const render_common_side_effects = async (prev, next, command, ui) => {
     // TODO if loading external imports, show loading indicator
     ui.calltree.clear_calltree()
     ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
-    ui.editor.unembed_value_explorer()
 
   } else {
 
@@ -220,7 +219,6 @@ export const render_common_side_effects = async (prev, next, command, ui) => {
       ui.eval.clear_value_or_error()
       ui.editor.for_each_session(f => clear_coloring(ui, f))
       render_coloring(ui, next)
-      ui.editor.unembed_value_explorer()
       ui.logs.rerender_logs(next.logs)
     } else {
 
@@ -287,6 +285,15 @@ export const render_common_side_effects = async (prev, next, command, ui) => {
       ui.eval.show_value_or_error(next.selection_state.result)
     }
   }
+
+  // Value explorer
+  if(prev.value_explorer != next.value_explorer) {
+    if(next.value_explorer == null) {
+      ui.editor.unembed_value_explorer()
+    } else {
+      ui.editor.embed_value_explorer(next.value_explorer)
+    }
+  }
 }
 
 
@@ -304,22 +311,5 @@ export const EFFECTS = {
   },
 
   write: (state, [name, contents], ui) => write_file(name, contents),
-
-  embed_value_explorer(state, [{index, result}], ui){
-    if(FLAGS.embed_value_explorer) {
-      ui.editor.embed_value_explorer({index, result})
-    } else {
-      ui.eval.show_value_or_error(result)
-    }
-  },
-
-  unembed_value_explorer(state, _, ui){
-    if(FLAGS.embed_value_explorer) {
-      ui.editor.unembed_value_explorer()
-    } else {
-      ui.eval.clear_value_or_error()
-    }
-  },
-
 }
 

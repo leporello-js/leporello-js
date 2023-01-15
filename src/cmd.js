@@ -93,6 +93,7 @@ const run_code = (s, dirty_files) => {
     calltree_node_by_loc: null,
     selection_state: null,
     loading_external_imports_state: null,
+    value_explorer: null,
   }
 
   if(!state.parse_result.ok) {
@@ -284,10 +285,9 @@ const input = (state, code, index) => {
   if(next.loading_external_imports_state != null) {
     return {state: next, effects: [effect_save]}
   }
-  const {state: next2, effects: effects2} = do_move_cursor(next, index)
   return {
-    state: next2, 
-    effects: [effect_save, effects2],
+    state: do_move_cursor(next, index), 
+    effects: [effect_save],
   }
 }
 
@@ -594,7 +594,15 @@ const filter_calltree = (calltree, pred) => {
 */
 
 const get_value_explorer = (state, index) => {
-  if(state.active_calltree_node == null) {
+  if(
+    state.active_calltree_node == null
+    ||
+    (
+      state.current_module 
+      != 
+      calltree_node_loc(state.active_calltree_node).module
+    )
+  ) {
     return null
   }
 
@@ -716,22 +724,7 @@ const get_value_explorer = (state, index) => {
 }
 
 const do_move_cursor = (state, index) => {
-  const value_exp = get_value_explorer(state, index)
-  if(value_exp == null) {
-    return {
-      state, 
-      effects: {type: 'unembed_value_explorer', args: []}
-    }
-  } else {
-    return {
-      state, 
-      effects: 
-        state.current_module == 
-          calltree_node_loc(state.active_calltree_node).module
-              ? {type: 'embed_value_explorer', args: [value_exp]}
-              : null
-    }
-  }
+  return { ...state, value_explorer: get_value_explorer(state, index) }
 }
 
 const move_cursor = (s, index) => {
@@ -754,10 +747,7 @@ const move_cursor = (s, index) => {
 
   const validate_result = validate_index_action(state)
   if(validate_result != null) {
-    return {
-      state, 
-      effects: {type: 'unembed_value_explorer', args: []}
-    }
+    return { ...state, value_explorer: null }
   }
 
   return do_move_cursor(state, index)
