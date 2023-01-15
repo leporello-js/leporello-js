@@ -202,8 +202,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
       next.eval_modules_state != null
   ) {
 
-    // TODO if loading external imports, show loading indicator
-    ui.calltree.clear_calltree()
+    ui.render_debugger(next)
     ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
 
   } else {

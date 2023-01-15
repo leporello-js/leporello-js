@@ -27,29 +27,32 @@ export class UI {
           : (this.eval_container = el('div', {class: 'eval'})),
         el('div', 'bottom', 
           this.debugger_container = el('div', 'debugger',
-            el('div', 'tabs', 
-              this.tabs.calltree = el('div', 'tab', 
-                el('a', {
-                  click: () => this.set_active_tab('calltree'),
-                  href: 'javascript: void(0)',
-                }, 'Call tree (F2)')
+            this.debugger_loaded = el('div', 'debugger_wrapper', 
+              el('div', 'tabs', 
+                this.tabs.calltree = el('div', 'tab', 
+                  el('a', {
+                    click: () => this.set_active_tab('calltree'),
+                    href: 'javascript: void(0)',
+                  }, 'Call tree (F2)')
+                ),
+                this.tabs.logs = el('div', 'tab', 
+                  el('a', {
+                    click: () => this.set_active_tab('logs'),
+                    href: 'javascript: void(0)',
+                  }, 'Logs (F3)')
+                ),
+                this.entrypoint_select = el('div', 'entrypoint_select')
               ),
-              this.tabs.logs = el('div', 'tab', 
-                el('a', {
-                  click: () => this.set_active_tab('logs'),
-                  href: 'javascript: void(0)',
-                }, 'Logs (F3)')
-              ),
-              this.entrypoint_select = el('div', 'entrypoint_select')
+              this.debugger.calltree = el('div', {
+                'class': 'tab_content', 
+                tabindex: 0,
+              }),
+              this.debugger.logs = el('div', {
+                'class': 'tab_content logs', 
+                tabindex: 0,
+              }),
             ),
-            this.debugger.calltree = el('div', {
-              'class': 'tab_content', 
-              tabindex: 0,
-            }),
-            this.debugger.logs = el('div', {
-              'class': 'tab_content logs', 
-              tabindex: 0,
-            }),
+            this.debugger_loading = el('div', 'debugger_wrapper')
           ),
           this.problems_container = el('div', {"class": 'problems', tabindex: 0}),
         ),
@@ -253,8 +256,23 @@ export class UI {
   render_debugger(state) {
     this.debugger_container.style = ''
     this.problems_container.style = 'display: none'
-    this.calltree.render_calltree(state)
-    this.logs.render_logs(null, state.logs)
+    if(
+      state.loading_external_imports_state != null
+      ||
+      state.eval_modules_state != null
+    ) {
+      this.debugger_loaded.style = 'display: none'
+      this.debugger_loading.innerText = 
+        state.loading_external_imports_state != null
+          ? 'Loading external modules...'
+          : 'Waiting...'
+      this.debugger_loading.style = ''
+    } else {
+      this.debugger_loading.style = 'display: none'
+      this.debugger_loaded.style = ''
+      this.calltree.render_calltree(state)
+      this.logs.render_logs(null, state.logs)
+    }
   }
 
   render_problems(problems) {
