@@ -265,9 +265,14 @@ const eval_modules_finished = (state, prev_state, result, node, toplevel) => {
     )
   }
 
-  return result_state.eval_modules_state == null
+  const eval_state_clear = result_state.eval_modules_state == null
     ? result_state
     : {...result_state, eval_modules_state: null}
+
+  return do_move_cursor(
+    eval_state_clear, 
+    current_cursor_position(eval_state_clear)
+  )
 }
 
 const input = (state, code, index) => {
@@ -282,13 +287,7 @@ const input = (state, code, index) => {
       next.current_module,
       next.files[next.current_module],
     ]}
-  if(next.loading_external_imports_state != null) {
-    return {state: next, effects: [effect_save]}
-  }
-  return {
-    state: do_move_cursor(next, index), 
-    effects: [effect_save],
-  }
+  return {state: next, effects: [effect_save]}
 }
 
 const can_evaluate_node = (parent, node) => {

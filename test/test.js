@@ -2885,6 +2885,7 @@ const y = x()`
       after_edit.eval_modules_state.toplevel
     )
     assert_equal(after_edit_finished.active_calltree_node.fn.name, 'f')
+    assert_equal(after_edit_finished.value_explorer.result.value, 1)
   }),
 
   test('async/await move_cursor', async () => {
