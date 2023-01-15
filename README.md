@@ -81,14 +81,14 @@ Classes are not supported. Some sort of immutable classes may be supported in fu
 
 ES6 modules are suppoted. Default exports are not currently supported, only named exports. Circular module dependencies are not supported (currently they crash IDE (TODO)). Import/export aliases are not supported. Exporting `let` variables is not supported. `import.meta` is not supported.
 
-Generators are not supported.
+Async and await are supported.
 
-Async/await will be supported in future.
+Generators are not supported.
 
 Destructuring is mostly supported.
 
 Some operators are not currently supported:
-  - Unary negation, unary plus
+  - Unary plus
   - Bitwise operators
   - `in`, `instanceof`
   - `void`
@@ -260,7 +260,6 @@ run tests in leporello itself:
 
 ## Roadmap
 
-* Support async/await and calling impure (performing IO) functions
 * Use production level JS parser, probably typescript parser (so it will be
   possible to program in pure functional subset of typescript)
 * Implement VSCode plugin
