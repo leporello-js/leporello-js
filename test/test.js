@@ -2818,6 +2818,15 @@ const y = x()`
     )
   }),
 
+  test('async/await then non-function', async () => {
+    await assert_code_evals_to_async(
+      `
+        await Promise.resolve(1).then(2)
+      `,
+      1
+    )
+  }),
+
   test('async/await Promise.then creates subcall', async () => {
     const i = await test_initial_state_async(`
       const x = () => 1

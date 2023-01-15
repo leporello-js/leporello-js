@@ -303,8 +303,8 @@ export const eval_modules = (
         }
         let children_copy = children
 
-        const make_callback = cb => cb == null
-          ? null
+        const make_callback = cb => typeof(cb) != 'function'
+          ? cb
           : value => {
               const current = children
               children = children_copy
