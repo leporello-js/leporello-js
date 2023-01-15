@@ -2912,6 +2912,27 @@ const y = x()`
     const {state: after_move} = await COMMANDS.move_cursor(i, code.indexOf('1'))
     assert_equal(after_move.active_calltree_node.fn.name, 'f')
   }),
+
+  test('async/await move_cursor deferred call', async () => {
+    const code = `
+      export const fn = async () => {
+        await fn2()
+      }
+
+      const fn2 = async () => {
+        return 1
+      }
+    `
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
+
+    // Make deferred call
+    i.modules[''].fn()
+
+    const state = on_deferred_call(i)
+    const moved_state = (await COMMANDS.move_cursor(state, code.indexOf('1')))
+      .state
+    assert_equal(moved_state.active_calltree_node.fn.name, 'fn2')
+  }),
   
   test('async/await await argument bug', async () => {
     await assert_code_evals_to_async(
