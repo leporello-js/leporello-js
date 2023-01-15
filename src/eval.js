@@ -71,6 +71,7 @@ const codegen_function_expr = (node, cxt) => {
   const args = node.function_args.children.map(do_codegen).join(',')
 
   const call = (node.is_async ? 'async ' : '') + `(${args}) => ` + (
+    // TODO gensym __obj, __fn
     (node.body.type == 'do')
     ? '{ let __obj, __fn;        ' + do_codegen(node.body) + '}'
     : '{ let __obj, __fn; return ' + do_codegen(node.body) + '}'

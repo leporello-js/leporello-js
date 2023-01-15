@@ -2922,7 +2922,7 @@ const y = x()`
     )
   }),
 
-  /*
+  /* TODO
   test('async/await move_cursor bug', async () => {
     const i = await test_initial_state_async(`
       await new Promise(resolve => globalThis.setTimeout(resolve, 1))
