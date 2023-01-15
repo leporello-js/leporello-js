@@ -25,20 +25,6 @@ import {
 
 export const tests = [
 
-  // TODO
-  /*
-  test('trace', () => {
-    assert_code_evals_to(`
-      const trace = () => 1;
-      trace()
-
-    `,
-
-    1
-    )
-  }),
-  */
-
   test('invalid token in the beginning', () => {
     const result = parse('# import')
     assert_equal(result, { 

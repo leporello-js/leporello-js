@@ -88,14 +88,14 @@ const codegen_function_expr = (node, cxt) => {
 
   // TODO first create all functions, then assign __closure, after everything
   // is declared. See 'out of order decl' test. Currently we assign __closure
-  // on first call (see `trace`)
+  // on first call (see `__trace`)
   const get_closure = `() => ({${[...node.closed].join(',')}})`
 
-  return `trace(${call}, "${node.name}", ${argscount}, ${location}, ${get_closure})`
+  return `__trace(${call}, "${node.name}", ${argscount}, ${location}, ${get_closure})`
 }
 
 // TODO if statically can prove that function is hosted, then do not codegen
-// trace
+// __trace
 const codegen_function_call = (node, cxt) => {
 
   const do_codegen = n => codegen(n, cxt)
@@ -113,10 +113,10 @@ const codegen_function_call = (node, cxt) => {
     return `(
       __obj = ${do_codegen(node.fn.object)},
       __fn = __obj${op}[${do_codegen(node.fn.property)}],
-      trace_call(__fn, __obj, ${args})
+      __trace_call(__fn, __obj, ${args})
     )`
   } else {
-    return `trace_call(${do_codegen(node.fn)}, null, ${args})`
+    return `__trace_call(${do_codegen(node.fn)}, null, ${args})`
   }
 
 }
@@ -227,7 +227,7 @@ const codegen = (node, cxt, parent) => {
     return '...(' + do_codegen(node.expr) + ')'
   } else if(node.type == 'new') {
     const args = `[${node.args.children.map(do_codegen).join(',')}]`
-    return `trace_call(${do_codegen(node.constructor)}, null, ${args}, true)`
+    return `__trace_call(${do_codegen(node.constructor)}, null, ${args}, true)`
   } else if(node.type == 'grouping'){
     return '(' + do_codegen(node.expr) + ')'
   } else if(node.type == 'array_destructuring') {
@@ -266,7 +266,7 @@ export const eval_modules = (
   calltree_changed_token,
   location
 ) => {
-  // TODO gensym __modules, __exports, children
+  // TODO gensym __modules, __exports, __trace, __trace_call
 
   // TODO bug if module imported twice, once as external and as regular
 
@@ -362,7 +362,7 @@ export const eval_modules = (
           node.fn.apply(node.context, node.args)
         }
       } catch(e) {
-        // do nothing. Exception was caught and recorded inside 'trace'
+        // do nothing. Exception was caught and recorded inside '__trace'
       }
       is_recording_deferred_calls = true
       return do_expand_calltree_node(node)
@@ -435,7 +435,7 @@ export const eval_modules = (
               node.fn.apply(node.context, node.args)
             }
           } catch(e) {
-            // do nothing. Exception was caught and recorded inside 'trace'
+            // do nothing. Exception was caught and recorded inside '__trace'
           }
 
           if(found_call != null) {
@@ -491,7 +491,7 @@ export const eval_modules = (
       }
     }
 
-    const trace = (fn, name, argscount, __location, get_closure) => {
+    const __trace = (fn, name, argscount, __location, get_closure) => {
       const result = (...args) => {
         if(result.__closure == null) {
           result.__closure = get_closure()
@@ -587,7 +587,7 @@ export const eval_modules = (
       return result
     }
 
-    const trace_call = (fn, context, args, is_new = false) => {
+    const __trace_call = (fn, context, args, is_new = false) => {
       if(fn != null && fn.__location != null && !is_new) {
         // Call will be traced, because tracing code is already embedded inside
         // fn
