@@ -1203,16 +1203,20 @@ const import_statement =
         string_literal
       ])
     ]),
-    ({value: [external, imp]}) => {
+    ({value: [pragma_external, imp]}) => {
       const {value: [_import, identifiers, module], ...node} = imp
+      // remove quotes
+      const module_string = module.value.slice(1, module.value.length - 1)
+      // if url starts with protocol, then it is always external
+      const is_external_url = new RegExp('^\\w+://').test(module_string)
       return {
         ...node,
         not_evaluatable: true,
         type: 'import',
-        is_external: external != null,
+        is_external: is_external_url || pragma_external != null,
         // TODO refactor hanlding of string literals. Drop quotes from value and
         // fix codegen for string_literal
-        module: module.value.slice(1, module.value.length - 1),
+        module: module_string,
         children: identifiers == null ? [] : identifiers.value[0].value,
       }
     }
