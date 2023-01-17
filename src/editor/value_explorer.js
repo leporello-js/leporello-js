@@ -16,16 +16,28 @@ const isPromise = object =>
   object instanceof globalThis.run_window.Promise
 
 const displayed_entries = object => {
-  if(Array.isArray(object)) {
+  if(isPromise(object)) {
+    return displayed_entries(
+      object.status.ok ? object.status.value : object.status.error
+    )
+  } else if(Array.isArray(object)) {
     return object.map((v, i) => [i, v])
   } else {
     return Object.entries(object)
   }
 }
 
-const is_expandable = v => typeof(v) == 'object' 
-  && v != null 
-  && displayed_entries(v).length != 0
+const is_expandable = v => 
+  isPromise(v) 
+  ? (
+      v.status != null 
+      && is_expandable(v.status.ok ? v.status.value : v.status.error)
+    )
+  : (
+      typeof(v) == 'object' 
+      && v != null 
+      && displayed_entries(v).length != 0
+    )
 
 
 export const stringify_for_header = v => {
@@ -80,7 +92,15 @@ export const header = object => {
     return 'null'
   } else if(typeof(object) == 'object') {
     if(isPromise(object)) {
-      return 'Promise<>'
+      if(object.status == null) {
+        return `Promise<pending>`
+      } else {
+        if(object.status.ok) {
+          return `Promise<fulfilled: ${header(object.status.value)}>`
+        } else {
+          return `Promise<rejected: ${header(object.status.error)}>`
+        }
+      }
     } else if(isError(object)) {
       return object.toString()
     } else if(Array.isArray(object)) {
