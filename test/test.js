@@ -2749,6 +2749,33 @@ const y = x()`
     assert_equal(call_delay.fn.name, 'delay')
   }),
 
+  test('async/await Promise.all set child promises status ok', async () => {
+    const i = await test_initial_state_async(`
+      const async_fn = async () => 1
+      await Promise.all([1,2,3].map(async_fn))
+    `)
+    const async_fn_call =
+      root_calltree_node(i)
+      .children[0] // map
+      .children[0] // first call of async_fn
+    assert_equal(async_fn_call.value.status.ok, true)
+    assert_equal(async_fn_call.value.status.value, 1)
+  }),
+
+  test('async/await Promise.all set child promises status error', 
+  async () => {
+    const i = await test_initial_state_async(`
+      const async_fn = async () => { throw 1 }
+      await Promise.all([1,2,3].map(async_fn))
+    `)
+    const async_fn_call =
+      root_calltree_node(i)
+      .children[0] // map
+      .children[0] // first call of async_fn
+    assert_equal(async_fn_call.value.status.ok, false)
+    assert_equal(async_fn_call.value.status.error, 1)
+  }),
+
   test('async/await logs out of order', async () => {
     const i = await test_initial_state_async(`
       // Init promises p1 and p2 that are resolved in different order (p2 then

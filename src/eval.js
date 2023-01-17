@@ -298,14 +298,18 @@ export const eval_modules = (
       promise_then = Promise.prototype.then
 
       Promise.prototype.then = function then(on_resolve, on_reject) {
+
         if(children == null) {
           children = []
         }
         let children_copy = children
 
-        const make_callback = cb => typeof(cb) != 'function'
+        const make_callback = (cb, ok) => typeof(cb) != 'function'
           ? cb
           : value => {
+              if(this.status == null) {
+                this.status = ok ? {ok, value} : {ok, error: value}
+              }
               const current = children
               children = children_copy
               try {
@@ -317,8 +321,8 @@ export const eval_modules = (
 
         return promise_then.call(
           this,
-          make_callback(on_resolve),
-          make_callback(on_reject),
+          make_callback(on_resolve, true),
+          make_callback(on_reject, false),
         )
       }
     }
