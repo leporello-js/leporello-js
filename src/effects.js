@@ -54,15 +54,19 @@ const ensure_session = (ui, state, file = state.current_module) => {
   ui.editor.ensure_session(file, state.files[file])
 }
 
-const clear_coloring = (ui, file) => {
+const clear_file_coloring = (ui, file) => {
   ui.editor.remove_markers_of_type(file, 'evaluated_ok')
   ui.editor.remove_markers_of_type(file, 'evaluated_error')
+}
+
+const clear_coloring = ui => {
+  ui.editor.for_each_session((file, session) => clear_file_coloring(ui, file))
 }
 
 const render_coloring = (ui, state) => {
   const file = state.current_module
 
-  clear_coloring(ui, file)
+  clear_file_coloring(ui, file)
 
   color_file(state, file).forEach(c => {
     ui.editor.add_marker(
@@ -197,7 +201,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
   if(!next.parse_result.ok) {
 
     ui.calltree.clear_calltree()
-    ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
+    clear_coloring(ui)
 
   } else {
 
@@ -212,13 +216,13 @@ export const render_common_side_effects = (prev, next, command, ui) => {
         next.eval_modules_state != null
       if(is_loading) {
         ui.calltree.clear_calltree()
-        ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
+        clear_coloring(ui)
         ui.render_debugger_loading(next)
       } else {
         // Rerender entire calltree
         ui.render_debugger(next)
         ui.eval.clear_value_or_error()
-        ui.editor.for_each_session(f => clear_coloring(ui, f))
+        clear_coloring(ui)
         render_coloring(ui, next)
         ui.logs.rerender_logs(next.logs)
       }
