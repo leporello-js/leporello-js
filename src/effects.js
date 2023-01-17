@@ -194,15 +194,9 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     render_parse_result(ui, next)
   }
 
-  if(
-      !next.parse_result.ok 
-      || 
-      next.loading_external_imports_state != null
-      ||
-      next.eval_modules_state != null
-  ) {
+  if(!next.parse_result.ok) {
 
-    ui.render_debugger(next)
+    ui.calltree.clear_calltree()
     ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
 
   } else {
@@ -212,12 +206,22 @@ export const render_common_side_effects = (prev, next, command, ui) => {
       ||
       prev.calltree_changed_token != next.calltree_changed_token
     ) {
-      // Rerender entire calltree
-      ui.render_debugger(next)
-      ui.eval.clear_value_or_error()
-      ui.editor.for_each_session(f => clear_coloring(ui, f))
-      render_coloring(ui, next)
-      ui.logs.rerender_logs(next.logs)
+      const is_loading = 
+        next.loading_external_imports_state != null
+        ||
+        next.eval_modules_state != null
+      if(is_loading) {
+        ui.calltree.clear_calltree()
+        ui.editor.for_each_session((file, session) => clear_coloring(ui, file))
+        ui.render_debugger_loading(next)
+      } else {
+        // Rerender entire calltree
+        ui.render_debugger(next)
+        ui.eval.clear_value_or_error()
+        ui.editor.for_each_session(f => clear_coloring(ui, f))
+        render_coloring(ui, next)
+        ui.logs.rerender_logs(next.logs)
+      }
     } else {
 
       if(get_deferred_calls(prev) == null && get_deferred_calls(next) != null) {

@@ -253,26 +253,27 @@ export class UI {
     reload_run_window(get_state())
   }
 
+  render_debugger_loading(state) {
+    this.debugger_container.style = ''
+    this.problems_container.style = 'display: none'
+
+    this.debugger_loaded.style = 'display: none'
+    this.debugger_loading.style = ''
+
+    this.debugger_loading.innerText = 
+      state.loading_external_imports_state != null
+        ? 'Loading external modules...'
+        : 'Waiting...'
+  }
+
   render_debugger(state) {
     this.debugger_container.style = ''
     this.problems_container.style = 'display: none'
-    if(
-      state.loading_external_imports_state != null
-      ||
-      state.eval_modules_state != null
-    ) {
-      this.debugger_loaded.style = 'display: none'
-      this.debugger_loading.innerText = 
-        state.loading_external_imports_state != null
-          ? 'Loading external modules...'
-          : 'Waiting...'
-      this.debugger_loading.style = ''
-    } else {
-      this.debugger_loading.style = 'display: none'
-      this.debugger_loaded.style = ''
-      this.calltree.render_calltree(state)
-      this.logs.render_logs(null, state.logs)
-    }
+
+    this.debugger_loading.style = 'display: none'
+    this.debugger_loaded.style = ''
+    this.calltree.render_calltree(state)
+    this.logs.render_logs(null, state.logs)
   }
 
   render_problems(problems) {
