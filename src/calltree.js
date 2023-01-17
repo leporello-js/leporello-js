@@ -294,11 +294,14 @@ export const path_to_root = (root, child) => {
 }
 
 export const is_expandable = node => 
-  // Hosted node always can be expanded, even if has not children
-  // Toplevel cannot be expanded if has no children
-  (!is_native_fn(node) && !node.toplevel) 
-  || 
-  (node.children != null || node.has_more_children)
+  is_native_fn(node)
+    ? (node.children != null && node.children.length != 0) 
+      || node.has_more_children
+    // Hosted node always can be expanded, even if has not children
+    // Toplevel cannot be expanded if has no children
+    : node.toplevel
+      ? (node.children != null && node.children.length != 0)
+      : true
 
 /*
   Right - 
