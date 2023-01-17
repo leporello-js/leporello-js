@@ -475,7 +475,7 @@ export const eval_modules = (
       }
       const children_copy = children
       if(value instanceof Promise) {
-        value.then(
+        promise_then.call(value,
           v => {
             value.status = {ok: true, value: v}
           },
