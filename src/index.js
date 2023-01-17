@@ -11,14 +11,16 @@ fib(6)`
 // Fake directory, http requests to this directory intercepted by service_worker
 export const FILES_ROOT = '__leporello_files'
 
-const set_error_handler = w => {
+const set_error_handler = (w, with_unhandled_rejection = true) => {
   // TODO err.message
   w.onerror = (msg, src, lineNum, colNum, err) => {
     ui.set_status(msg)
   }
-  w.addEventListener('unhandledrejection', (event) => {
-    ui.set_status(event.reason)
-  })
+  if(with_unhandled_rejection) {
+    w.addEventListener('unhandledrejection', (event) => {
+      ui.set_status(event.reason)
+    })
+  }
 }
 
 const get_html_url = state => {
@@ -35,7 +37,9 @@ const open_run_iframe = (state, onload) => {
   iframe.src = get_html_url(state)
   iframe.setAttribute('hidden', '')
   document.body.appendChild(iframe)
-  set_error_handler(iframe.contentWindow)
+  // for run_window, do not set unhandled rejection, because having rejected
+  // promises in user code is normal condition
+  set_error_handler(iframe.contentWindow, false)
   iframe.contentWindow.addEventListener('load', onload)
   globalThis.run_window = iframe.contentWindow
 }
