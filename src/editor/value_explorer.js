@@ -11,9 +11,9 @@ import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 // come both from run_window and current window (where they are created in
 // metacircular interpreter
 const has_custom_toString = object =>
-  object.toString != globalThis.run_window.Object.prototype.toString
-  &&
-  object.toString != Object.prototype.toString
+  object.toString != null
+  && object.toString != globalThis.run_window.Object.prototype.toString
+  && object.toString != Object.prototype.toString
 
 const isError = object => 
   object instanceof Error
