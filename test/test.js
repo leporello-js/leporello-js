@@ -462,22 +462,20 @@ export const tests = [
     )
   }),
 
-  test('undefined is not a function', () => {
-    const code = 
+  test('error is not a function', () => {
+    assert_code_error(
       `
-      const x = () => null();
-      const unreachable = () => 1
-      x();
+      const x = null
+      x()
+      `,
+      'TypeError: x is not a function'
+    )
+    assert_code_error(
       `
-    const s1 = test_initial_state(code)
-    // TODO fix error messages
-    const message = root_calltree_node(s1).error.message
-    assert_equal(
-      message == "Cannot read property 'apply' of null"
-      ||
-      message == "Cannot read properties of null (reading 'apply')"
-      ,
-      true
+        const foo = () => ([{bar: {}}])
+        foo()[0].bar.baz()
+      `,
+      'TypeError: foo(...)[0].bar.baz is not a function'
     )
   }),
 
