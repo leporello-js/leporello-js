@@ -32,7 +32,7 @@ const load_external_imports = async state => {
           // Note that we use the same origin as current page (where Leporello
           // is hosted), so Leporello can access window object for custom
           // `html_file`
-          window.location.origin + '/' + FILES_ROOT + '/' + u
+          FILES_ROOT + '/' + u
     ))
   )
   const modules = Object.fromEntries(

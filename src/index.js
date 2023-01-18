@@ -8,8 +8,6 @@ const EXAMPLE = `const fib = n =>
     : fib(n - 1) + fib(n - 2)
 fib(6)`
 
-// Fake directory, http requests to this directory intercepted by service_worker
-export const FILES_ROOT = '__leporello_files'
 
 const set_error_handler = (w, with_unhandled_rejection = true) => {
   // TODO err.message
@@ -23,8 +21,11 @@ const set_error_handler = (w, with_unhandled_rejection = true) => {
   }
 }
 
+// Fake directory, http requests to this directory intercepted by service_worker
+export const FILES_ROOT = new URL('./__leporello_files', globalThis.location)
+
 const get_html_url = state => {
-  const base = window.location.origin + '/' + FILES_ROOT + '/' 
+  const base = FILES_ROOT + '/' 
   return state.html_file == ''
     ? base + '__leporello_blank.html'
     : base + state.html_file + '?leporello'

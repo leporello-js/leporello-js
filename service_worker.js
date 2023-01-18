@@ -30,12 +30,12 @@ self.addEventListener('message', async function(e) {
 })
 
 // Fake directory, http requests to this directory intercepted by service_worker
-const FILES_ROOT = '__leporello_files'
+const FILES_ROOT = new URL('.', globalThis.location).pathname + '__leporello_files/'
 
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url)
-  if(url.pathname.startsWith('/' + FILES_ROOT)) {
-    const path = url.pathname.replace('/' + FILES_ROOT + '/', '')
+  if(url.pathname.startsWith(FILES_ROOT)) {
+    const path = url.pathname.replace(FILES_ROOT, '')
 
     let file
 
