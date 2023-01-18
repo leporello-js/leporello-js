@@ -225,7 +225,7 @@ them:
 
 ![Deferred calls](docs/images/deferred_calls.png)
 
-You can even run and debug Leporello.js in Leporello.js! To do this:
+<!--You can even run and debug Leporello.js in Leporello.js! To do this:
 
 - Check out Leporello.js repo and grant local filesystem access to root project directory
 - Select `src/launch.js` as an entrypoint
@@ -238,6 +238,7 @@ The only problem is that both instances of Leporello.js will share the same
 localStorage. (TODO - inject localStorage implementation to opened window, that
 allows to share localStorage between host Leporello.js instance and window
 where code is run)
+-->
 
 
 ## Run Leporello locally
