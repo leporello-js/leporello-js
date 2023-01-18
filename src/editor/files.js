@@ -11,6 +11,9 @@ export class Files {
   }
 
   open_directory() {
+    if(globalThis.showDirectoryPicker == null) {
+      throw new Error('Your browser is not supporting File System Access API')
+    }
     load_dir(true).then(dir => {
       exec('load_dir', dir)
     })
