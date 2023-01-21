@@ -59,12 +59,6 @@ type Call = {
 type Node = ToplevelCall | Call
 */
 
-// TODO just export const Iframe_Function?
-const make_function = (...args) => {
-  const fn_constructor = globalThis.run_window.Function
-  return new fn_constructor(...args)
-}
-
 const codegen_function_expr = (node, cxt) => {
   const do_codegen = n => codegen(n, cxt)
 
@@ -765,7 +759,7 @@ export const eval_modules = (
     }
     `
 
-  const actions = make_function(
+  const actions = new (globalThis.run_window.Function)(
     'external_imports', 
     'on_deferred_call', 
     'calltree_changed_token',
