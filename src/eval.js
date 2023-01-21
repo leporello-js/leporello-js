@@ -698,6 +698,15 @@ export const eval_modules = (
 
       is_recording_deferred_calls = false
 
+      const finish = () => {
+        is_recording_deferred_calls = true
+        const _logs = logs
+        logs = []
+        children = null
+        remove_promise_patch()
+        return { modules: __modules, calltree: current_call, logs: _logs }
+      }
+
       const __modules = {
         /* external_imports passed as an argument to function generated with
          * 'new Function' constructor */
@@ -731,24 +740,14 @@ export const eval_modules = (
          })()
          current_call.children = children
          if(!current_call.ok) {
-           is_recording_deferred_calls = true
-           const _logs = logs
-           logs = []
-           children = null
-           remove_promise_patch()
-           return { modules: __modules, calltree: current_call, logs: _logs }
+           return finish()
          }
         `
       )
       .join('')
     +
     `
-      is_recording_deferred_calls = true
-      const _logs = logs
-      logs = []
-      children = null
-      remove_promise_patch()
-      return { modules: __modules, calltree: current_call, logs: _logs }
+      return finish()
     }
 
     return {
