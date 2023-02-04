@@ -2,7 +2,7 @@ import {map_accum, map_find, map_object, stringify, findLast} from './utils.js'
 import {is_eq, find_error_origin_node} from './ast_utils.js'
 import {find_node, find_leaf, ancestry_inc} from './ast_utils.js'
 import {color} from './color.js'
-import {eval_frame} from './eval.js'
+import {eval_frame, eval_expand_calltree_node, eval_find_call} from './eval.js'
 
 export const pp_calltree = tree => ({
   id: tree.id,
@@ -176,7 +176,11 @@ const replace_calltree_node = (root, node, replacement) => {
 
 const expand_calltree_node = (state, node) => {
   if(node.has_more_children) {
-    const next_node = state.calltree_actions.expand_calltree_node(node)
+    const next_node = eval_expand_calltree_node(
+      state.eval_cxt, 
+      state.parse_result, 
+      node
+    )
     return {
       state: {...state, 
         calltree: replace_calltree_node(state.calltree, node, next_node)
@@ -594,7 +598,11 @@ export const find_call = (state, index) => {
 
   if(call != null) {
     if(call.has_more_children) {
-      active_calltree_node = state.calltree_actions.expand_calltree_node(call)
+      active_calltree_node = eval_expand_calltree_node(
+        state.eval_cxt,
+        state.parse_result, 
+        call
+      )
       next_calltree = replace_calltree_node(
         state.calltree, 
         call, 
@@ -605,7 +613,12 @@ export const find_call = (state, index) => {
       next_calltree = state.calltree
     }
   } else {
-    const find_result = state.calltree_actions.find_call(state.calltree, loc)
+    const find_result = eval_find_call(
+      state.eval_cxt, 
+      state.parse_result, 
+      state.calltree, 
+      loc
+    )
     if(find_result == null) {
       return add_calltree_node_by_loc(
         // Remove active_calltree_node

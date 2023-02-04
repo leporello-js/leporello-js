@@ -46,7 +46,7 @@ const apply_eval_result = (state, eval_result) => {
   return {
     ...state,
     calltree: make_calltree(eval_result.calltree, null),
-    calltree_actions: eval_result.calltree_actions,
+    eval_cxt: eval_result.eval_cxt,
     logs: {
       logs: collect_logs(eval_result.logs, eval_result.calltree), 
       log_position: null
@@ -84,7 +84,7 @@ const run_code = (s, dirty_files) => {
     // Shows that calltree is brand new and requires entire rerender
     calltree_changed_token: {},
 
-    calltree_actions: null,
+    eval_cxt: null,
     logs: null,
     current_calltree_node: null,
     active_calltree_node: null,
