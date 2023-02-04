@@ -2283,11 +2283,11 @@ const y = x()`
     assert_equal(s3.current_calltree_node.toplevel, true)
 
     // Go back to fn
-    assert_equal(s3.calltree_actions == null, false)
+    assert_equal(s3.eval_cxt == null, false)
     const s4 = COMMANDS.move_cursor(
       {...s3, 
-        // Set calltree_actions to null, ensure it would not be called again
-        calltree_actions: null
+        // Set eval_cxt to null, ensure eval would not be called again
+        eval_cxt: null
       },
       code.indexOf('1')
     )

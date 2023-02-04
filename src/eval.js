@@ -273,7 +273,7 @@ ${JSON.stringify(errormessage)}, true)`
       .map(i => i.value)
     return do_codegen(node.binding)
       +
-      `Object.assign(__cxt.modules[cxt.module], {${identifiers.join(',')}});`
+      `Object.assign(__cxt.modules['${cxt.module}'], {${identifiers.join(',')}});`
   } else if(node.type == 'function_decl') {
     const expr = node.children[0]
     return `const ${expr.name} = ${codegen_function_expr(expr, cxt)};`
@@ -326,10 +326,9 @@ export const eval_modules = (
     prev_children: null,
     searched_location: location,
     found_call: null,
-    promise_then: null,
 
     modules: external_imports == null
-      ? null
+      ? {}
       : map_object(external_imports, (name, {module}) => module),
 
     on_deferred_call: (call, calltree_changed_token, logs) => {
@@ -362,14 +361,21 @@ export const eval_modules = (
 
      const module_fn = new Function(
        '__cxt',
-       codegen(node, {module: module_name})
+       '__trace',
+       '__trace_call',
+       '__do_await',
+       codegen(parse_result.modules[current_module], {module: current_module})
      )
 
-     cxt.modules[current_module] = 
      try {
-       // cxt.modules[current_module] = {}
+       cxt.modules[current_module] = {}
        // TODO await
-       module_fn(cxt)
+       module_fn(
+        cxt,
+        __trace,
+        __trace_call,
+        __do_await,
+       )
        calltree.ok = true
      } catch(error) {
        calltree.ok = false
@@ -388,9 +394,9 @@ export const eval_modules = (
 
   remove_promise_patch(cxt)
 
-  searched_location = null
-  const call = found_call
-  found_call = null
+  cxt.searched_location = null
+  const call = cxt.found_call
+  cxt.found_call = null
 
   return {
     modules: cxt.modules,
@@ -403,14 +409,14 @@ export const eval_modules = (
 
 const apply_promise_patch = cxt => {
 
-  promise_then = Promise.prototype.then
+  cxt.promise_then = Promise.prototype.then
 
   Promise.prototype.then = function then(on_resolve, on_reject) {
 
-    if(children == null) {
-      children = []
+    if(cxt.children == null) {
+      cxt.children = []
     }
-    let children_copy = children
+    let children_copy = cxt.children
 
     const make_callback = (cb, ok) => typeof(cb) != 'function'
       ? cb
@@ -418,16 +424,16 @@ const apply_promise_patch = cxt => {
           if(this.status == null) {
             this.status = ok ? {ok, value} : {ok, error: value}
           }
-          const current = children
-          children = children_copy
+          const current = cxt.children
+          cxt.children = children_copy
           try {
             return cb(value)
           } finally {
-            children = current
+            cxt.children = current
           }
         }
 
-    return promise_then.call(
+    return cxt.promise_then.call(
       this,
       make_callback(on_resolve, true),
       make_callback(on_reject, false),
@@ -436,35 +442,35 @@ const apply_promise_patch = cxt => {
 }
 
 const remove_promise_patch = cxt => {
-  Promise.prototype.then = promise_then
+  Promise.prototype.then = cxt.promise_then
 }
 
-const set_record_call = () => {
-  for(let i = 0; i < stack.length; i++) {
-    stack[i] = true
+const set_record_call = cxt => {
+  for(let i = 0; i < cxt.stack.length; i++) {
+    cxt.stack[i] = true
   }
 }
 
-const do_expand_calltree_node = node => {
+const do_expand_calltree_node = (cxt, node) => {
   if(node.fn.__location != null) {
     // fn is hosted, it created call, this time with children
-    const result = children[0]
+    const result = cxt.children[0]
     result.id = node.id
-    result.children = prev_children
+    result.children = cxt.prev_children
     result.has_more_children = false
     return result
   } else {
     // fn is native, it did not created call, only its child did
     return {...node, 
-      children,
+      children: cxt.children,
       has_more_children: false,
     }
   }
 }
 
-export const eval_expand_calltree_node = (parse_result, node) => {
-  is_recording_deferred_calls = false
-  children = null
+export const eval_expand_calltree_node = (cxt, parse_result, node) => {
+  cxt.is_recording_deferred_calls = false
+  cxt.children = null
   try {
     if(node.is_new) {
       new node.fn(...node.args)
@@ -474,8 +480,8 @@ export const eval_expand_calltree_node = (parse_result, node) => {
   } catch(e) {
     // do nothing. Exception was caught and recorded inside '__trace'
   }
-  is_recording_deferred_calls = true
-  return assign_code(parse_result.modules, do_expand_calltree_node(node))
+  cxt.is_recording_deferred_calls = true
+  return assign_code(parse_result.modules, do_expand_calltree_node(cxt, node))
 }
 
 
@@ -493,7 +499,7 @@ export const eval_expand_calltree_node = (parse_result, node) => {
 */
 export const eval_find_call = (cxt, parse_result, calltree, location) => {
   // TODO remove
-  if(children != null) {
+  if(cxt.children != null) {
     throw new Error('illegal state')
   }
 
@@ -521,13 +527,13 @@ export const eval_find_call = (cxt, parse_result, calltree, location) => {
         // do nothing. Exception was caught and recorded inside '__trace'
       }
 
-      if(found_call != null) {
+      if(cxt.found_call != null) {
         return {
-          node: do_expand_calltree_node(node),
-          call: found_call,
+          node: do_expand_calltree_node(cxt, node),
+          call: cxt.found_call,
         }
       } else {
-        children = null
+        cxt.children = null
       }
     }
 
@@ -535,15 +541,15 @@ export const eval_find_call = (cxt, parse_result, calltree, location) => {
     return null
   }
 
-  is_recording_deferred_calls = false
-  searched_location = location
+  cxt.is_recording_deferred_calls = false
+  cxt.searched_location = location
 
   const result = do_find(calltree)
 
-  children = null
-  searched_location = null
-  found_call = null
-  is_recording_deferred_calls = true
+  cxt.children = null
+  cxt.searched_location = null
+  cxt.found_call = null
+  cxt.is_recording_deferred_calls = true
 
   if(result == null) {
     return null
@@ -562,12 +568,12 @@ const __do_await = async (cxt, value) => {
   // can be null to save one empty array allocation in case it has no child
   // calls. Allocate array now, so we can have a reference to this array
   // which will be used after await
-  if(children == null) {
-    children = []
+  if(cxt.children == null) {
+    cxt.children = []
   }
-  const children_copy = children
+  const children_copy = cxt.children
   if(value instanceof Promise) {
-    promise_then.call(value,
+    cxt.promise_then.call(value,
       v => {
         value.status = {ok: true, value: v}
       },
@@ -579,7 +585,7 @@ const __do_await = async (cxt, value) => {
   try {
     return await value
   } finally {
-    children = children_copy
+    cxt.children = children_copy
   }
 }
 
@@ -589,48 +595,48 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
       result.__closure = get_closure()
     }
 
-    const children_copy = children
-    children = null
-    stack.push(false)
+    const children_copy = cxt.children
+    cxt.children = null
+    cxt.stack.push(false)
 
     const is_found_call =
-      (searched_location != null && found_call == null)
+      (cxt.searched_location != null && cxt.found_call == null)
       &&
       (
-        __location.index == searched_location.index
+        __location.index == cxt.searched_location.index
         &&
-        __location.module == searched_location.module
+        __location.module == cxt.searched_location.module
       )
 
     if(is_found_call) {
       // Assign temporary value to prevent nested calls from populating
       // found_call
-      found_call = {}
+      cxt.found_call = {}
     }
 
     let ok, value, error
 
-    const is_toplevel_call_copy = is_toplevel_call
-    is_toplevel_call = false
+    const is_toplevel_call_copy = cxt.is_toplevel_call
+    cxt.is_toplevel_call = false
 
     try {
       value = fn(...args)
       ok = true
       if(value instanceof Promise) {
-        set_record_call()
+        set_record_call(cxt)
       }
       return value
     } catch(_error) {
       ok = false
       error = _error
-      set_record_call()
+      set_record_call(cxt)
       throw error
     } finally {
 
-      prev_children = children
+      cxt.prev_children = cxt.children
 
       const call = {
-        id: call_counter++,
+        id: cxt.call_counter++,
         ok,
         value,
         error,
@@ -642,34 +648,34 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
       }
 
       if(is_found_call) {
-        found_call = call
-        set_record_call()
+        cxt.found_call = call
+        set_record_call(cxt)
       }
 
-      const should_record_call = stack.pop()
+      const should_record_call = cxt.stack.pop()
 
       if(should_record_call) {
-        call.children = children
+        call.children = cxt.children
       } else {
-        call.has_more_children = children != null && children.length != 0
+        call.has_more_children = cxt.children != null && cxt.children.length != 0
       }
-      children = children_copy
-      if(children == null) {
-        children = []
+      cxt.children = children_copy
+      if(cxt.children == null) {
+        cxt.children = []
       }
-      children.push(call)
+      cxt.children.push(call)
 
-      is_toplevel_call = is_toplevel_call_copy
+      cxt.is_toplevel_call = is_toplevel_call_copy
 
-      if(is_recording_deferred_calls && is_toplevel_call) {
-        if(children.length != 1) {
+      if(cxt.is_recording_deferred_calls && cxt.is_toplevel_call) {
+        if(cxt.children.length != 1) {
           throw new Error('illegal state')
         }
-        const call = children[0]
-        children = null
-        const _logs = logs
-        logs = []
-        on_deferred_call(call, calltree_changed_token, _logs)
+        const call = cxt.children[0]
+        cxt.children = null
+        const _logs = cxt.logs
+        cxt.logs = []
+        cxt.on_deferred_call(call, cxt.calltree_changed_token, _logs)
       }
     }
   }
@@ -694,15 +700,15 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
     )
   }
 
-  const children_copy = children
-  children = null
-  stack.push(false)
+  const children_copy = cxt.children
+  cxt.children = null
+  cxt.stack.push(false)
 
   // TODO: other console fns
   const is_log = fn == console.log || fn == console.error
 
   if(is_log) {
-    set_record_call()
+    set_record_call(cxt)
   }
 
   let ok, value, error
@@ -719,20 +725,20 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
     }
     ok = true
     if(value instanceof Promise) {
-      set_record_call()
+      set_record_call(cxt)
     }
     return value
   } catch(_error) {
     ok = false
     error = _error
-    set_record_call()
+    set_record_call(cxt)
     throw error
   } finally {
 
-    prev_children = children
+    cxt.prev_children = cxt.children
 
     const call = {
-      id: call_counter++,
+      id: cxt.call_counter++,
       ok,
       value,
       error,
@@ -745,22 +751,22 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
     
     if(is_log) {
       // TODO do not collect logs on find_call?
-      logs.push(call)
+      cxt.logs.push(call)
     }
 
-    const should_record_call = stack.pop()
+    const should_record_call = cxt.stack.pop()
 
     if(should_record_call) {
-      call.children = children
+      call.children = cxt.children
     } else {
-      call.has_more_children = children != null && children.length != 0
+      call.has_more_children = cxt.children != null && cxt.children.length != 0
     }
 
-    children = children_copy
-    if(children == null) {
-      children = []
+    cxt.children = children_copy
+    if(cxt.children == null) {
+      cxt.children = []
     }
-    children.push(call)
+    cxt.children.push(call)
   }
 }
 
