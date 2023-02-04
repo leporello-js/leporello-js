@@ -12,7 +12,8 @@ const gen_to_promise = gen_fn => {
       if(result.done){
         return result.value
       } else {
-        if(result.value instanceof run_window.Promise) {
+        // If promise
+        if(result.value?.then != null) {
           return result.value.then(
             value => next(gen.next(value)),
             error => next(gen.throw(error)),
@@ -76,9 +77,9 @@ export const run = gen_to_promise(function*(module_fns, cxt){
 
 const apply_promise_patch = cxt => {
 
-  cxt.promise_then = Promise.prototype.then
+  cxt.promise_then = cxt.Promise.prototype.then
 
-  Promise.prototype.then = function then(on_resolve, on_reject) {
+  cxt.Promise.prototype.then = function then(on_resolve, on_reject) {
 
     if(cxt.children == null) {
       cxt.children = []
@@ -109,7 +110,7 @@ const apply_promise_patch = cxt => {
 }
 
 const remove_promise_patch = cxt => {
-  Promise.prototype.then = cxt.promise_then
+  cxt.Promise.prototype.then = cxt.promise_then
 }
 
 const set_record_call = cxt => {
@@ -230,7 +231,7 @@ const __do_await = async (cxt, value) => {
     cxt.children = []
   }
   const children_copy = cxt.children
-  if(value instanceof Promise) {
+  if(value instanceof cxt.Promise) {
     cxt.promise_then.call(value,
       v => {
         value.status = {ok: true, value: v}
@@ -280,7 +281,7 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
     try {
       value = fn(...args)
       ok = true
-      if(value instanceof Promise) {
+      if(value instanceof cxt.Promise) {
         set_record_call(cxt)
       }
       return value
@@ -382,7 +383,7 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
       value = undefined
     }
     ok = true
-    if(value instanceof Promise) {
+    if(value instanceof cxt.Promise) {
       set_record_call(cxt)
     }
     return value

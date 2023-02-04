@@ -315,6 +315,7 @@ export const eval_modules = (
 
   // TODO sort
   const cxt = {
+    Promise: globalThis.run_window.Promise,
     is_recording_deferred_calls: false,
     call_counter: 0,
     logs: [],
