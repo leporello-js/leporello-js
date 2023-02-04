@@ -283,13 +283,53 @@ ${JSON.stringify(errormessage)}, true)`
   }
 }
 
-export const eval_modules = (
+// TODO remove
+/*
+const SyncPromise = value => ({
+  then: function(cb) {
+    const result = cb(this.value)
+    if(result.value
+  },
+  value,
+  is_sync_promise: true,
+})
+*/
+
+/*
+Converts generator-returning function to promise-returning function. Allows to
+have the same code both for sync and async. If we have only sync modules (no
+toplevel awaits), then code executes synchronously, and if there are async
+modules, then code executes asynchronoulsy, but we have syntactic niceties of
+'yield', 'try', 'catch'
+*/
+const gen_to_promise = gen_fn => {
+  return (...args) => {
+    const gen = gen_fn(...args)
+    const next = result => {
+      if(result.done){
+        return result.value
+      } else {
+        if(result.value instanceof run_window.Promise) {
+          return result.value.then(
+            value => next(gen.next(value)),
+            error => next(gen.throw(error)),
+          )
+        } else {
+          return next(gen.next(result.value))
+        }
+      }
+    }
+    return next(gen.next())
+  }
+}
+
+export const eval_modules = gen_to_promise(function*(
   parse_result,
   external_imports, 
   on_deferred_call,
   calltree_changed_token,
   location
-) => {
+){
   // TODO gensym __cxt, __trace, __trace_call
 
   // TODO bug if module imported twice, once as external and as regular
@@ -369,8 +409,7 @@ export const eval_modules = (
 
      try {
        cxt.modules[current_module] = {}
-       // TODO await
-       module_fn(
+       yield module_fn(
         cxt,
         __trace,
         __trace_call,
@@ -401,11 +440,12 @@ export const eval_modules = (
   return {
     modules: cxt.modules,
     calltree: assign_code(parse_result.modules, calltree),
+    // TODO assign_code to 'call'
     call,
     logs: _logs,
     eval_cxt: cxt,
   }
-}
+})
 
 const apply_promise_patch = cxt => {
 
