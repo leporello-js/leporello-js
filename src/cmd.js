@@ -241,10 +241,7 @@ const eval_modules_finished = (state, prev_state, result, node, toplevel) => {
       // Unreachable call
       active_calltree_node = null
     } else {
-      // We cannot use `call` because `code` was not assigned to it
-      active_calltree_node = find_node(root_calltree_node(next),
-        n => n.id == result.call.id
-      )
+      active_calltree_node = result.call
     }
   }
 

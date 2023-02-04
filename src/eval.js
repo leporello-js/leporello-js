@@ -15,6 +15,7 @@ import {
 
 import {has_toplevel_await} from './find_definitions.js'
 
+// import runtime as external because it has non-functional code
 // external
 import {run, do_eval_expand_calltree_node, do_eval_find_call} from './runtime.js'
 
@@ -62,8 +63,8 @@ type Call = {
 type Node = ToplevelCall | Call
 */
 
-const codegen_function_expr = (node, cxt) => {
-  const do_codegen = n => codegen(n, cxt)
+const codegen_function_expr = (node, node_cxt) => {
+  const do_codegen = n => codegen(n, node_cxt)
 
   const args = node.function_args.children.map(do_codegen).join(',')
 
@@ -85,7 +86,7 @@ const codegen_function_expr = (node, cxt) => {
       ? node.function_args.children.length
       : null
 
-  const location = `{index: ${node.index}, length: ${node.length}, module: '${cxt.module}'}`
+  const location = `{index: ${node.index}, length: ${node.length}, module: '${node_cxt.module}'}`
 
   // TODO first create all functions, then assign __closure, after everything
   // is declared. See 'out of order decl' test. Currently we assign __closure
@@ -106,9 +107,9 @@ const not_a_function_error = node => node.string.replaceAll(
 
 // TODO if statically can prove that function is hosted, then do not codegen
 // __trace
-const codegen_function_call = (node, cxt) => {
+const codegen_function_call = (node, node_cxt) => {
 
-  const do_codegen = n => codegen(n, cxt)
+  const do_codegen = n => codegen(n, node_cxt)
 
   const args = `[${node.args.children.map(do_codegen).join(',')}]`
 
@@ -134,10 +135,9 @@ ${JSON.stringify(errormessage)})`
 
 }
 
-// TODO rename cxt, to not confuse with another cxt
-const codegen = (node, cxt, parent) => {
+const codegen = (node, node_cxt, parent) => {
 
-  const do_codegen = (n, parent) => codegen(n, cxt, parent)
+  const do_codegen = (n, parent) => codegen(n, node_cxt, parent)
 
   if([
     'identifier',
@@ -185,9 +185,9 @@ const codegen = (node, cxt, parent) => {
       .join(',')
     return '({' + elements + '})'
   } else if(node.type == 'function_call'){
-    return codegen_function_call(node, cxt)
+    return codegen_function_call(node, node_cxt)
   } else if(node.type == 'function_expr'){
-    return codegen_function_expr(node, cxt)
+    return codegen_function_expr(node, node_cxt)
   } else if(node.type == 'ternary'){
     return ''
     + '(' 
@@ -272,10 +272,10 @@ ${JSON.stringify(errormessage)}, true)`
       .map(i => i.value)
     return do_codegen(node.binding)
       +
-      `Object.assign(__cxt.modules['${cxt.module}'], {${identifiers.join(',')}});`
+      `Object.assign(__cxt.modules['${node_cxt.module}'], {${identifiers.join(',')}});`
   } else if(node.type == 'function_decl') {
     const expr = node.children[0]
-    return `const ${expr.name} = ${codegen_function_expr(expr, cxt)};`
+    return `const ${expr.name} = ${codegen_function_expr(expr, node_cxt)};`
   } else {
     console.error(node)
     throw new Error('unknown node type: ' + node.type)
@@ -295,42 +295,23 @@ export const eval_modules = (
 
   const is_async = has_toplevel_await(parse_result.modules)
 
-  /*
-    TODO remove
-    cxt vars:
-      - modules
-      - is_recording_deferred_calls
-      - logs
-      - children
-      - prev_children
-      - call_counter
-      - is_toplevel_call
-      - searched_location
-      - found_call
-      - promise_then
-      - stack
-      - on_deferred_call
-      - calltree_changed_token
-  */
-
-  // TODO sort
   const cxt = {
-    Promise: globalThis.run_window.Promise,
-    is_recording_deferred_calls: false,
-    call_counter: 0,
-    logs: [],
-    is_toplevel_call: true,
-    // TODO use native array for stack for perf? stack contains booleans
-    stack: new Array(),
-    children: null,
-    prev_children: null,
-    searched_location: location,
-    found_call: null,
-
     modules: external_imports == null
       ? {}
       : map_object(external_imports, (name, {module}) => module),
 
+    call_counter: 0,
+    children: null,
+    prev_children: null,
+    // TODO use native array for stack for perf? stack contains booleans
+    stack: new Array(),
+
+    logs: [],
+
+    searched_location: location,
+    found_call: null,
+
+    is_recording_deferred_calls: false,
     on_deferred_call: (call, calltree_changed_token, logs) => {
       return on_deferred_call(
         assign_code(parse_result.modules, call),
@@ -338,8 +319,10 @@ export const eval_modules = (
         logs,
       )
     },
-
     calltree_changed_token,
+    is_toplevel_call: true,
+
+    Promise: globalThis.run_window.Promise,
   }
 
   const Function = is_async
@@ -363,11 +346,10 @@ export const eval_modules = (
 
   const make_result = result => ({
     modules: result.modules,
-    // TODO assign_code to 'call' and refactor call site
-    call: result.call,
     logs: result.logs,
     eval_cxt: result.eval_cxt,
     calltree: assign_code(parse_result.modules, result.calltree),
+    call: result.call && assign_code(parse_result.modules, result.call),
   })
 
   if(result.then != null) {
