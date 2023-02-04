@@ -45,7 +45,6 @@ const adjust_path = path => {
   )
 }
 
-/*
 const load_external_modules = async state => {
   const urls = state.loading_external_imports_state.external_imports
   const results = await Promise.all(
@@ -63,7 +62,6 @@ const load_external_modules = async state => {
     ))
   )
 }
-*/
 
 const dir = load_dir('.')
 
@@ -74,13 +72,9 @@ const i = test_initial_state(
   {project_dir: dir, entrypoint: 'test/run.js'}
 )
 
-/*
 assert_equal(i.loading_external_imports_state != null, true)
 const external_imports = await load_external_modules(i)
 const loaded = COMMANDS.external_imports_loaded(i, i, external_imports)
-*/
-
-const loaded = i
 
 assert_equal(loaded.eval_modules_state != null, true)
 const s = loaded.eval_modules_state
