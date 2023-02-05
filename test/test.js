@@ -21,6 +21,7 @@ import {
   test_initial_state, test_initial_state_async,
   test_deferred_calls_state,
   print_debug_ct_node,
+  command_input_async,
 } from './utils.js'
 
 export const tests = [
@@ -2957,17 +2958,9 @@ const y = x()`
       }
       await f()
     `
-    const {state: after_edit} = COMMANDS.input(i, code2, code2.indexOf('1'))
-    const result = await after_edit.eval_modules_state.promise
-    const after_edit_finished = COMMANDS.eval_modules_finished(
-      after_edit, 
-      after_edit,
-      result, 
-      after_edit.eval_modules_state.node, 
-      after_edit.eval_modules_state.toplevel
-    )
-    assert_equal(after_edit_finished.active_calltree_node.fn.name, 'f')
-    assert_equal(after_edit_finished.value_explorer.result.value, 1)
+    const next = await command_input_async(i, code2, code2.indexOf('1'))
+    assert_equal(next.active_calltree_node.fn.name, 'f')
+    assert_equal(next.value_explorer.result.value, 1)
   }),
 
   test('async/await move_cursor', async () => {
@@ -3018,5 +3011,136 @@ const y = x()`
     const moved = COMMANDS.move_cursor(i, 0)
     // No assertion, must not throw
   }),
+
+  test('record io', () => {
+    const random = globalThis.run_window.Math.random
+
+    // Patch Math.random to always return 1
+    Object.assign(globalThis.run_window.Math, {random: () => 1})
+
+    const initial = test_initial_state(`
+      const x = Math.random()
+    `)
+    
+    // Now call to Math.random is cached, break it to ensure it was not called
+    // on next run
+    Object.assign(globalThis.run_window.Math, {random: () => { throw 'fail' }})
+
+    const next = COMMANDS.input(initial, `const x = Math.random()*2`, 0).state
+    assert_equal(next.value_explorer.result.value, 2)
+
+    // Patch Math.random to return 2. Now the first call to Math.random() is
+    // cached with value 1, and the second shoud return 2
+    Object.assign(globalThis.run_window.Math, {random: () => 2})
+    const replay_failed = COMMANDS.input(
+      initial, 
+      `const x = Math.random() + Math.random()`, 
+      0
+    ).state
+    // TODO must reuse first cached call?
+    assert_equal(replay_failed.value_explorer.result.value, 4)
+
+    // Remove patch
+    Object.assign(globalThis.run_window.Math, {random})
+  }),
+
+  test('record io preserve promise resolution order', async () => {
+    const original_fetch = globalThis.run_window.fetch
+
+    // Generate fetch function which calls get resolved in reverse order
+    const {fetch, resolve} = new Function(`
+      const calls = []
+      return {
+        fetch(...args) {
+          let resolver
+          const promise = new Promise(r => resolver = r)
+          calls.push({resolver, promise, args})
+          console.log('patched fetch called')
+          return promise
+        },
+
+        resolve() {
+          console.log('resolve', calls);
+          [...calls].reverse().forEach(call => call.resolver(...call.args))
+        },
+      }
+    `)()
+
+    // Patch fetch
+    Object.assign(globalThis.run_window, {fetch})
+
+    const initial_promise = test_initial_state_async(`
+      const result = {}
+      await Promise.all(
+        [1, 2, 3].map(async v => Object.assign(result, {value: await fetch(v)}))
+      )
+      console.log(result)
+    `)
+
+    resolve()
+
+    const initial = await initial_promise
+
+    // calls to fetch are resolved in reverse order, so first call wins
+    assert_equal(initial.logs.logs[0].args[0].value, 1)
+
+    // Break fetch to ensure it does not get called anymore
+    Object.assign(globalThis.run_window, {fetch: () => {throw 'broken'}})
+
+    const with_cache = await command_input_async(
+      initial, 
+      `
+        const result = {}
+        await Promise.all(
+          [1, 2, 3].map(async v => 
+            Object.assign(result, {value: await fetch(v)})
+          )
+        )
+        console.log(result)
+      `,
+      0
+    )
+
+    // cached calls to fetch shoudl be resolved in the same (reverse) order as
+    // on the first run, so first call wins
+    assert_equal(with_cache.logs.logs[0].args[0].value, 1)
+
+    // Remove patch
+    Object.assign(globalThis.run_window, {fetch: original_fetch})
+  }),
+
+  test('record io setTimeout', async () => {
+    const i = await test_initial_state_async(`
+      const delay = timeout => new Promise(resolve => 
+        setTimeout(() => resolve(1), timeout)
+      )
+      console.log(await delay(0))
+    `)
+
+    assert_equal(i.io_cache != null, true)
+    assert_equal(i.logs.logs[0].args[0], 1)
+
+    const code2 = `
+      const delay = timeout => new Promise(resolve => 
+        setTimeout(() => resolve(10), timeout)
+      )
+      console.log(await delay(0))
+    `
+
+    console.log('CODE2', code2.slice(75))
+
+    const next = await command_input_async(i, code2, 0)
+
+    // Assert cache was used
+    // TODO check that items were not appended
+    assert_equal(next.io_cache == i.io_cache, true)
+
+    assert_equal(next.logs.logs[0].args[0], 10)
+
+  }),
+
+  // TODO test resolution order with sync functions (Date, Math.random)
+
+
 
 ]

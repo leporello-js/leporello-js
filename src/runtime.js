@@ -1,3 +1,5 @@
+import {apply_io_patches, remove_io_patches} from './record_io.js'
+
 /*
 Converts generator-returning function to promise-returning function. Allows to
 have the same code both for sync and async. If we have only sync modules (no
@@ -27,10 +29,27 @@ const gen_to_promise = gen_fn => {
   }
 }
 
-export const run = gen_to_promise(function*(module_fns, cxt){
+const do_run = function*(module_fns, cxt, io_cache){
   let calltree
 
+  cxt = io_cache == null
+    // TODO move all io_cache properties to the object?
+    ? {...cxt,
+      io_cache_is_recording: true,
+      io_cache: [],
+    }
+    : {...cxt,
+      io_cache_is_recording: false,
+      io_cache,
+      io_cache_resolver_is_set: false,
+      // Map of (index in io_cache) -> resolve
+      io_cache_resolvers: new Map(),
+      io_cache_is_replay_aborted: false,
+      io_cache_index: 0,
+    }
+
   apply_promise_patch(cxt)
+  apply_io_patches(cxt)
 
   for(let {module, fn} of module_fns) {
      cxt.found_call = null
@@ -60,6 +79,7 @@ export const run = gen_to_promise(function*(module_fns, cxt){
   cxt.logs = []
   cxt.children = null
 
+  remove_io_patches(cxt)
   remove_promise_patch(cxt)
 
   cxt.searched_location = null
@@ -72,6 +92,20 @@ export const run = gen_to_promise(function*(module_fns, cxt){
     call,
     logs: _logs,
     eval_cxt: cxt,
+  }
+}
+
+export const run = gen_to_promise(function*(module_fns, cxt, io_cache) {
+  const result = yield* do_run(module_fns, cxt, io_cache)
+
+  if(result.eval_cxt.io_cache_is_replay_aborted) {
+    // TODO test next line
+    result.eval_cxt.is_recording_deferred_calls = false
+
+    // run again without io cache
+    return yield* do_run(module_fns, cxt, null)
+  } else {
+    return result
   }
 })
 
@@ -113,7 +147,7 @@ const remove_promise_patch = cxt => {
   cxt.Promise.prototype.then = cxt.promise_then
 }
 
-const set_record_call = cxt => {
+export const set_record_call = cxt => {
   for(let i = 0; i < cxt.stack.length; i++) {
     cxt.stack[i] = true
   }

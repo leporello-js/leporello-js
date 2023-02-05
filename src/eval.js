@@ -287,6 +287,7 @@ export const eval_modules = (
   external_imports, 
   on_deferred_call,
   calltree_changed_token,
+  io_cache,
   location
 ) => {
   // TODO gensym __cxt, __trace, __trace_call
@@ -294,6 +295,23 @@ export const eval_modules = (
   // TODO bug if module imported twice, once as external and as regular
 
   const is_async = has_toplevel_await(parse_result.modules)
+
+  const Function = is_async
+    ? globalThis.run_window.eval('(async function(){})').constructor
+    : globalThis.run_window.Function
+
+  const module_fns = parse_result.sorted.map(module => (
+    {
+      module,
+      fn: new Function(
+        '__cxt',
+        '__trace',
+        '__trace_call',
+        '__do_await',
+        codegen(parse_result.modules[module], {module})
+      )
+    }
+  ))
 
   const cxt = {
     modules: external_imports == null
@@ -325,24 +343,7 @@ export const eval_modules = (
     Promise: globalThis.run_window.Promise,
   }
 
-  const Function = is_async
-    ? globalThis.run_window.eval('(async function(){})').constructor
-    : globalThis.run_window.Function
-
-  const module_fns = parse_result.sorted.map(module => (
-    {
-      module,
-      fn: new Function(
-        '__cxt',
-        '__trace',
-        '__trace_call',
-        '__do_await',
-        codegen(parse_result.modules[module], {module})
-      )
-    }
-  ))
-
-  const result = run(module_fns, cxt)
+  const result = run(module_fns, cxt, io_cache)
 
   const make_result = result => ({
     modules: result.modules,
@@ -350,14 +351,14 @@ export const eval_modules = (
     eval_cxt: result.eval_cxt,
     calltree: assign_code(parse_result.modules, result.calltree),
     call: result.call && assign_code(parse_result.modules, result.call),
+    io_cache: result.eval_cxt.io_cache,
   })
 
-  if(result.then != null) {
+  if(is_async) {
     return result.then(make_result)
   } else {
     return make_result(result)
   }
-
 }
 
 export const eval_find_call = (cxt, parse_result, calltree, location) => {

@@ -1,0 +1,261 @@
+<script>
+    let io_cache = null
+
+    let io_cache_is_recording = io_cache == null
+    if(io_cache == null) {
+      io_cache = {calls: [], resolution_order: []}
+    }
+    let io_cache_is_replay_aborted = false
+    let io_cache_index = 0
+
+    const io_patch = (obj, method, name, use_context = false) => {
+      if(obj == null || obj[method] == null) {
+        // Method is absent in current env, skip patching
+        return
+      }
+      const original = obj[method]
+      obj[method] = function(...args) {
+        console.log('patched method', name, {io_cache_is_replay_aborted, io_cache_is_recording})
+        // TODO guard that in find_call io methods are not called?
+        // if(searched_location != null) {
+        //   throw new Error('illegal state')
+        // }
+        if(io_cache_is_replay_aborted) {
+          // Try to finish fast
+          console.error('ABORT')
+          throw new Error('io recording aborted')
+        } else if(io_cache_is_recording) {
+          let ok, value, error
+          const has_new_target = new.target != null
+          try {
+            // TODO. Do we need it here? Only need for IO calls view. And also
+            // for expand_call and find_call, to not use cache on expand call
+            // and find_call
+            //set_record_call()
+            value = has_new_target 
+              ? new original(...args)
+              : original.apply(this, args)
+
+            console.log('value', value)
+
+            //const index = io_cache.calls.length
+            //if(value instanceof Promise) {
+            //  value.finally(() => {
+            //    console.log('resolved', index)
+            //    io_cache.resolution_order.push(index)
+            //  })
+            //} else {
+            //  io_cache.resolution_order.push(index)
+            //}
+
+            /* TODO remove
+            if(value instanceof Promise) {
+              const original_value = value
+              value = new Promise((resolve, reject) => {
+                // TODO fix setTimeout.original
+                globalThis.setTimeout.original(
+                  () => {
+                    original_value.then(resolve, reject)
+                  },
+                  10
+                )
+              })
+            }
+            */
+            // TODO
+            //if(value instanceof Promise) {
+            //  const make_cb = ok => value => {
+            //  // TODO resolve promises in the same order they were resolved on
+                // initial execution
+
+            //  }
+            //  // TODO should we use promise_then or patched promise.then?
+            //  promise_then.apply(value, make_cb(true), make_cb(false))
+            //}
+            ok = true
+            return value
+          } catch(e) {
+            error = e
+            ok = false
+            throw e
+          } finally {
+            io_cache.calls.push({
+              ok, 
+              value, 
+              error, 
+              args, 
+              name,
+              // To discern calls with and without 'new' keyword, primary for
+              // Date that can be called with and without new
+              has_new_target,
+              use_context,
+              context: use_context ? this : undefined,
+            })
+          }
+        } else {
+          const call = io_cache.calls[io_cache_index++]
+          /*
+          TODO remove
+          console.log(
+            call == null
+            , call.has_new_target != (new.target != null)
+            , call.use_context && (call.context != this)
+            , call.name != name
+            , JSON.stringify(call.args) != JSON.stringify(args)
+          )
+          */
+          if(
+            call == null
+            || call.has_new_target != (new.target != null)
+              // TODO test
+            || call.use_context && (call.context != this)
+            || call.name != name
+            || JSON.stringify(call.args) != JSON.stringify(args)
+          ){
+            console.log('discard cache', call)
+            io_cache_is_replay_aborted = true
+            // Try to finish fast
+            throw new Error('io replay aborted')
+          } else {
+            console.log('cached call found', call)
+            if(call.ok) {
+              // TODO resolve promises in the same order they were resolved on
+              // initial execution
+
+              if(call.value instanceof Promise) {
+                const original_setTimeout = globalThis.setTimeout.original
+                return Promise.all([
+                  call.value,
+                  new Promise(resolve => original_setTimeout(
+                    resolve,
+                    10
+                  ))
+                ]).then(([a,_]) => a)
+                  // TODO remove
+                  .then(x => {console.log('resolved',name); return x})
+              } else {
+                return call.value
+              }
+            } else {
+              throw call.error
+            }
+          }
+        }
+      }
+
+      Object.defineProperty(obj[method], 'name', {value: original.name})
+
+      obj[method].__original = original
+    }
+
+    function io_patch_remove(obj, method) {
+      if(obj == null || obj[method] == null) {
+        // Method is absent in current env, skip patching
+        return
+      }
+      obj[method] = obj[method].__original
+    }
+
+    const Response_methods = [
+      'arrayBuffer',
+      'blob',
+      'formData',
+      'json',
+      'text',
+    ]
+
+    function apply_io_patches() {
+      io_patch(Math, 'random', 'Math.random')
+
+
+      // TODO test
+      const Date = globalThis.Date
+      io_patch(globalThis, 'Date', 'Date')
+      globalThis.Date.parse =  Date.parse
+      globalThis.Date.now =    Date.now
+      globalThis.Date.UTC =    Date.UTC
+      globalThis.Date.length = Date.length
+      globalThis.Date.name =   Date.name
+      io_patch(globalThis.Date, 'now', 'Date.now')
+
+
+      io_patch(globalThis, 'fetch', 'fetch')
+      // Check if Response is defined, for node.js
+      if(globalThis.Response != null) {
+        for(let key of Response_methods) {
+          io_patch(Response.prototype, key, 'Response.prototype.' + key, true)
+        }
+      }
+
+      //TODO
+      const setTimeout = globalThis.setTimeout
+      globalThis.setTimeout = function(cb, timeout) {
+        const timer_id = setTimeout(function(...args) {
+          console.log('timeout', timer_id)
+          cb(...args)
+        }, timeout)
+        console.log('setTimeout', timer_id)
+        return timer_id
+      }
+      globalThis.setTimeout.original = setTimeout
+
+
+      // TODO clearTimeout
+    }
+
+    function remove_io_patches() {
+      // TODO when to apply io_patches and promise_patches? Only once, when we
+      // create window?
+
+      io_patch_remove(Math, 'random')
+      io_patch_remove(globalThis, 'Date')
+      io_patch_remove(globalThis, 'fetch')
+
+      // Check if Response is defined, for node.js
+      if(globalThis.Response != null) {
+        for(let key of Response_methods) {
+          io_patch_remove(Response.prototype, key)
+        }
+      }
+      globalThis.setTimeout = globalThis.setTimeout.original
+    }
+</script>
+
+<script type='module'>
+
+
+  //import {ethers} from 'https://unpkg.com/ethers/dist/ethers.esm.js'
+  import {ethers} from './ethers.js'
+
+  async function run() {
+
+    const URL = 'https://ethereum-goerli-rpc.allthatnode.com'
+
+    const p = ethers.getDefaultProvider(URL)
+
+    const latest = await p.getBlock()
+
+    const txs = await Promise.all(latest.transactions.slice(0,1).map(async (t, i) => {
+      console.error("GETTING RECEIPT", i)
+      const result = await p.getTransactionReceipt(t)
+      console.error("GOT RECEIPT", i)
+      return result
+    }))
+
+    const totalGas = txs.reduce((gas,tx) => 
+      gas.add(tx.gasUsed), ethers.BigNumber.from(0))
+
+    console.log('GAS', totalGas.add(3))
+  }
+
+
+  apply_io_patches()
+
+  await run()
+
+  io_cache_is_recording = false
+  console.error('REPLAY')
+  await run()
+
+
+</script>

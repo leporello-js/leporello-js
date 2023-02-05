@@ -130,6 +130,7 @@ there is cached result.
 
 Builtin IO functions are mocked to cache IO. Current list of builtin cached
 functions is:
+- `Date` constructor
 - `Math.random()`
 - `fetch`
 
@@ -148,7 +149,8 @@ Caching algorithm is:
   `write`
 
 - Arguments to IO-caching functions are expected to be deep equal to non-cached
-  call, for cache to be used
+  call, for cache to be used. Deep equality is implemented as comparing JSON
+  stringified arguments
 
 - If there is a call that is not cached, then cache is busted and entire
   execution is restarted

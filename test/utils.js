@@ -39,7 +39,7 @@ export const assert_code_error = (codestring, error) => {
 export const assert_code_evals_to_async = async (codestring, expected) => {
   const s = await test_initial_state_async(codestring)
   const frame = active_frame(s)
-  const result = frame.children[frame.children.length - 1].result
+  const result = frame.children.at(-1).result
   assert_equal(result.ok, true)
   assert_equal(result.value, expected)
 }
@@ -75,6 +75,18 @@ export const test_initial_state_async = async code => {
     result, 
     s.eval_modules_state.node, 
     s.eval_modules_state.toplevel
+  )
+}
+
+export const command_input_async = async (...args) => {
+  const after_input = COMMANDS.input(...args).state
+  const result = await after_input.eval_modules_state.promise
+  return COMMANDS.eval_modules_finished(
+    after_input, 
+    after_input,
+    result, 
+    after_input.eval_modules_state.node, 
+    after_input.eval_modules_state.toplevel
   )
 }
 

@@ -1,0 +1,28 @@
+<script type='module'>
+
+const original = globalThis.fetch
+globalThis.fetch = function(...args) {
+  console.log('fetch called')
+  return original.apply(null, args)
+}
+
+for(let key of [
+                'arrayBuffer',
+                'blob',
+                'formData',
+                'json',
+                'text',
+               ]) {
+
+  let original = Response.prototype[key]
+  Response.prototype[key] = function(...args){
+    console.log('key called', key)
+    return original.apply(this, args)
+  }
+}
+
+console.log((await (await fetch('/')).text()).length)
+
+
+
+</script>

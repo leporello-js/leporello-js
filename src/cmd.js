@@ -52,6 +52,7 @@ const apply_eval_result = (state, eval_result) => {
       log_position: null
     },
     modules: eval_result.modules,
+    io_cache: eval_result.io_cache,
   }
 }
 
@@ -197,6 +198,7 @@ const external_imports_loaded = (
       external_imports,
       state.on_deferred_call,
       state.calltree_changed_token,
+      state.io_cache,
     )
     toplevel = true
   } else {
@@ -205,6 +207,7 @@ const external_imports_loaded = (
       external_imports,
       state.on_deferred_call,
       state.calltree_changed_token,
+      state.io_cache,
       {index: node.index, module: state.current_module},
     )
     toplevel = false
