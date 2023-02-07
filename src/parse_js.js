@@ -83,7 +83,7 @@ const tokenize_js = (str) => {
 
     {name: 'comment'            , re: '//[^\n]*'},
     {name: 'comment'            , re: '\\/\\*[\\s\\S]*?\\*\\/'},
-    {name: 'newline'            , re: '[\r\n\]+'},
+    {name: 'newline'            , re: '[\r\n]+'},
     
 
     // whitespace except newline
@@ -1423,11 +1423,6 @@ const update_children_not_rec = (node, children = node.children) => {
     }
   } else if(node.type == 'call_args') {
     return node
-  } else if(node.type == 'member_access') {
-    return {...node,
-      object: children[0],
-      property: children[1],
-    }
   } else if(node.type == 'spread') {
     return {...node,
       expr: children[0],

@@ -46,7 +46,6 @@ const do_run = function*(module_fns, cxt, io_cache){
       io_cache_resolver_is_set: false,
       // Map of (index in io_cache) -> resolve
       io_cache_resolvers: new Map(),
-      io_cache_is_replay_aborted: false,
       io_cache_index: 0,
     }
 

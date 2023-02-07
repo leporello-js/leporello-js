@@ -136,7 +136,6 @@ export const header = object => {
   } else {
     return object.toString()
   }
-  return header
 }
 
 const get_path = (o, path) => {

@@ -180,7 +180,6 @@ const concat_path = (base, i) => {
   } else {
     return result
   }
-  return result
 }
 
 export const topsort_modules = (modules) => {

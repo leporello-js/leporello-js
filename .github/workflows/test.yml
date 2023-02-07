@@ -15,5 +15,6 @@ jobs:
 
       - name: test
         run: |
+          eslint src test
           node test/run.js
           node test/self_hosted_test.js

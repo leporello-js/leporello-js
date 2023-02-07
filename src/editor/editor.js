@@ -80,7 +80,7 @@ export class Editor {
     this.markers = {}
     this.sessions = {}
 
-    this.ace_editor = ace.edit(this.editor_container)
+    this.ace_editor = globalThis.ace.edit(this.editor_container)
 
     this.ace_editor.setOptions({
       behavioursEnabled: false,
@@ -141,7 +141,7 @@ export class Editor {
   ensure_session(file, code) {
     let session = this.sessions[file]
     if(session == null) {
-      session = ace.createEditSession(code)
+      session = globalThis.ace.createEditSession(code)
       this.sessions[file] = session
       session.setUseWorker(false)
       session.setOptions({
@@ -389,7 +389,7 @@ export class Editor {
     const from_pos = session.doc.indexToPosition(from)
     const to_pos = session.doc.indexToPosition(to)
     const markerId = session.addMarker(
-      new ace.Range(from_pos.row,from_pos.column,to_pos.row,to_pos.column), 
+      new globalThis.ace.Range(from_pos.row,from_pos.column,to_pos.row,to_pos.column), 
       className
     )
     if(this.markers[file] == null){

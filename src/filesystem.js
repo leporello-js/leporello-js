@@ -23,7 +23,7 @@ globalThis.clear_directory_handle = () => {
 let dir_handle
 
 const request_directory_handle = async () => {
-  dir_handle = await showDirectoryPicker()
+  dir_handle = await globalThis.showDirectoryPicker()
   await send_message({type: 'SET', data: dir_handle})
   return dir_handle
 }
