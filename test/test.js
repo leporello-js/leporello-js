@@ -456,6 +456,21 @@ export const tests = [
     )
   }),
 
+  test('throw null', () => {
+    assert_code_error(`throw null`, null)
+  }),
+
+  test('throw null from function', () => {
+    const code = `
+      const throws = () => { throw null }
+      throws()
+    `
+    const s = test_initial_state(code)
+    const moved = COMMANDS.move_cursor(s, code.indexOf('throws()'))
+    assert_equal(moved.value_explorer.result.ok, false)
+    assert_equal(moved.value_explorer.result.error, null)
+  }),
+
   test('new', () => {
     assert_code_evals_to('new Error("test").message', 'test')
   }),
@@ -2771,6 +2786,13 @@ const y = x()`
         await Promise.reject('boom')
       `,
       'boom'
+    )
+  }),
+
+  test('async/await promise rejected with null', async () => {
+    await assert_code_error_async(
+      `await Promise.reject()`,
+      undefined
     )
   }),
 

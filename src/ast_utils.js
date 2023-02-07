@@ -170,7 +170,18 @@ export const find_node = (node, pred) => {
 export const find_error_origin_node = node =>
   find_node(
     node, 
-    n => n.result != null && !n.result.ok && n.result.error != null
+    n => n.result != null && !n.result.ok && (
+      n.result.error != null
+      ||
+      // In case if throw null or throw undefined
+      n.type == 'throw'
+      ||
+      // await can also throw null
+      n.type == 'unary' && n.operator == 'await'
+      // or function call throwing null or undefined
+      || 
+      n.type == 'function_call'
+    )
   )
 
 /* Maps tree nodes, discarding mapped children, so maps only node contents, not

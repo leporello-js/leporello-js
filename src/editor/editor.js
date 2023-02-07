@@ -1,5 +1,5 @@
 import {exec, get_state} from '../index.js'
-import {ValueExplorer} from './value_explorer.js'
+import {ValueExplorer, stringify_for_header} from './value_explorer.js'
 import {el, stringify, fn_link} from './domutils.js'
 import {FLAGS} from '../feature_flags.js'
 
@@ -244,7 +244,7 @@ export class Editor {
 
       exp.render(value)
     } else {
-      content.appendChild(el('span', 'eval_error', error.toString()))
+      content.appendChild(el('span', 'eval_error', stringify_for_header(error)))
     }
 
     this.widget = {

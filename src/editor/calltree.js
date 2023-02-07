@@ -115,7 +115,7 @@ export class CallTree {
             el('i', '', 
               'toplevel: ' + (n.module == '' ? '*scratch*' : n.module),
             ),
-            n.ok ? '' : el('span', 'call_header error', '\xa0', n.error.toString()),
+            n.ok ? '' : el('span', 'call_header error', '\xa0', stringify_for_header(n.error)),
           )
         : el('span', 
               'call_header ' 
@@ -135,7 +135,7 @@ export class CallTree {
              ),
             ')' ,
             // TODO: show error message only where it was thrown, not every frame?
-            ': ', (n.ok ? stringify_for_header(n.value) : n.error.toString()) 
+            ': ', (n.ok ? stringify_for_header(n.value) : stringify_for_header(n.error)) 
           ),
       ),
       (n.children == null || !is_expanded)

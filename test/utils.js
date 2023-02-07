@@ -1,5 +1,4 @@
-import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
-import {eval_tree, eval_frame} from '../src/eval.js'
+import {print_debug_node, load_modules} from '../src/parse_js.js'
 import {active_frame, pp_calltree} from '../src/calltree.js'
 import {COMMANDS} from '../src/cmd.js'
 
@@ -17,21 +16,18 @@ export const parse_modules = (entry, modules) =>
   load_modules(entry, module_name => modules[module_name])
 
 export const assert_code_evals_to = (codestring, expected) => {
-  const parse_result = parse(codestring)
-  assert_equal(parse_result.ok, true)
-  const tree = eval_tree(parse_result.node)
-  const frame = eval_frame(tree)
+  const s = test_initial_state(codestring)
+  const frame = active_frame(s)
   const result = frame.children.at(-1).result
-  assert_equal({ok: result.ok, value: result.value}, {ok: true, value: expected})
+  assert_equal(result.ok, true)
+  assert_equal(result.value, expected)
   return frame
 }
 
 export const assert_code_error = (codestring, error) => {
-  const parse_result = parse(codestring)
-  assert_equal(parse_result.ok, true)
-  const tree = eval_tree(parse_result.node)
-  const frame = eval_frame(tree)
-  const result = frame.children[frame.children.length - 1].result
+  const state = test_initial_state(codestring)
+  const frame = active_frame(state)
+  const result = frame.children.at(-1).result
   assert_equal(result.ok, false)
   assert_equal(result.error, error)
 }

@@ -36,10 +36,10 @@ export const set_location = (state, location) => set_cursor_position(
 
 const is_stackoverflow = node =>
   // Chrome
-  node.error.message == 'Maximum call stack size exceeded'
+  node.error?.message == 'Maximum call stack size exceeded'
   ||
   // Firefox
-  node.error.message == "too much recursion"
+  node.error?.message == "too much recursion"
 
 export const calltree_node_loc = node => node.toplevel  
     ? {module: node.module}
