@@ -17,7 +17,6 @@ const io_patch = (cxt, path, use_context = false) => {
   }
   const name = path.join('.')
 
-  console.log('patching', name, obj, method)
 
   const original = obj[method]
   obj[method] = function(...args) {
@@ -65,7 +64,7 @@ const io_patch = (cxt, path, use_context = false) => {
 
         console.log('value', value)
 
-        if(value instanceof Promise) {
+        if(value instanceof cxt.window.Promise) {
           // TODO use native .finally for promise, not patched then?
           value.finally(() => {
             // TODO guard calls from prev runs
@@ -97,8 +96,8 @@ const io_patch = (cxt, path, use_context = false) => {
       }
     } else {
       const call = cxt.io_cache[cxt.io_cache_index]
-      /*
-      TODO remove
+
+      /* TODO remove
       console.log(
         call.type != 'call'
         , call == null
@@ -126,7 +125,7 @@ const io_patch = (cxt, path, use_context = false) => {
             JSON.stringify(call.args) != JSON.stringify(args)
            )
       ){
-        console.log('discard cache', call)
+        console.error('DISCARD cache', call)
         cxt.io_cache_is_replay_aborted = true
         // Try to finish fast
         throw new Error('io replay aborted')
@@ -153,6 +152,7 @@ const io_patch = (cxt, path, use_context = false) => {
             // TODO check if call from prev run 
 
             if(cxt.io_cache_is_replay_aborted) {
+              console.error('RESOLVER ABORTED')
               return
             }
 
@@ -195,7 +195,7 @@ const io_patch = (cxt, path, use_context = false) => {
           // TODO resolve promises in the same order they were resolved on
           // initial execution
 
-          if(call.value instanceof Promise) {
+          if(call.value instanceof cxt.window.Promise) {
             return new Promise(resolve => {
               cxt.io_cache_resolvers.set(cxt.io_cache_index - 1, resolve)
             })
@@ -226,7 +226,6 @@ const io_patch_remove = (cxt, path) => {
     return
   }
 
-  console.log('removing io patch', obj, method)
   obj[method] = obj[method].__original
 }
 
