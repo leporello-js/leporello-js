@@ -16,7 +16,8 @@ const gen_to_promise = gen_fn => {
       } else {
         // If promise
         if(result.value?.then != null) {
-          return result.value.then(
+          return result.value.then.__original.call(
+            result.value,
             value => next(gen.next(value)),
             error => next(gen.throw(error)),
           )
@@ -111,9 +112,9 @@ export const run = gen_to_promise(function*(module_fns, cxt, io_cache) {
 
 const apply_promise_patch = cxt => {
 
-  cxt.promise_then = cxt.Promise.prototype.then
+  cxt.promise_then = cxt.window.Promise.prototype.then
 
-  cxt.Promise.prototype.then = function then(on_resolve, on_reject) {
+  cxt.window.Promise.prototype.then = function then(on_resolve, on_reject) {
 
     if(cxt.children == null) {
       cxt.children = []
@@ -141,10 +142,12 @@ const apply_promise_patch = cxt => {
       make_callback(on_reject, false),
     )
   }
+
+  cxt.window.Promise.prototype.then.__original = cxt.promise_then
 }
 
 const remove_promise_patch = cxt => {
-  cxt.Promise.prototype.then = cxt.promise_then
+  cxt.window.Promise.prototype.then = cxt.promise_then
 }
 
 export const set_record_call = cxt => {
@@ -265,7 +268,7 @@ const __do_await = async (cxt, value) => {
     cxt.children = []
   }
   const children_copy = cxt.children
-  if(value instanceof cxt.Promise) {
+  if(value instanceof cxt.window.Promise) {
     cxt.promise_then.call(value,
       v => {
         value.status = {ok: true, value: v}
@@ -315,7 +318,7 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
     try {
       value = fn(...args)
       ok = true
-      if(value instanceof cxt.Promise) {
+      if(value instanceof cxt.window.Promise) {
         set_record_call(cxt)
       }
       return value
@@ -417,7 +420,7 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
       value = undefined
     }
     ok = true
-    if(value instanceof cxt.Promise) {
+    if(value instanceof cxt.window.Promise) {
       set_record_call(cxt)
     }
     return value

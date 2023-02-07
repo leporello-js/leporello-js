@@ -340,7 +340,7 @@ export const eval_modules = (
     calltree_changed_token,
     is_toplevel_call: true,
 
-    Promise: globalThis.run_window.Promise,
+    window: globalThis.run_window,
   }
 
   const result = run(module_fns, cxt, io_cache)

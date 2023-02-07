@@ -21,7 +21,7 @@ const io_patch = (cxt, obj, method, name, use_context = false) => {
     // }
     if(cxt.io_cache_is_replay_aborted) {
       // Try to finish fast
-      throw new Error('io recording aborted')
+      throw new Error('io replay aborted')
     } else if(cxt.io_cache_is_recording) {
       let ok, value, error
       const has_new_target = new.target != null
