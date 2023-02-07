@@ -401,7 +401,7 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
   cxt.stack.push(false)
 
   // TODO: other console fns
-  const is_log = fn == console.log || fn == console.error
+  const is_log = fn == cxt.window.console.log || fn == cxt.window.console.error
 
   if(is_log) {
     set_record_call(cxt)
