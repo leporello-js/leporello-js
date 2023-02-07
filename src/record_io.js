@@ -73,8 +73,9 @@ const io_patch = (cxt, path, use_context = false) => {
         console.log('value', value)
 
         if(value instanceof cxt.window.Promise) {
-          // TODO use native .finally for promise, not patched then?
-          value.finally(() => {
+          // TODO use cxt.promise_then, not finally which calls
+          // patched 'then'?
+          value = value.finally(() => {
             // TODO guard calls from prev runs
             // TODO guard io_cache_is_replay_aborted
             cxt.io_cache.push({type: 'resolution', index})
@@ -200,7 +201,8 @@ const io_patch = (cxt, path, use_context = false) => {
 
         if(call.ok) {
           if(call.value instanceof cxt.window.Promise) {
-            return new Promise(resolve => {
+            // Always make promise originate from run_window
+            return new cxt.window.Promise(resolve => {
               cxt.io_cache_resolvers.set(cxt.io_cache_index - 1, resolve)
             })
           } else if(name == 'setTimeout') {
