@@ -768,6 +768,11 @@ const on_deferred_call = (state, call, calltree_changed_token, logs) => {
   }
 }
 
+// TODO test
+const clear_io_cache = state => {
+  return run_code({...state, io_cache: null})
+}
+
 const do_load_dir = (state, dir) => {
   const collect_files = dir => dir.kind == 'file' 
     ? [dir]
@@ -848,5 +853,6 @@ export const COMMANDS = {
   external_imports_loaded,
   eval_modules_finished,
   on_deferred_call,
+  clear_io_cache,
   calltree: calltree_commands,
 }

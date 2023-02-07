@@ -130,9 +130,17 @@ there is cached result.
 
 Builtin IO functions are mocked to cache IO. Current list of builtin cached
 functions is:
-- `Date` constructor
+- `Date`
 - `Math.random()`
 - `fetch`
+- `Response` methods:
+    - `arrayBuffer`
+    - `blob`
+    - `formData`
+    - `json`
+    - `text`
+- `setTimeout`
+- `clearTimeout`
 
 If you want to make your own own function IO-caching, or import third party
 function and make it IO-caching, then you should use `IO` pragma.

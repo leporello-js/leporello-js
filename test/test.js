@@ -3127,8 +3127,6 @@ const y = x()`
       console.log(await delay(0))
     `
 
-    console.log('CODE2', code2.slice(75))
-
     const next = await command_input_async(i, code2, 0)
 
     // Assert cache was used

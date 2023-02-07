@@ -20,7 +20,11 @@ const io_patch = (cxt, path, use_context = false) => {
 
   const original = obj[method]
   obj[method] = function(...args) {
-    // TODO guard calls from prev run
+    // TODO if called from previous version of code (calltree_changed_token is
+    // different), then do not call IO function and throw error to finish
+    // previous run ASAP
+
+    // TODO remove
     console.error('patched method', name, {
         io_cache_is_recording: cxt.io_cache_is_recording, 
         io_cache_is_replay_aborted: cxt.io_cache_is_replay_aborted, 
@@ -28,14 +32,18 @@ const io_patch = (cxt, path, use_context = false) => {
           ? cxt.io_cache.length
           : cxt.io_cache_index
     })
-    // TODO guard that in find_call io methods are not called?
-    // if(searched_location != null) {
-    //   throw new Error('illegal state')
-    // }
+
+    // sanity check
+    if(cxt.searched_location != null) {
+      throw new Error('illegal state')
+    }
+
     if(cxt.io_cache_is_replay_aborted) {
       // Try to finish fast
       throw new Error('io replay aborted')
-    } else if(cxt.io_cache_is_recording) {
+    }
+
+    if(cxt.io_cache_is_recording) {
       let ok, value, error
       const has_new_target = new.target != null
       try {
@@ -141,6 +149,11 @@ const io_patch = (cxt, path, use_context = false) => {
           cxt.io_cache_resolver_is_set = true
 
           original_setTimeout(() => {
+            if(cxt.io_cache_is_replay_aborted) {
+              console.error('RESOLVER ABORTED')
+              return
+            }
+
             // TODO guard from previous run
             console.error('resolver', {
               io_cache_is_replay_aborted: cxt.io_cache_is_replay_aborted,
@@ -151,38 +164,32 @@ const io_patch = (cxt, path, use_context = false) => {
 
             // TODO check if call from prev run 
 
-            if(cxt.io_cache_is_replay_aborted) {
-              console.error('RESOLVER ABORTED')
-              return
-            }
-
+            // Sanity check
             if(cxt.io_cache_index >= cxt.io_cache.length) {
-              // TODO Do nothing or what?
-              // Should not gonna happen
               throw new Error('illegal state')
+            }  
+
+            const next_event = cxt.io_cache[cxt.io_cache_index]
+            if(next_event.type == 'call') {
+              // TODO Call not happened, replay?
+              cxt.io_cache_is_replay_aborted = true
             } else {
-              const next_event = cxt.io_cache[cxt.io_cache_index]
-              if(next_event.type == 'call') {
-                // TODO Call not happened, replay?
-                cxt.io_cache_is_replay_aborted = true
-              } else {
-                while(
-                  cxt.io_cache_index < cxt.io_cache.length 
-                  && 
-                  cxt.io_cache[cxt.io_cache_index].type == 'resolution'
-                ) {
-                  const resolution = cxt.io_cache[cxt.io_cache_index]
-                  const resolver = cxt.io_cache_resolvers.get(resolution.index)
+              while(
+                cxt.io_cache_index < cxt.io_cache.length 
+                && 
+                cxt.io_cache[cxt.io_cache_index].type == 'resolution'
+              ) {
+                const resolution = cxt.io_cache[cxt.io_cache_index]
+                const resolver = cxt.io_cache_resolvers.get(resolution.index)
 
-                  cxt.io_cache_index++
+                cxt.io_cache_index++
 
-                  if(cxt.io_cache[resolution.index].name == 'setTimeout') {
-                    resolver()
-                  } else {
-                    resolver(cxt.io_cache[resolution.index].value)
-                  }
-                  console.log('RESOLVE', cxt.io_cache_index, resolution.index)
+                if(cxt.io_cache[resolution.index].name == 'setTimeout') {
+                  resolver()
+                } else {
+                  resolver(cxt.io_cache[resolution.index].value)
                 }
+                console.log('RESOLVE', cxt.io_cache_index, resolution.index)
               }
             }
 
@@ -192,9 +199,6 @@ const io_patch = (cxt, path, use_context = false) => {
         cxt.io_cache_index++
 
         if(call.ok) {
-          // TODO resolve promises in the same order they were resolved on
-          // initial execution
-
           if(call.value instanceof cxt.window.Promise) {
             return new Promise(resolve => {
               cxt.io_cache_resolvers.set(cxt.io_cache_index - 1, resolve)
