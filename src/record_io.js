@@ -1,10 +1,24 @@
 import {set_record_call} from './runtime.js'
+
+const get_object_to_patch = (cxt, path) => {
+  let obj = cxt.window
+  for(let i = 0; i < path.length - 1; i++) {
+    obj = obj[path[i]]
+  }
+  return obj
+}
  
-const io_patch = (cxt, obj, method, name, use_context = false) => {
+const io_patch = (cxt, path, use_context = false) => {
+  const obj = get_object_to_patch(cxt, path)
+  const method = path.at(-1)
   if(obj == null || obj[method] == null) {
     // Method is absent in current env, skip patching
     return
   }
+  const name = path.join('.')
+
+  console.log('patching', name, obj, method)
+
   const original = obj[method]
   obj[method] = function(...args) {
     // TODO guard calls from prev run
@@ -124,7 +138,7 @@ const io_patch = (cxt, obj, method, name, use_context = false) => {
 
         if(next_resolution != null && !cxt.io_cache_resolver_is_set) {
           console.error('set resolver')
-          const original_setTimeout = globalThis.setTimeout.__original
+          const original_setTimeout = cxt.window.setTimeout.__original
           cxt.io_cache_resolver_is_set = true
 
           original_setTimeout(() => {
@@ -204,11 +218,15 @@ const io_patch = (cxt, obj, method, name, use_context = false) => {
   obj[method].__original = original
 }
 
-const io_patch_remove = (obj, method) => {
+const io_patch_remove = (cxt, path) => {
+  const obj = get_object_to_patch(cxt, path)
+  const method = path.at(-1)
   if(obj == null || obj[method] == null) {
     // Method is absent in current env, skip patching
     return
   }
+
+  console.log('removing io patch', obj, method)
   obj[method] = obj[method].__original
 }
 
@@ -221,48 +239,45 @@ const Response_methods = [
 ]
 
 export const apply_io_patches = cxt => {
-  io_patch(cxt, Math, 'random', 'Math.random')
+  io_patch(cxt, ['Math', 'random'])
 
-  io_patch(cxt, globalThis, 'setTimeout', 'setTimeout')
+  io_patch(cxt, ['setTimeout'])
   // TODO test
-  io_patch(cxt, globalThis, 'clearTimeout', 'clearTimeout')
+  io_patch(cxt, ['clearTimeout'])
 
 
   // TODO test
-  const Date = globalThis.Date
-  io_patch(cxt, globalThis, 'Date', 'Date')
-  globalThis.Date.parse =  Date.parse
-  globalThis.Date.now =    Date.now
-  globalThis.Date.UTC =    Date.UTC
-  io_patch(cxt, globalThis.Date, 'now', 'Date.now')
+  const Date = cxt.window.Date
+  io_patch(cxt, ['Date'])
+  cxt.window.Date.parse = Date.parse
+  cxt.window.Date.now =   Date.now
+  cxt.window.Date.UTC =   Date.UTC
+  io_patch(cxt, ['Date', 'now'])
 
 
-  io_patch(cxt, globalThis, 'fetch', 'fetch')
+  io_patch(cxt, ['fetch'])
   // Check if Response is defined, for node.js
-  if(globalThis.Response != null) {
+  if(cxt.window.Response != null) {
     for(let key of Response_methods) {
-      io_patch(cxt, Response.prototype, key, 'Response.prototype.' + key, true)
+      io_patch(cxt, ['Response', 'prototype', key], true)
     }
   }
 }
 
 export const remove_io_patches = cxt => {
-  // TODO when to apply io_patches and promise_patches? Only once, when we
-  // create window?
+  io_patch_remove(cxt, ['Math', 'random'])
 
-  io_patch_remove(Math, 'random')
-
-  io_patch_remove(globalThis, 'setTimeout')
+  io_patch_remove(cxt, ['setTimeout'])
   // TODO test
-  io_patch_remove(globalThis, 'clearTimeout')
+  io_patch_remove(cxt, ['clearTimeout'])
 
-  io_patch_remove(globalThis, 'Date')
-  io_patch_remove(globalThis, 'fetch')
+  io_patch_remove(cxt, ['Date'])
+  io_patch_remove(cxt, ['fetch'])
 
   // Check if Response is defined, for node.js
-  if(globalThis.Response != null) {
+  if(cxt.window.Response != null) {
     for(let key of Response_methods) {
-      io_patch_remove(Response.prototype, key)
+      io_patch_remove(cxt, ['Response', 'prototype', key])
     }
   }
 }
