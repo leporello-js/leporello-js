@@ -117,19 +117,13 @@ Currently every external is loaded once and cached until Leporello is restarted
 (TODO change path to modules every time it changed on disk, since modules are
 served from service workers).
 
-<!---
 ## IO
 
-To support livecoding experience, Leporello.js continuously run code while you
-typing and navigating it. You don't even notice it while the code is pure, but
-what about functions performing IO?
+To provide livecoding experience, Leporello.js caches calls to IO functions
+made by your app and can later replay them from cache, allowing to program by
+making small iterations on your code and instantly getting feedback.
 
-Leporello.js caches all IO calls when the code is run for the first time. Next
-time, after you edit your code, functions that perform IO will not be called if
-there is cached result.
-
-Builtin IO functions are mocked to cache IO. Current list of builtin cached
-functions is:
+Current list of builtin functions which calls are cached is:
 - `Date`
 - `Math.random()`
 - `fetch`
@@ -142,27 +136,18 @@ functions is:
 - `setTimeout`
 - `clearTimeout`
 
-If you want to make your own own function IO-caching, or import third party
-function and make it IO-caching, then you should use `IO` pragma.
+Leporello.js caches all IO calls when the code is run for the first time. Then,
+every time you edit your code, Leporello.js tries to execute it, taking results
+of IO calls from cache (it is called replay). Cached calls are stored in array.
+While replay, when IO call is made, Leporello.js takes next call from the
+array, and checks if function and arguments are the same for current call and
+cached call. If they are the same, then Leporello.js returns cached result. To
+compare arguments for equality, Leporello.js uses deep equality comparison with
+`JSON.stringify`. Otherwise, the cache gets discarded, and Leporello.js
+executes code again, this time without cache, so the new cache array is
+populated.
 
-// TODO document IO pragma
-// TODO hotkey to bust cache
-
-Caching algorithm is:
-
-- Cached calls are expected to be in the same order, as in the non-cached
-  execution. For example, if you first call `write` and then `read` and results
-  are cached, and then you modify code to first call `read` and then `write`,
-  then cache will be busted and Leporello will call non-cached `read` and
-  `write`
-
-- Arguments to IO-caching functions are expected to be deep equal to non-cached
-  call, for cache to be used. Deep equality is implemented as comparing JSON
-  stringified arguments
-
-- If there is a call that is not cached, then cache is busted and entire
-  execution is restarted
--->
+If you want to bust cache manually, there is a button and a hotkey for this.
 
 ## Hotkeys
 

@@ -3,6 +3,7 @@
 // TODO show Errors in red
 // TODO fns as clickable links (jump to definition), both for header and for
 // content
+// TODO show constructor.name in header?
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 

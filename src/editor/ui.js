@@ -3,6 +3,7 @@ import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
 import {Logs} from './logs.js'
+import {IO_Cache} from './io_cache.js'
 import {Eval} from './eval.js'
 import {el} from './domutils.js'
 import {FLAGS} from '../feature_flags.js'
@@ -41,6 +42,12 @@ export class UI {
                     href: 'javascript: void(0)',
                   }, 'Logs (F3)')
                 ),
+                this.tabs.io_cache = el('div', 'tab', 
+                  el('a', {
+                    click: () => this.set_active_tab('io_cache'),
+                    href: 'javascript: void(0)',
+                  }, 'IO cache (F4)')
+                ),
                 this.entrypoint_select = el('div', 'entrypoint_select')
               ),
               this.debugger.calltree = el('div', {
@@ -49,6 +56,10 @@ export class UI {
               }),
               this.debugger.logs = el('div', {
                 'class': 'tab_content logs', 
+                tabindex: 0,
+              }),
+              this.debugger.io_cache = el('div', {
+                'class': 'tab_content io_cache', 
                 tabindex: 0,
               }),
             ),
@@ -74,11 +85,19 @@ export class UI {
           */
 
           el('a', {
-            'class': 'open_run_window',
+            'class': 'statusbar_action first',
+            href: 'javascript: void(0)',
+            click: () => exec('clear_io_cache')
+          },
+            'Clear IO cache (F6)'
+          ),
+
+          el('a', {
+            'class': 'statusbar_action',
             href: 'javascript: void(0)',
             click: this.open_run_window,
           },
-            '(Re)open run window (F6)'
+            '(Re)open run window (F7)'
           ),
 
           this.options = el('div', 'options',
@@ -137,12 +156,20 @@ export class UI {
         this.set_active_tab('logs')
       }
 
-      if(e.key == 'F5'){
-        this.fullscreen_editor()
+      if(e.key == 'F4'){
+        this.set_active_tab('io_cache')
       }
 
       if(e.key == 'F6'){
+        exec('clear_io_cache')
+      }
+
+      if(e.key == 'F7'){
         this.open_run_window()
+      }
+
+      if(e.key == 'F8'){
+        this.fullscreen_editor()
       }
     })
 
@@ -161,6 +188,7 @@ export class UI {
 
     this.calltree = new CallTree(this, this.debugger.calltree)
     this.logs = new Logs(this, this.debugger.logs)
+    this.io_cache = new IO_Cache(this, this.debugger.io_cache)
 
     // TODO jump to another module
     // TODO use exec
@@ -184,6 +212,7 @@ export class UI {
   }
 
   set_active_tab(tab_id, skip_focus = false) {
+    this.active_tab = tab_id
     Object.values(this.tabs).forEach(el => el.classList.remove('active'))
     this.tabs[tab_id].classList.add('active')
     Object.values(this.debugger).forEach(el => el.style.display = 'none')
@@ -272,8 +301,15 @@ export class UI {
 
     this.debugger_loading.style = 'display: none'
     this.debugger_loaded.style = ''
+
     this.calltree.render_calltree(state)
     this.logs.render_logs(null, state.logs)
+
+    // render lazily
+    // TODO
+    //if(this.active_tab == 'io_cache') {
+      this.io_cache.render_io_cache(state.io_cache)
+    //}
   }
 
   render_problems(problems) {
@@ -327,14 +363,18 @@ export class UI {
       ['Focus console logs', 'F3'],
       ['Navigate console logs', '↑ ↓ or jk'],
       ['Leave console logs', 'F3 or Esc'],
-      ['Jump to definition', 'F4', 'gd'],
+      ['Focus IO cache', 'F4'],
+      ['Leave IO cache', 'F4 or Esc'],
+      ['Jump to definition', 'F5', 'gd'],
       ['Expand selection to eval expression', 'Ctrl-↓ or Ctrl-j'],
       ['Collapse selection', 'Ctrl-↑ or Ctrl-k'],
       ['Step into call', 'Ctrl-i', '\\i'],
       ['Step out of call', 'Ctrl-o', '\\o'],
       ['When in call tree view, jump to return statement', 'Enter'],
       ['When in call tree view, jump to function arguments', 'a'],
-      ['Expand/collapse editor to fullscreen', 'F5'],
+      ['Clear IO cache', 'F6'],
+      ['(Re)open run window (F7)', 'F7'],
+      ['Expand/collapse editor to fullscreen', 'F8'],
     ]
     return el('dialog', 'help_dialog',
       el('table', 'help',

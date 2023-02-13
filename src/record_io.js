@@ -1,5 +1,7 @@
 import {set_record_call} from './runtime.js'
 
+// TODO remove all console.log
+
 const get_object_to_patch = (cxt, path) => {
   let obj = cxt.window
   for(let i = 0; i < path.length - 1; i++) {
@@ -25,6 +27,7 @@ const io_patch = (cxt, path, use_context = false) => {
     // previous run ASAP
 
     // TODO remove
+    /*
     console.error('patched method', name, {
         io_cache_is_recording: cxt.io_cache_is_recording, 
         io_cache_is_replay_aborted: cxt.io_cache_is_replay_aborted, 
@@ -32,11 +35,7 @@ const io_patch = (cxt, path, use_context = false) => {
           ? cxt.io_cache.length
           : cxt.io_cache_index
     })
-
-    // sanity check
-    if(cxt.searched_location != null) {
-      throw new Error('illegal state')
-    }
+    */
 
     if(cxt.io_cache_is_replay_aborted) {
       // Try to finish fast
@@ -70,7 +69,8 @@ const io_patch = (cxt, path, use_context = false) => {
           ? new original(...args)
           : original.apply(this, args)
 
-        console.log('value', value)
+        // TODO remove
+        //console.log('value', value)
 
         if(value instanceof cxt.window.Promise) {
           // TODO use cxt.promise_then, not finally which calls
@@ -134,12 +134,12 @@ const io_patch = (cxt, path, use_context = false) => {
             JSON.stringify(call.args) != JSON.stringify(args)
            )
       ){
-        console.error('DISCARD cache', call)
+        //TODO remove console.error('DISCARD cache', call)
         cxt.io_cache_is_replay_aborted = true
         // Try to finish fast
         throw new Error('io replay aborted')
       } else {
-        console.log('cached call found', call)
+        // TODO remove console.log('cached call found', call)
         const next_resolution = cxt.io_cache.find((e, i) => 
           e.type == 'resolution' && i > cxt.io_cache_index
         )
@@ -190,7 +190,7 @@ const io_patch = (cxt, path, use_context = false) => {
                 } else {
                   resolver(cxt.io_cache[resolution.index].value)
                 }
-                console.log('RESOLVE', cxt.io_cache_index, resolution.index)
+                // TODO remove console.log('RESOLVE', cxt.io_cache_index, resolution.index)
               }
             }
 

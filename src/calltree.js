@@ -41,6 +41,17 @@ const is_stackoverflow = node =>
   // Firefox
   node.error?.message == "too much recursion"
 
+export const has_error = n =>
+  !n.ok 
+  || 
+  ( 
+    n.value instanceof globalThis.run_window.Promise 
+    && 
+    n.value.status != null
+    &&
+    !n.value.status.ok
+  )
+
 export const calltree_node_loc = node => node.toplevel  
     ? {module: node.module}
     : node.fn.__location

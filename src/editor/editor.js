@@ -297,7 +297,7 @@ export class Editor {
     this.ace_editor.commands.removeCommand('goToNextError')
 
 
-    this.ace_editor.commands.bindKey("F4", "goto_definition");
+    this.ace_editor.commands.bindKey("F5", "goto_definition");
     VimApi._mapCommand({
       keys: 'gd',
       type: 'action',

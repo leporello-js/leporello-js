@@ -3,7 +3,8 @@ import {el, stringify, fn_link, scrollIntoViewIfNeeded} from './domutils.js'
 import {FLAGS} from '../feature_flags.js'
 import {stringify_for_header} from './value_explorer.js'
 import {find_node} from '../ast_utils.js'
-import {is_expandable, root_calltree_node, get_deferred_calls} from '../calltree.js'
+import {is_expandable, root_calltree_node, get_deferred_calls, has_error} 
+  from '../calltree.js'
 
 // TODO perf - quadratic difficulty
 const join = arr => arr.reduce(
@@ -12,17 +13,6 @@ const join = arr => arr.reduce(
                   : [...acc, ',', el],
   [],
 )
-
-const is_error = n =>
-  !n.ok 
-  || 
-  ( 
-    n.value instanceof globalThis.run_window.Promise 
-    && 
-    n.value.status != null
-    &&
-    !n.value.status.ok
-  )
 
 export class CallTree {
   constructor(ui, container) {
@@ -46,9 +36,11 @@ export class CallTree {
         this.ui.editor.focus()
       }
 
+      /* TODO test
       if(e.key == 'F3') {
         this.ui.set_active_tab('logs')
       }
+      */
 
       if(e.key == 'a') {
         if(FLAGS.embed_value_explorer) {
@@ -119,7 +111,7 @@ export class CallTree {
           )
         : el('span', 
               'call_header ' 
-                + (is_error(n) ? 'error' : '') 
+                + (has_error(n) ? 'error' : '') 
                 + (n.fn.__location == null ? ' native' : '')
             ,
             // TODO show `this` argument

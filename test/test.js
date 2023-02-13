@@ -3066,6 +3066,52 @@ const y = x()`
     Object.assign(globalThis.run_window.Math, {random})
   }),
 
+  test('record io cache discarded if args does not match', async () => {
+    const original_fetch = globalThis.run_window.fetch
+
+    // Patch fetch
+    Object.assign(globalThis.run_window, {fetch: async () => 'first'})
+
+    const initial = await test_initial_state_async(`
+      console.log(await fetch('url', {method: 'GET'}))
+    `)
+    assert_equal(initial.logs.logs[0].args[0], 'first')
+
+    // Patch fetch again
+    Object.assign(globalThis.run_window, {fetch: async () => 'second'})
+
+    const cache_discarded = await command_input_async(initial, `
+      console.log(await fetch('url', {method: 'POST'}))
+    `, 0)
+    assert_equal(cache_discarded.logs.logs[0].args[0], 'second')
+
+    // Remove patch
+    Object.assign(globalThis.run_window, {fetch: original_fetch})
+  }),
+
+  test('record io fetch rejects', async () => {
+    const original_fetch = globalThis.run_window.fetch
+
+    // Patch fetch
+    Object.assign(globalThis.run_window, {fetch: () => Promise.reject('fail')})
+
+    const initial = await test_initial_state_async(`
+      await fetch('url', {method: 'GET'})
+    `)
+    assert_equal(root_calltree_node(initial).error, 'fail')
+
+    // Patch fetch again
+    Object.assign(globalThis.run_window, {fetch: async () => 'result'})
+
+    const with_cache = await command_input_async(initial, `
+      await fetch('url', {method: 'GET'})
+    `, 0)
+    assert_equal(root_calltree_node(initial).error, 'fail')
+
+    // Remove patch
+    Object.assign(globalThis.run_window, {fetch: original_fetch})
+  }),
+
   test('record io preserve promise resolution order', async () => {
     const original_fetch = globalThis.run_window.fetch
 
@@ -3077,12 +3123,10 @@ const y = x()`
           let resolver
           const promise = new Promise(r => resolver = r)
           calls.push({resolver, promise, args})
-          console.log('patched fetch called')
           return promise
         },
 
         resolve() {
-          console.log('resolve', calls);
           [...calls].reverse().forEach(call => call.resolver(...call.args))
         },
       }
@@ -3091,76 +3135,80 @@ const y = x()`
     // Patch fetch
     Object.assign(globalThis.run_window, {fetch})
 
-    const initial_promise = test_initial_state_async(`
-      const result = {}
+    const code = `
       await Promise.all(
-        [1, 2, 3].map(async v => Object.assign(result, {value: await fetch(v)}))
+        [1, 2, 3].map(async v => {
+          const result = await fetch(v)  
+          console.log(result)
+        })
       )
-      console.log(result)
-    `)
+    `
+
+    const initial_promise = test_initial_state_async(code)
 
     resolve()
 
     const initial = await initial_promise
 
-    // calls to fetch are resolved in reverse order, so first call wins
-    assert_equal(initial.logs.logs[0].args[0].value, 1)
+    // calls to fetch are resolved in reverse order
+    assert_equal(initial.logs.logs.map(l => l.args[0]), [3,2,1])
 
-    // Break fetch to ensure it does not get called anymore
+    // Break fetch to ensure it is not get called anymore
     Object.assign(globalThis.run_window, {fetch: () => {throw 'broken'}})
 
     const with_cache = await command_input_async(
       initial, 
-      `
-        const result = {}
-        await Promise.all(
-          [1, 2, 3].map(async v => 
-            Object.assign(result, {value: await fetch(v)})
-          )
-        )
-        console.log(result)
-      `,
+      code,
       0
     )
 
-    // cached calls to fetch shoudl be resolved in the same (reverse) order as
+    // cached calls to fetch should be resolved in the same (reverse) order as
     // on the first run, so first call wins
-    assert_equal(with_cache.logs.logs[0].args[0].value, 1)
+    assert_equal(with_cache.logs.logs.map(l => l.args[0]), [3,2,1])
 
     // Remove patch
     Object.assign(globalThis.run_window, {fetch: original_fetch})
   }),
 
   test('record io setTimeout', async () => {
-    const i = await test_initial_state_async(`
-      const delay = timeout => new Promise(resolve => 
-        setTimeout(() => resolve(1), timeout)
-      )
-      console.log(await delay(0))
-    `)
+    const original_fetch = globalThis.run_window.fetch
+    const setTimeout_original = globalThis.run_window.setTimeout
 
-    assert_equal(i.io_cache != null, true)
-    assert_equal(i.logs.logs[0].args[0], 1)
+    // Patch fetch to return result in 10ms
+    Object.assign(globalThis.run_window, {
+      fetch: () => new Promise(resolve => setTimeout_original(resolve, 10))
+    })
 
-    const code2 = `
-      const delay = timeout => new Promise(resolve => 
-        setTimeout(() => resolve(10), timeout)
-      )
-      console.log(await delay(0))
+    const code = `
+      setTimeout(() => console.log('timeout'), 0)
+      await fetch().then(() => console.log('fetch'))
     `
 
-    const next = await command_input_async(i, code2, 0)
+    const i = await test_initial_state_async(code)
 
-    // Assert cache was used
-    // TODO check that items were not appended
-    assert_equal(next.io_cache == i.io_cache, true)
+    // First executed setTimeout, then fetch
+    assert_equal(i.logs.logs.map(l => l.args[0]), ['timeout', 'fetch'])
 
-    assert_equal(next.logs.logs[0].args[0], 10)
+    // Break fetch to ensure it would not be called
+    Object.assign(globalThis.run_window, {fetch: async () => {throw 'break'}})
 
+    const with_cache = await command_input_async(i, code, 0)
+
+    // Cache must preserve resolution order
+    assert_equal(with_cache.logs.logs.map(l => l.args[0]), ['timeout', 'fetch'])
+
+    Object.assign(globalThis.run_window, {fetch: original_fetch})
   }),
 
-  // TODO test resolution order with sync functions (Date, Math.random)
-
-
-
+  test('record io clear io cache', async () => {
+    const s1 = test_initial_state(`Math.random()`)
+    const rnd = s1.value_explorer.result.value
+    const s2 = COMMANDS.input(s1, `Math.random() + 1`, 0).state
+    assert_equal(s2.value_explorer.result.value, rnd + 1)
+    const cleared = COMMANDS.clear_io_cache(s2)
+    assert_equal(
+      cleared.value_explorer.result.value == rnd + 1,
+      false
+    )
+  }),
 ]

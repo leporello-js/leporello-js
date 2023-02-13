@@ -22,9 +22,11 @@ export class Logs {
         this.ui.editor.focus_value_explorer(this.el)
       }
 
+      /* TODO test
       if(e.key == 'F2') {
         this.ui.set_active_tab('calltree')
       }
+      */
 
       if(e.key == 'F3') {
         this.ui.editor.focus()
@@ -75,6 +77,7 @@ export class Logs {
             + ':'
           ),
           ' ',
+          // TODO fn_link, for function args, like in ./calltree.js
           log.args.map(a => header(a)).join(', ')
         )
       )
