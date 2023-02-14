@@ -2,8 +2,6 @@ import {header, stringify_for_header} from './value_explorer.js'
 import {el} from './domutils.js'
 import {has_error} from '../calltree.js'
 
-// TODO render grey items there were not used in run
-
 export class IO_Cache {
   constructor(ui, el) {
     this.el = el
@@ -22,15 +20,39 @@ export class IO_Cache {
     })
   }
 
-  render_io_cache(items) {
+  clear() {
     this.el.innerHTML = ''
-    for(let item of items) {
+    this.is_rendered = false
+  }
+
+  render_io_cache(state, force) {
+    if(force) {
+      this.is_rendered = false
+    }
+
+    if(this.is_rendered) {
+      return
+    }
+
+    this.is_rendered = true
+
+    this.el.innerHTML = ''
+
+    const items = state.io_cache ?? []
+    // Number of items that were used during execution
+    const used_count = state.eval_cxt.io_cache_index ?? items.length
+
+    for(let i = 0; i < items.length; i++) {
+      const item = items[i]
       if(item.type == 'resolution') {
         continue
       }
+      const is_used = i < used_count
       this.el.appendChild(
         el('div', 
-          'call_header ' + (has_error(item) ? 'error' : ''),
+          'call_header ' 
+            + (has_error(item) ? 'error ' : '') 
+            + (is_used ? '' : 'native '),
           item.name,
           '(' ,
           // TODO fn_link, like in ./calltree.js

@@ -3050,15 +3050,18 @@ const y = x()`
 
     const next = COMMANDS.input(initial, `const x = Math.random()*2`, 0).state
     assert_equal(next.value_explorer.result.value, 2)
+    assert_equal(next.eval_cxt.io_cache_index, 1)
 
-    // Patch Math.random to return 2. Now the first call to Math.random() is
-    // cached with value 1, and the second shoud return 2
+    // Patch Math.random to return 2. 
+    // TODO The first call to Math.random() is cached with value 1, and the
+    // second shoud return 2
     Object.assign(globalThis.run_window.Math, {random: () => 2})
     const replay_failed = COMMANDS.input(
       initial, 
       `const x = Math.random() + Math.random()`, 
       0
     ).state
+
     // TODO must reuse first cached call?
     assert_equal(replay_failed.value_explorer.result.value, 4)
 
@@ -3210,5 +3213,22 @@ const y = x()`
       cleared.value_explorer.result.value == rnd + 1,
       false
     )
+  }),
+
+  test('record io no io cache on deferred calls', async () => {
+    const code = `
+      const x = Math.random
+      export const fn = () => x()
+    `
+
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
+
+    // Make deferred call
+    i.modules[''].fn()
+
+    const state = on_deferred_call(i)
+
+    // Deferred calls should not be record in cache
+    assert_equal(state.eval_cxt.io_cache.length, 0)
   }),
 ]

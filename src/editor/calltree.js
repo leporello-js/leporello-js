@@ -36,12 +36,6 @@ export class CallTree {
         this.ui.editor.focus()
       }
 
-      /* TODO test
-      if(e.key == 'F3') {
-        this.ui.set_active_tab('logs')
-      }
-      */
-
       if(e.key == 'a') {
         if(FLAGS.embed_value_explorer) {
           exec('calltree.select_arguments')

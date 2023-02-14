@@ -52,7 +52,11 @@ const apply_eval_result = (state, eval_result) => {
       log_position: null
     },
     modules: eval_result.modules,
-    io_cache: eval_result.io_cache,
+    io_cache: 
+      (eval_result.io_cache == null || eval_result.io_cache.length == 0)
+        // If new cache is empty, reuse previous cache
+        ? state.io_cache
+        : eval_result.io_cache
   }
 }
 
@@ -768,7 +772,6 @@ const on_deferred_call = (state, call, calltree_changed_token, logs) => {
   }
 }
 
-// TODO test
 const clear_io_cache = state => {
   return run_code({...state, io_cache: null})
 }

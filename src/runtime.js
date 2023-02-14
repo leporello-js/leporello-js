@@ -33,8 +33,8 @@ const gen_to_promise = gen_fn => {
 const do_run = function*(module_fns, cxt, io_cache){
   let calltree
 
-  cxt = io_cache == null
-    // TODO move all io_cache properties to the object?
+  cxt = (io_cache == null || io_cache.length == 0)
+    // TODO group all io_cache_ properties to single object?
     ? {...cxt,
       io_cache_is_recording: true,
       io_cache: [],

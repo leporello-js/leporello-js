@@ -197,7 +197,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
   if(prev.parse_result != next.parse_result) {
     render_parse_result(ui, next)
   }
-
+  
   if(!next.parse_result.ok) {
 
     ui.calltree.clear_calltree()
@@ -225,7 +225,16 @@ export const render_common_side_effects = (prev, next, command, ui) => {
         clear_coloring(ui)
         render_coloring(ui, next)
         ui.logs.rerender_logs(next.logs)
+
+        if(
+          prev.io_cache != next.io_cache 
+          || 
+          prev.eval_cxt?.io_cache_index != next.eval_cxt.io_cache_index
+        ) {
+          ui.render_io_cache(next)
+        }
       }
+
     } else {
 
       if(get_deferred_calls(prev) == null && get_deferred_calls(next) != null) {

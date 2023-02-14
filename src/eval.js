@@ -519,6 +519,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
     const value = children.reduce(
       (arr, el) => {
         if(el.type == 'spread') {
+          // TODO check if iterable and throw error
           return [...arr, ...el.children[0].result.value]
         } else {
           return [...arr, el.result.value]

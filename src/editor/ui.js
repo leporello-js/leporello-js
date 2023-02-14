@@ -217,6 +217,11 @@ export class UI {
     this.tabs[tab_id].classList.add('active')
     Object.values(this.debugger).forEach(el => el.style.display = 'none')
     this.debugger[tab_id].style.display = 'block'
+
+    if(tab_id == 'io_cache') {
+      this.io_cache.render_io_cache(get_state(), false)
+    }
+
     if(!skip_focus) {
       this.debugger[tab_id].focus()
     }
@@ -304,12 +309,16 @@ export class UI {
 
     this.calltree.render_calltree(state)
     this.logs.render_logs(null, state.logs)
+  }
 
-    // render lazily
-    // TODO
-    //if(this.active_tab == 'io_cache') {
-      this.io_cache.render_io_cache(state.io_cache)
-    //}
+  render_io_cache(state) {
+    // render lazily, only if selected
+    if(this.active_tab == 'io_cache') {
+      this.io_cache.render_io_cache(state, true)
+    } else {
+      // Do not render until user switch to the tab
+      this.io_cache.clear()
+    }
   }
 
   render_problems(problems) {
