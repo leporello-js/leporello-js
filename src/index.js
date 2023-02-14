@@ -12,6 +12,9 @@ fib(6)`
 const set_error_handler = (w, with_unhandled_rejection = true) => {
   // TODO err.message
   w.onerror = (msg, src, lineNum, colNum, err) => {
+    if(err?.__ignore) {
+      return
+    }
     ui.set_status(msg)
   }
   if(with_unhandled_rejection) {
@@ -48,6 +51,8 @@ const open_run_iframe = (state, onload) => {
 // Open another browser window so user can interact with application
 // TODO test in another browsers
 export const open_run_window = state => {
+  // TODO set_error_handler? Or we dont need to set_error_handler for child
+  // window because error is always caught by parent window handler?
   globalThis.run_window.close()
 
   const next_window = globalThis.run_window = open(get_html_url(state))

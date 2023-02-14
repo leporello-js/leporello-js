@@ -326,6 +326,11 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
       ok = false
       error = _error
       set_record_call(cxt)
+      if(cxt.is_recording_deferred_calls && is_toplevel_call_copy) {
+        if(error instanceof cxt.window.Error) {
+          error.__ignore = true
+        }
+      }
       throw error
     } finally {
 
