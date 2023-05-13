@@ -3231,4 +3231,15 @@ const y = x()`
     // Deferred calls should not be record in cache
     assert_equal(state.eval_cxt.io_cache.length, 0)
   }),
+
+  test_only('record io discard prev execution', () => {
+    // Populate cache
+    const i = test_initial_state(`Math.random(0)`)
+
+    // Run code that does not remove IO patches immediately
+    const next = COMMANDS.input(i, `await Promise.resolve()`, 0)
+
+    const next2 = COMMANDS.input(i, `Math.random(1)`, 0).state
+    console.log('n', next2.io_cache)
+  }),
 ]

@@ -1,4 +1,4 @@
-import {apply_io_patches, remove_io_patches} from './record_io.js'
+import {set_current_context} from './record_io.js'
 
 /*
 Converts generator-returning function to promise-returning function. Allows to
@@ -50,7 +50,7 @@ const do_run = function*(module_fns, cxt, io_cache){
     }
 
   apply_promise_patch(cxt)
-  apply_io_patches(cxt)
+  set_current_context(cxt)
 
   for(let {module, fn} of module_fns) {
      cxt.found_call = null
@@ -80,7 +80,6 @@ const do_run = function*(module_fns, cxt, io_cache){
   cxt.logs = []
   cxt.children = null
 
-  remove_io_patches(cxt)
   remove_promise_patch(cxt)
 
   cxt.searched_location = null
@@ -97,6 +96,10 @@ const do_run = function*(module_fns, cxt, io_cache){
 }
 
 export const run = gen_to_promise(function*(module_fns, cxt, io_cache) {
+  if(cxt.run_window != globalThis) {
+    // TODO refactor, remove cxt.run_window
+    throw new Error('illegal state')
+  }
   const result = yield* do_run(module_fns, cxt, io_cache)
 
   if(result.eval_cxt.io_cache_is_replay_aborted) {

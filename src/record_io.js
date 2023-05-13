@@ -1,15 +1,22 @@
 import {set_record_call} from './runtime.js'
 
-const get_object_to_patch = (cxt, path) => {
+// Modify window object on module load
+// TODO check - if modules reloaded on window reopen
+// TODO - cxt.window
+apply_io_patches()
+
+// Current context for current execution of code
+let cxt
+
+export const set_current_context = _cxt => {
+  cxt = _cxt
+}
+
+const io_patch = (path, use_context = false) => {
   let obj = cxt.window
   for(let i = 0; i < path.length - 1; i++) {
     obj = obj[path[i]]
   }
-  return obj
-}
- 
-const io_patch = (cxt, path, use_context = false) => {
-  const obj = get_object_to_patch(cxt, path)
   const method = path.at(-1)
   if(obj == null || obj[method] == null) {
     // Method is absent in current env, skip patching
@@ -202,69 +209,40 @@ const io_patch = (cxt, path, use_context = false) => {
   obj[method].__original = original
 }
 
-const io_patch_remove = (cxt, path) => {
-  const obj = get_object_to_patch(cxt, path)
-  const method = path.at(-1)
-  if(obj == null || obj[method] == null) {
-    // Method is absent in current env, skip patching
-    return
-  }
-
-  obj[method] = obj[method].__original
-}
-
-const Response_methods = [
-  'arrayBuffer',
-  'blob',
-  'formData',
-  'json',
-  'text',
-]
-
 // TODO bare IO functions should not be exposed at all, to allow calling it
 // only from patched versions. Especially setInterval which can cause leaks
-export const apply_io_patches = cxt => {
-  io_patch(cxt, ['Math', 'random'])
+export const apply_io_patches = () => {
+  io_patch(['Math', 'random'])
 
-  io_patch(cxt, ['setTimeout'])
+  io_patch(['setTimeout'])
   // TODO if call setTimeout and then clearTimeout, cache it and remove call of
   // clearTimeout, and make only setTimeout, then it would never be called when
   // replaying from cache
-  io_patch(cxt, ['clearTimeout'])
+  io_patch(['clearTimeout'])
 
 
   // TODO patch setInterval to only cleanup all intervals on finish
 
   const Date = cxt.window.Date
-  io_patch(cxt, ['Date'])
+  io_patch(['Date'])
   cxt.window.Date.parse = Date.parse
   cxt.window.Date.now =   Date.now
   cxt.window.Date.UTC =   Date.UTC
-  io_patch(cxt, ['Date', 'now'])
+  io_patch(['Date', 'now'])
 
 
-  io_patch(cxt, ['fetch'])
+  io_patch(['fetch'])
   // Check if Response is defined, for node.js
   if(cxt.window.Response != null) {
+    const Response_methods = [
+      'arrayBuffer',
+      'blob',
+      'formData',
+      'json',
+      'text',
+    ]
     for(let key of Response_methods) {
-      io_patch(cxt, ['Response', 'prototype', key], true)
-    }
-  }
-}
-
-export const remove_io_patches = cxt => {
-  io_patch_remove(cxt, ['Math', 'random'])
-
-  io_patch_remove(cxt, ['setTimeout'])
-  io_patch_remove(cxt, ['clearTimeout'])
-
-  io_patch_remove(cxt, ['Date'])
-  io_patch_remove(cxt, ['fetch'])
-
-  // Check if Response is defined, for node.js
-  if(cxt.window.Response != null) {
-    for(let key of Response_methods) {
-      io_patch_remove(cxt, ['Response', 'prototype', key])
+      io_patch(['Response', 'prototype', key], true)
     }
   }
 }
