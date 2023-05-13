@@ -1,15 +1,14 @@
 import {set_record_call} from './runtime.js'
 
-// Modify window object on module load
-// TODO check - if modules reloaded on window reopen
-// TODO - cxt.window
-apply_io_patches()
-
 // Current context for current execution of code
 let cxt
 
 export const set_current_context = _cxt => {
+  const should_apply_io_patches = cxt == null || cxt.run_window != _cxt.run_window
   cxt = _cxt
+  if(should_apply_io_patches) {
+    apply_io_patches()
+  }
 }
 
 const io_patch = (path, use_context = false) => {
@@ -27,8 +26,6 @@ const io_patch = (path, use_context = false) => {
 
   const original = obj[method]
   obj[method] = function(...args) {
-    // TODO if called from prev execution, then throw to finish it
-    // ASAP
     if(cxt.io_cache_is_replay_aborted) {
       // Try to finish fast
       throw new Error('io replay aborted')
@@ -37,6 +34,7 @@ const io_patch = (path, use_context = false) => {
     const has_new_target = new.target != null
 
     if(cxt.is_recording_deferred_calls) {
+      // TODO record cache on deferred calls?
       return has_new_target 
         ? new original(...args)
         : original.apply(this, args)
@@ -58,8 +56,10 @@ const io_patch = (path, use_context = false) => {
           // Patch callback
           const cb = args[0]
           args[0] = Object.defineProperty(function() {
-            // TODO if called from prev execution, then throw to
-            // finish it ASAP
+            if(cancelled) {
+              // If code execution was cancelled, then never call callback
+              return
+            }
             if(cxt.io_cache_is_replay_aborted) {
               // Non necessary
               return
@@ -77,8 +77,9 @@ const io_patch = (path, use_context = false) => {
           // TODO use cxt.promise_then, not finally which calls
           // patched 'then'?
           value = value.finally(() => {
-            // TODO if called from prev execution, then throw to
-            // finish it ASAP
+            if(cancelled) {
+              return
+            }
             if(cxt.io_cache_is_replay_aborted) {
               // Non necessary
               return
