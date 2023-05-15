@@ -21,7 +21,7 @@ export const assert_code_evals_to = (codestring, expected) => {
   assert_equal(parse_result.ok, true)
   const tree = eval_tree(parse_result.node)
   const frame = eval_frame(tree)
-  const result = frame.children[frame.children.length - 1].result
+  const result = frame.children.at(-1).result
   assert_equal({ok: result.ok, value: result.value}, {ok: true, value: expected})
   return frame
 }

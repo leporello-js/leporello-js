@@ -71,7 +71,7 @@ Any kind of loops are not supported. Use recursion or array functions instead.
 
 `if` / `else` can only contain blocks, not single statements (TODO).
 
-Functions can be declared only by arrow function syntax. `function` keyword and method definitions (like `const foo = { bar() { /* body */ } }` may be supported in future. Both concise and block body are supported.
+Both traditional functions and arrow functions with block bodies and concise bodies are supported. Method definitions are not supported.
 
 Classes are not supported. Some sort of immutable classes may be supported in future. `this` keyword is not currently supported. `new` operator is supported for instantiating builtin classes.
 

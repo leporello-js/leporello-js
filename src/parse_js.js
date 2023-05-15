@@ -905,7 +905,43 @@ const object_literal =
     )
   )
 
-const function_expr =
+const block_function_body = if_ok(
+  seq_select(1, [
+    literal('{'),
+    cxt => parse_do(cxt),
+    literal('}'),
+  ]),
+
+  ({value, ...node}) => ({...value, ...node}),
+)
+
+const function_expr = must_have_name => 
+  if_ok(
+    seq([
+      optional(literal('async')),
+      literal('function'),
+      must_have_name ? identifier : optional(identifier),
+      list_destructuring(['(', ')'], 'function_args'),
+      block_function_body,
+    ]),
+    ({value, ...node}) => {
+      const [is_async, _fn, name, args, body] = value
+      const function_args = {...args,
+        not_evaluatable: args.children.length == 0
+      }
+      return {
+        ...node,
+        type: 'function_expr',
+        is_async: is_async != null,
+        is_arrow: false,
+        name: name?.value,
+        body,
+        children: [function_args, body]
+      }
+    },
+  )
+
+const arrow_function_expr =
   if_ok(
     seq([
       optional(literal('async')),
@@ -920,16 +956,7 @@ const function_expr =
 
       either(
         // With curly braces
-        if_ok(
-          seq_select(1, [
-            literal('{'),
-            cxt => parse_do(cxt),
-            literal('}'),
-          ]),
-
-          ({value, ...node}) => ({...value, ...node}),
-        ),
-
+        block_function_body,
         // Just expression
         cxt => expr(cxt),
       )
@@ -953,6 +980,7 @@ const function_expr =
         ...node,
         type: 'function_expr',
         is_async: is_async != null,
+        is_arrow: true,
         body,
         children: [function_args, body]
       }
@@ -1008,7 +1036,8 @@ const primary = if_fail(
     new_expr,
     object_literal,
     array_literal,
-    function_expr,
+    function_expr(false),
+    arrow_function_expr,
 
     // not_followed_by for better error messages
     // y => { <garbage> } must parse as function expr, not as identifier `y`
@@ -1045,6 +1074,12 @@ const expr =
     (prev, next) => next(prev),
     cxt => expr(cxt)
   )
+
+const function_decl = if_ok(
+  function_expr(true),
+  // wrap function_expr with function_decl
+  node => ({...node, type: 'function_decl', children: [node]})
+)
 
 // TODO multiple decls, like `const x = 1, y = 2`
 const const_statement =
@@ -1246,6 +1281,7 @@ const do_statement = either(
   if_statement,
   throw_statement,
   return_statement,
+  function_decl,
 )
 
 const module_statement = either(
@@ -1256,6 +1292,7 @@ const module_statement = either(
   throw_statement,
   import_statement,
   export_statement,
+  function_decl,
 )
 
 const parse_do_or_module = (is_module) =>
@@ -1360,6 +1397,10 @@ const update_children_not_rec = (node, children = node.children) => {
   } else if(node.type == 'do'){
     return {...node,
       stmts: children,
+      is_statement: true,
+    }
+  } else if(node.type == 'function_decl'){
+    return {...node,
       is_statement: true,
     }
   } else if(node.type == 'unary') {
@@ -1486,7 +1527,12 @@ const do_deduce_fn_names = (node, parent) => {
     }
   }
 
-  if(node_result.type == 'function_expr') {
+  if(
+    node_result.type == 'function_expr' 
+    && 
+    // not a named function
+    node_result.name == null
+  ) {
     let name
     if(parent?.type == 'const') {
       name = parent.name

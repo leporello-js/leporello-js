@@ -110,6 +110,49 @@ export const tests = [
     return assert_code_evals_to('!false', true)
   }),
 
+  test('function expr', () => {
+    assert_code_evals_to(
+      `
+        const x = function(){}
+        x.name
+      `,
+      'x'
+    )
+    assert_code_evals_to(
+      `
+        const x = function foo(){}
+        x.name
+      `,
+      'foo'
+    )
+    assert_code_evals_to(
+      `
+        (function foo(x) {
+          return x*2
+        }).name
+      `,
+      'foo'
+    )
+    assert_code_evals_to(
+      `
+        (function foo(x) {
+          return x*2
+        })(1)
+      `,
+      2
+    )
+  }),
+
+  test('function declaration', () => {
+    assert_code_evals_to(
+      `
+        function x() {return 1}
+        x()
+      `,
+      1
+    )
+  }),
+
   test('More complex expression', () => {
     assert_code_evals_to(
       `
@@ -1113,6 +1156,26 @@ export const tests = [
       const x = x;
     `
     return assert_equal(parse(code).problems[0].message, 'undeclared identifier: x')
+  }),
+
+  test('function hoisting', () => {
+    assert_code_evals_to(`
+      function x() {
+        return 1
+      }
+      x()
+      `,
+      1
+    )
+    assert_code_evals_to(`
+      const y = x()
+      function x() {
+        return 1
+      }
+      y
+      `,
+      1
+    )
   }),
 
   /*
@@ -2175,7 +2238,6 @@ const y = x()`
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('throws()'))
     assert_equal(s2.value_explorer.result.error.message, 'boom')
   }),
-
 
   test('frame follows cursor toplevel', () => {
     const code = `

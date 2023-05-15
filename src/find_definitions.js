@@ -3,7 +3,6 @@
 import {set_push, set_diff, set_union, map_object, map_find, uniq} from './utils.js'
 import {collect_destructuring_identifiers, collect_imports, ancestry, find_leaf} from './ast_utils.js'
 
-// TODO get complete list of globals (borrow from eslint?)
 import {globals} from './globals.js'
 
 const map_find_definitions = (nodes, mapper) => {
@@ -20,7 +19,6 @@ const map_find_definitions = (nodes, mapper) => {
   }
 }
 
-
 const scope_from_node = n => {
   if(n.type == 'import') {
     return Object.fromEntries(
@@ -34,6 +32,10 @@ const scope_from_node = n => {
         node.value, node
       ])
     )
+  } else if(n.type == 'function_decl') {
+    // Return null because of hoisting. We take function decls into account
+    // first before processing statements one by one
+    return null
   } else {
     return null
   }
@@ -94,14 +96,20 @@ export const find_definitions = (ast, scope = {}, closure_scope = {}, module_nam
       }
     }
   } else if(ast.type == 'do'){
-    const children_with_scope = ast.children.reduce(
-      ({scope, children}, node) => ({
-        scope: {...scope, ...scope_from_node(node)}, 
-        children: children.concat([{node, scope}]),
-      })
-      ,
-      {scope: {}, children: []}
+    const hoisted_functions_scope = Object.fromEntries(
+      ast.children
+        .filter(s => s.type == 'function_decl')
+        .map(s => [s.children[0].name, s.children[0]])
     )
+    const children_with_scope = ast.children
+      .reduce(
+        ({scope, children}, node) => ({
+          scope: {...scope, ...scope_from_node(node)}, 
+          children: children.concat([{node, scope}]),
+        })
+        ,
+        {scope: hoisted_functions_scope, children: []}
+      )
     const local_scope = children_with_scope.scope
     const {nodes, undeclared, closed} = map_find_definitions(children_with_scope.children, cs => 
       find_definitions(cs.node, {...scope, ...cs.scope}, local_scope, module_name)

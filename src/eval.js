@@ -70,7 +70,11 @@ const codegen_function_expr = (node, cxt) => {
 
   const args = node.function_args.children.map(do_codegen).join(',')
 
-  const call = (node.is_async ? 'async ' : '') + `(${args}) => ` + (
+  const decl = node.is_arrow 
+    ? `(${args}) => `
+    : `function ${node.name}(${args})`
+
+  const call = (node.is_async ? 'async ' : '') + decl + (
     // TODO gensym __obj, __fn
     (node.body.type == 'do')
     ? '{ let __obj, __fn;        ' + do_codegen(node.body) + '}'
@@ -145,10 +149,14 @@ const codegen = (node, cxt, parent) => {
   ].includes(node.type)){
     return node.value
   } else if(node.type == 'do'){
-    return node.stmts.reduce(
-      (result, stmt) => result + (do_codegen(stmt)) + ';\n',
-      ''
-    )
+    return [
+        // hoist function decls to the top
+        ...node.stmts.filter(s => s.type == 'function_decl'),
+        ...node.stmts.filter(s => s.type != 'function_decl'),
+      ].reduce(
+        (result, stmt) => result + (do_codegen(stmt)) + ';\n',
+        ''
+      )
   } else if(node.type == 'return') {
     return 'return ' + do_codegen(node.expr) + ';'
   } else if(node.type == 'throw') {
@@ -266,6 +274,9 @@ ${JSON.stringify(errormessage)}, true)`
     return do_codegen(node.binding)
       +
       `Object.assign(__exports, {${identifiers.join(',')}});`
+  } else if(node.type == 'function_decl') {
+    const expr = node.children[0]
+    return `const ${expr.name} = ${codegen_function_expr(expr, cxt)};`
   } else {
     console.error(node)
     throw new Error('unknown node type: ' + node.type)
@@ -1030,7 +1041,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       calls: callsleft,
       children: node.children,
     }
-  } else if(node.type == 'ternary'){
+  } else if(node.type == 'ternary') {
     const {node: cond_evaled, calls: calls_after_cond} = eval_frame_expr(
       node.cond, 
       scope, 
@@ -1168,14 +1179,14 @@ const eval_children = (node, scope, calls, context) => {
     ({ok, children, calls}, child) => {
       let next_child, next_ok, next_calls
       if(!ok) {
-        next_child = child;
-        next_ok = false;
-        next_calls = calls;
+        next_child = child
+        next_ok = false
+        next_calls = calls
       } else {
         const result = eval_frame_expr(child, scope, calls, context)
-        next_child = result.node;
-        next_calls = result.calls;
-        next_ok = next_child.result.ok;
+        next_child = result.node
+        next_calls = result.calls
+        next_ok = next_child.result.ok
       }
       return {ok: next_ok, children: [...children, next_child], calls: next_calls}
     },
@@ -1247,14 +1258,47 @@ const apply_assignments = (do_node, assignments) => {
   return {node, scope}
 }
 
-
 const eval_statement = (s, scope, calls, context) => {
   if(s.type == 'do') {
     const node = s
-    const {ok, assignments, returned, stmts, calls: nextcalls} = node.stmts.reduce(
+    // hoist function decls to the top
+    const function_decls = node.stmts
+      .filter(s => s.type == 'function_decl')
+      .map(s => {
+        const {ok, children, calls: next_calls} = eval_children(s, scope, calls, context)
+        if(!ok) {
+          // Function decl can never fail
+          throw new Error('illegal state')
+        }
+        if(next_calls != calls) {
+          throw new Error('illegal state')
+        }
+        return {...s, children, result: {ok: true}}
+      })
+
+    const hoisted_functions_scope = Object.fromEntries(
+      function_decls.map(decl =>
+        [decl.children[0].name, decl.children[0].result.value]
+      )
+    )
+
+    const initial_scope = {...scope, ...hoisted_functions_scope}
+
+    const {ok, assignments, returned, stmts, calls: next_calls} = node.stmts.reduce(
       ({ok, returned, stmts, scope, calls, assignments}, s) => {
         if(returned || !ok) {
           return {ok, returned, scope, calls, stmts: [...stmts, s], assignments}
+        } else if(s.type == 'function_decl') {
+          const node = function_decls.find(decl => decl.index == s.index)
+          return {
+            ok: true,
+            returned: false,
+            node,
+            assignments,
+            scope,
+            calls,
+            stmts: [...stmts, node],
+          }
         } else {
           const {
             ok, 
@@ -1274,7 +1318,7 @@ const eval_statement = (s, scope, calls, context) => {
           }
         }
       },
-      {ok: true, returned: false, stmts: [], scope, calls, assignments: {}}
+      {ok: true, returned: false, stmts: [], scope: initial_scope, calls, assignments: {}}
     )
     const {node: next_node, scope: next_scope} = 
       apply_assignments({...node, children: stmts, result: {ok}}, assignments)
@@ -1284,7 +1328,7 @@ const eval_statement = (s, scope, calls, context) => {
       scope: {...scope, ...next_scope},
       returned,
       assignments,
-      calls: nextcalls,
+      calls: next_calls,
     }
   } else if(s.type == 'const' || s.type == 'assignment') {
     // TODO default values for destructuring can be function calls
@@ -1365,6 +1409,7 @@ const eval_statement = (s, scope, calls, context) => {
           )
         : null
     }
+
   } else if(s.type == 'return') {
 
     const {node, calls: next_calls} = 
