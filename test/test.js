@@ -3232,7 +3232,7 @@ const y = x()`
     assert_equal(state.eval_cxt.io_cache.length, 0)
   }),
 
-  test_only('record io discard prev execution', () => {
+  test('record io discard prev execution', () => {
     // Populate cache
     const i = test_initial_state(`Math.random(0)`)
 

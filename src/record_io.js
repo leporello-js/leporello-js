@@ -4,7 +4,7 @@ import {set_record_call} from './runtime.js'
 let cxt
 
 export const set_current_context = _cxt => {
-  const should_apply_io_patches = cxt == null || cxt.run_window != _cxt.run_window
+  const should_apply_io_patches = cxt == null || cxt.window != _cxt.window
   cxt = _cxt
   if(should_apply_io_patches) {
     apply_io_patches()
@@ -26,8 +26,11 @@ const io_patch = (path, use_context = false) => {
 
   const original = obj[method]
   obj[method] = function(...args) {
+
+    // TODO does it work? After we change for global cxt? Review all cxt usages
     if(cxt.io_cache_is_replay_aborted) {
       // Try to finish fast
+      // TODO invoke callback to notify that code must be restarted?
       throw new Error('io replay aborted')
     }
 
@@ -39,6 +42,8 @@ const io_patch = (path, use_context = false) => {
         ? new original(...args)
         : original.apply(this, args)
     }
+
+    const cxt_copy = cxt
 
     if(cxt.io_cache_is_recording) {
       let ok, value, error
@@ -56,7 +61,7 @@ const io_patch = (path, use_context = false) => {
           // Patch callback
           const cb = args[0]
           args[0] = Object.defineProperty(function() {
-            if(cancelled) {
+            if(cxt_copy != cxt) {
               // If code execution was cancelled, then never call callback
               return
             }
@@ -77,7 +82,7 @@ const io_patch = (path, use_context = false) => {
           // TODO use cxt.promise_then, not finally which calls
           // patched 'then'?
           value = value.finally(() => {
-            if(cancelled) {
+            if(cxt_copy != cxt) {
               return
             }
             if(cxt.io_cache_is_replay_aborted) {
@@ -145,7 +150,9 @@ const io_patch = (path, use_context = false) => {
           cxt.io_cache_resolver_is_set = true
 
           original_setTimeout(() => {
-            // TODO if called from prev execution, then throw to finish it ASAP
+            if(cxt_copy != cxt) {
+              return
+            }
 
             if(cxt.io_cache_is_replay_aborted) {
               return
@@ -213,6 +220,13 @@ const io_patch = (path, use_context = false) => {
 // TODO bare IO functions should not be exposed at all, to allow calling it
 // only from patched versions. Especially setInterval which can cause leaks
 export const apply_io_patches = () => {
+  // TODO remove, only for dev
+  // TODO test open_run_window
+  if(cxt.window.__io_patched) {
+    throw new Error('illegal state')
+  }
+  cxt.window.__io_patched = true
+
   io_patch(['Math', 'random'])
 
   io_patch(['setTimeout'])
