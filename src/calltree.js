@@ -610,6 +610,7 @@ export const find_call = (state, index) => {
   if(call != null) {
     if(call.has_more_children) {
       active_calltree_node = eval_expand_calltree_node(
+        // TODO copy eval_cxt?
         state.eval_cxt,
         state.parse_result, 
         call
@@ -625,6 +626,7 @@ export const find_call = (state, index) => {
     }
   } else {
     const find_result = eval_find_call(
+      // TODO copy eval_cxt?
       state.eval_cxt, 
       state.parse_result, 
       state.calltree, 

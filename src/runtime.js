@@ -202,7 +202,7 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
   synchronous for simplicity
 */
 export const do_eval_find_call = (cxt, calltree, location) => {
-  // TODO remove
+  // Sanity check
   if(cxt.children != null) {
     throw new Error('illegal state')
   }

@@ -2882,7 +2882,7 @@ const y = x()`
   test('async/await logs out of order timeout', async () => {
     const i = await test_initial_state_async(`
       const delay = async time => {
-        await new Promise(res => globalThis.setTimeout(res, time*10))
+        await new Promise(res => setTimeout(res, time*10))
         console.log(time)
       }
 
@@ -3091,10 +3091,8 @@ const y = x()`
   }),
 
   test('record io fetch rejects', async () => {
-    const original_fetch = globalThis.run_window.fetch
-
     // Patch fetch
-    Object.assign(globalThis.run_window, {fetch: () => Promise.reject('fail')})
+    patch_builtin('fetch', () => Promise.reject('fail'))
 
     const initial = await test_initial_state_async(`
       await fetch('url', {method: 'GET'})
@@ -3102,7 +3100,7 @@ const y = x()`
     assert_equal(root_calltree_node(initial).error, 'fail')
 
     // Patch fetch again
-    Object.assign(globalThis.run_window, {fetch: async () => 'result'})
+    patch_builtin('fetch', () => async () => 'result')
 
     const with_cache = await command_input_async(initial, `
       await fetch('url', {method: 'GET'})
@@ -3110,7 +3108,7 @@ const y = x()`
     assert_equal(root_calltree_node(initial).error, 'fail')
 
     // Remove patch
-    Object.assign(globalThis.run_window, {fetch: original_fetch})
+    patch_builtin('fetch', null)
   }),
 
   test('record io preserve promise resolution order', async () => {

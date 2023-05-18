@@ -12,35 +12,38 @@ Object.assign(globalThis,
   }
 )
 
-export const original_setTimeout = globalThis.setTimeout
-
 export const patch_builtin = new Function(`
-  // Substitute some builtin functions: fetch, setTimeout, Math.random to be
-  // able to patch them in tests
+  let originals = globalThis.run_window.__builtins_originals
+  let patched = globalThis.run_window.__builtins_patched
+  if(originals == null) {
+    globalThis.run_window.__original_setTimeout = globalThis.setTimeout
+    // This code can execute twice when tests are run in self-hosted mode.
+    // Ensure that patches will be applied only once
+    originals = globalThis.run_window.__builtins_originals = {}
+    patched = globalThis.run_window.__builtins_patched = {}
 
-  const originals = {
-    random: Math.random,
-    fetch: globalThis.fetch,
-    setTimeout: globalThis.setTimeout,
+    const patch = (obj, name) => {
+      originals[name] = obj[name]
+      obj[name] = (...args) => {
+        return patched[name] == null
+        ? originals[name].apply(null, args)
+        : patched[name].apply(null, args)
+      }
+    }
+
+    // Substitute some builtin functions: fetch, setTimeout, Math.random to be
+    // able to patch them in tests
+    patch(globalThis.run_window, 'fetch')
+    patch(globalThis.run_window, 'setTimeout')
+    patch(globalThis.run_window.Math, 'random')
   }
-
-  const patched = {}
-
-  const patch = (obj, name) => {
-    originals[name] = obj[name]
-    obj[name] = (...args) => patched[name] == null
-      ? originals[name](...args)
-      : patched[name](...args)
-  }
-
-  patch(globalThis, 'fetch')
-  patch(globalThis, 'setTimeout')
-  patch(Math, 'random')
 
   return (name, fn) => {
     patched[name] = fn
   }
 `)()
+
+export const original_setTimeout = globalThis.run_window.__original_setTimeout
 
 export const parse_modules = (entry, modules) => 
   load_modules(entry, module_name => modules[module_name])

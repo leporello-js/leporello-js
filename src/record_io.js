@@ -216,13 +216,6 @@ const io_patch = (path, use_context = false) => {
 }
 
 export const apply_io_patches = () => {
-  // TODO remove, only for dev
-  // TODO test open_run_window
-  if(cxt.window.__io_patched) {
-    throw new Error('illegal state')
-  }
-  cxt.window.__io_patched = true
-
   io_patch(['Math', 'random'])
 
   io_patch(['setTimeout'])
