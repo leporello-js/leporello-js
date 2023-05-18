@@ -26,8 +26,6 @@ const io_patch = (path, use_context = false) => {
 
   const original = obj[method]
   obj[method] = function(...args) {
-
-    // TODO does it work? After we change for global cxt? Review all cxt usages
     if(cxt.io_cache_is_replay_aborted) {
       // Try to finish fast
       // TODO invoke callback to notify that code must be restarted?
@@ -217,8 +215,6 @@ const io_patch = (path, use_context = false) => {
   obj[method].__original = original
 }
 
-// TODO bare IO functions should not be exposed at all, to allow calling it
-// only from patched versions. Especially setInterval which can cause leaks
 export const apply_io_patches = () => {
   // TODO remove, only for dev
   // TODO test open_run_window
@@ -234,7 +230,6 @@ export const apply_io_patches = () => {
   // clearTimeout, and make only setTimeout, then it would never be called when
   // replaying from cache
   io_patch(['clearTimeout'])
-
 
   // TODO patch setInterval to only cleanup all intervals on finish
 

@@ -22,6 +22,8 @@ import {
   test_deferred_calls_state,
   print_debug_ct_node,
   command_input_async,
+  patch_builtin,
+  original_setTimeout,
 } from './utils.js'
 
 export const tests = [
@@ -3035,10 +3037,8 @@ const y = x()`
   }),
 
   test('record io', () => {
-    const random = globalThis.run_window.Math.random
-
     // Patch Math.random to always return 1
-    Object.assign(globalThis.run_window.Math, {random: () => 1})
+    patch_builtin('random', () => 1)
 
     const initial = test_initial_state(`
       const x = Math.random()
@@ -3046,7 +3046,7 @@ const y = x()`
     
     // Now call to Math.random is cached, break it to ensure it was not called
     // on next run
-    Object.assign(globalThis.run_window.Math, {random: () => { throw 'fail' }})
+    patch_builtin('random', () => { throw 'fail' })
 
     const next = COMMANDS.input(initial, `const x = Math.random()*2`, 0).state
     assert_equal(next.value_explorer.result.value, 2)
@@ -3055,7 +3055,7 @@ const y = x()`
     // Patch Math.random to return 2. 
     // TODO The first call to Math.random() is cached with value 1, and the
     // second shoud return 2
-    Object.assign(globalThis.run_window.Math, {random: () => 2})
+    patch_builtin('random', () => 2)
     const replay_failed = COMMANDS.input(
       initial, 
       `const x = Math.random() + Math.random()`, 
@@ -3066,14 +3066,12 @@ const y = x()`
     assert_equal(replay_failed.value_explorer.result.value, 4)
 
     // Remove patch
-    Object.assign(globalThis.run_window.Math, {random})
+    patch_builtin('random', null)
   }),
 
   test('record io cache discarded if args does not match', async () => {
-    const original_fetch = globalThis.run_window.fetch
-
     // Patch fetch
-    Object.assign(globalThis.run_window, {fetch: async () => 'first'})
+    patch_builtin('fetch', async () => 'first')
 
     const initial = await test_initial_state_async(`
       console.log(await fetch('url', {method: 'GET'}))
@@ -3081,7 +3079,7 @@ const y = x()`
     assert_equal(initial.logs.logs[0].args[0], 'first')
 
     // Patch fetch again
-    Object.assign(globalThis.run_window, {fetch: async () => 'second'})
+    patch_builtin('fetch', async () => 'second')
 
     const cache_discarded = await command_input_async(initial, `
       console.log(await fetch('url', {method: 'POST'}))
@@ -3089,7 +3087,7 @@ const y = x()`
     assert_equal(cache_discarded.logs.logs[0].args[0], 'second')
 
     // Remove patch
-    Object.assign(globalThis.run_window, {fetch: original_fetch})
+    patch_builtin('fetch', null)
   }),
 
   test('record io fetch rejects', async () => {
@@ -3116,8 +3114,6 @@ const y = x()`
   }),
 
   test('record io preserve promise resolution order', async () => {
-    const original_fetch = globalThis.run_window.fetch
-
     // Generate fetch function which calls get resolved in reverse order
     const {fetch, resolve} = new Function(`
       const calls = []
@@ -3136,7 +3132,7 @@ const y = x()`
     `)()
 
     // Patch fetch
-    Object.assign(globalThis.run_window, {fetch})
+    patch_builtin('fetch', fetch)
 
     const code = `
       await Promise.all(
@@ -3157,7 +3153,7 @@ const y = x()`
     assert_equal(initial.logs.logs.map(l => l.args[0]), [3,2,1])
 
     // Break fetch to ensure it is not get called anymore
-    Object.assign(globalThis.run_window, {fetch: () => {throw 'broken'}})
+    patch_builtin('fetch', () => {throw 'broken'})
 
     const with_cache = await command_input_async(
       initial, 
@@ -3170,17 +3166,15 @@ const y = x()`
     assert_equal(with_cache.logs.logs.map(l => l.args[0]), [3,2,1])
 
     // Remove patch
-    Object.assign(globalThis.run_window, {fetch: original_fetch})
+    patch_builtin('fetch', null)
   }),
 
   test('record io setTimeout', async () => {
-    const original_fetch = globalThis.run_window.fetch
-    const setTimeout_original = globalThis.run_window.setTimeout
-
     // Patch fetch to return result in 10ms
-    Object.assign(globalThis.run_window, {
-      fetch: () => new Promise(resolve => setTimeout_original(resolve, 10))
-    })
+    patch_builtin(
+      'fetch', 
+      () => new Promise(resolve => original_setTimeout(resolve, 10))
+    )
 
     const code = `
       setTimeout(() => console.log('timeout'), 0)
@@ -3193,14 +3187,14 @@ const y = x()`
     assert_equal(i.logs.logs.map(l => l.args[0]), ['timeout', 'fetch'])
 
     // Break fetch to ensure it would not be called
-    Object.assign(globalThis.run_window, {fetch: async () => {throw 'break'}})
+    patch_builtin('fetch', async () => {throw 'break'})
 
     const with_cache = await command_input_async(i, code, 0)
 
     // Cache must preserve resolution order
     assert_equal(with_cache.logs.logs.map(l => l.args[0]), ['timeout', 'fetch'])
 
-    Object.assign(globalThis.run_window, {fetch: original_fetch})
+    patch_builtin('fetch', null)
   }),
 
   test('record io clear io cache', async () => {
@@ -3235,11 +3229,12 @@ const y = x()`
   test('record io discard prev execution', () => {
     // Populate cache
     const i = test_initial_state(`Math.random(0)`)
+    const rnd = i.active_calltree_node.children[0].value
 
-    // Run code that does not remove IO patches immediately
+    // Run two versions of code in parallel
     const next = COMMANDS.input(i, `await Promise.resolve()`, 0)
-
     const next2 = COMMANDS.input(i, `Math.random(1)`, 0).state
-    console.log('n', next2.io_cache)
+    const next_rnd = i.active_calltree_node.children[0].value
+    assert_equal(rnd, next_rnd)
   }),
 ]

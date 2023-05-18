@@ -96,10 +96,6 @@ const do_run = function*(module_fns, cxt, io_cache){
 }
 
 export const run = gen_to_promise(function*(module_fns, cxt, io_cache) {
-  if(cxt.window != globalThis) {
-    // TODO refactor, remove cxt.window
-    throw new Error('illegal state')
-  }
   const result = yield* do_run(module_fns, cxt, io_cache)
 
   if(result.eval_cxt.io_cache_is_replay_aborted) {
