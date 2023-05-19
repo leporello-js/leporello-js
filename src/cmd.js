@@ -552,7 +552,7 @@ const goto_definition = (state, index) => {
           loc = {module: state.current_module, index: d.index}
         }
         return {
-          state: set_cursor_position(
+          state: move_cursor(
             {...state, current_module: loc.module}, 
             loc.index,
           )
