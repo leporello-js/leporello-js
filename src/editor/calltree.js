@@ -1,6 +1,5 @@
 import {exec} from '../index.js'
 import {el, stringify, fn_link, scrollIntoViewIfNeeded} from './domutils.js'
-import {FLAGS} from '../feature_flags.js'
 import {stringify_for_header} from './value_explorer.js'
 import {find_node} from '../ast_utils.js'
 import {is_expandable, root_calltree_node, get_deferred_calls, has_error} 
@@ -37,23 +36,11 @@ export class CallTree {
       }
 
       if(e.key == 'a') {
-        if(FLAGS.embed_value_explorer) {
-          exec('calltree.select_arguments')
-        } else {
-          // TODO make clear that arguments are shown
-          this.ui.eval.show_value(this.state.current_calltree_node.args)
-          this.ui.eval.focus_value_or_error(this.container)
-        }
+        exec('calltree.select_arguments')
       }
 
       if(e.key == 'r' || e.key == 'Enter') {
-        if(FLAGS.embed_value_explorer) {
-          exec('calltree.select_return_value')
-        } else {
-          // TODO make clear that return value is shown
-          this.ui.eval.show_value_or_error(this.state.current_calltree_node)
-          this.ui.eval.focus_value_or_error(this.container)
-        }
+        exec('calltree.select_return_value')
       }
 
       if(e.key == 'ArrowDown' || e.key == 'j'){

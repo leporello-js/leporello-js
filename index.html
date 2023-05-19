@@ -34,19 +34,11 @@
         height: 100%;
         display: grid;
         grid-template-areas:
-          "code eval"
-          "bottom bottom"
-          "statusbar statusbar";
-        grid-template-columns: 60% 40%;
-        grid-template-rows: 1fr 0.7fr 2.5em;
-      }
-
-      .root.embed_value_explorer {
-        grid-template-areas:
           "code code"
           "bottom files"
           "statusbar statusbar";
         grid-template-columns: 70% 30%;
+        grid-template-rows: 1fr 0.7fr 2.5em;
       }
 
       .root.fullscreen_editor {
@@ -54,17 +46,16 @@
         grid-template-rows: 1fr 0fr 2.5em;
       }
 
-      .editor_container, .bottom, .eval, .files_container, .statusbar {
+      .editor_container, .bottom, .files_container, .statusbar {
         box-shadow: 1px 1px 3px 0px var(--shadow_color);
       }
 
-      .editor_container, .eval, .bottom, .statusbar, .files_container {
+      .editor_container, .bottom, .statusbar, .files_container {
         margin: 8px;
       }
 
       .editor_container:focus-within, 
       .bottom:focus-within,
-      .eval:focus-within,
       .files_container:focus-within,
       .help_dialog {
         outline: none;
@@ -79,18 +70,6 @@
         position: relative;
         grid-area: code;
         font-size: 16px;
-      }
-
-      .eval {
-        display: grid;
-        grid-area: eval;
-        overflow: auto;
-        white-space: pre;
-      }
-
-      .eval_content {
-        padding: 5px;
-        outline: none;
       }
 
       /* ace markers */

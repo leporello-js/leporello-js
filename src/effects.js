@@ -6,7 +6,6 @@ import {
   get_deferred_calls
 } from './calltree.js'
 import {current_cursor_position} from './calltree.js'
-import {FLAGS} from './feature_flags.js'
 import {exec, FILES_ROOT} from './index.js'
 
 // Imports in the context of `run_window`, so global variables in loaded
@@ -221,7 +220,6 @@ export const render_common_side_effects = (prev, next, command, ui) => {
       } else {
         // Rerender entire calltree
         ui.render_debugger(next)
-        ui.eval.clear_value_or_error()
         clear_coloring(ui)
         render_coloring(ui, next)
         ui.logs.rerender_logs(next.logs)
@@ -255,14 +253,6 @@ export const render_common_side_effects = (prev, next, command, ui) => {
         ui.calltree.render_select_node(prev, next)
       } 
 
-      if(node_changed) {
-        if(!next.current_calltree_node.toplevel) {
-          ui.eval.show_value_or_error(next.current_calltree_node)
-        } else {
-          ui.eval.clear_value_or_error()
-        }
-      }
-
       if(prev.calltree_node_by_loc != next.calltree_node_by_loc) {
         render_coloring(ui, next)
       }
@@ -290,15 +280,11 @@ export const render_common_side_effects = (prev, next, command, ui) => {
 
   const selresult = next.selection_state?.result
   if(selresult != null && prev.selection_state?.result != selresult) {
-    if(FLAGS.embed_value_explorer) {
-      const node = next.selection_state.node
-      ui.editor.embed_value_explorer({
-        index: node.index + node.length, 
-        result: next.selection_state.result,
-      })
-    } else {
-      ui.eval.show_value_or_error(next.selection_state.result)
-    }
+    const node = next.selection_state.node
+    ui.editor.embed_value_explorer({
+      index: node.index + node.length, 
+      result: next.selection_state.result,
+    })
   }
 
   // Value explorer

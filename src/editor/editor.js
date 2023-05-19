@@ -1,7 +1,6 @@
 import {exec, get_state} from '../index.js'
 import {ValueExplorer, stringify_for_header} from './value_explorer.js'
 import {el, stringify, fn_link} from './domutils.js'
-import {FLAGS} from '../feature_flags.js'
 
 /*
   normalize events 'change' and 'changeSelection':
@@ -173,6 +172,8 @@ export class Editor {
 
   update_value_explorer_margin() {
     if(this.widget != null) {
+      // TODO: set margin left based on current line width, not on max line
+      // width?
       this.widget.content.style.marginLeft = 
         (this.ace_editor.getSession().getScreenWidth() + 1) + 'ch'
     }
@@ -265,15 +266,9 @@ export class Editor {
   }
 
   focus_value_explorer(return_to) {
-    if(FLAGS.embed_value_explorer) {
-      if(this.widget != null) {
-        this.widget.return_to = return_to
-        this.widget.content.focus({preventScroll: true})
-      }
-    } else {
-      if(get_state().selection_state != null) {
-        this.ui.eval.focus_value_or_error()
-      }
+    if(this.widget != null) {
+      this.widget.return_to = return_to
+      this.widget.content.focus({preventScroll: true})
     }
   }
 

@@ -4,9 +4,7 @@ import {Files} from './files.js'
 import {CallTree} from './calltree.js'
 import {Logs} from './logs.js'
 import {IO_Cache} from './io_cache.js'
-import {Eval} from './eval.js'
 import {el} from './domutils.js'
-import {FLAGS} from '../feature_flags.js'
 
 export class UI {
   constructor(container, state){
@@ -20,12 +18,8 @@ export class UI {
     this.debugger = {}
 
     container.appendChild(
-      (this.root = el('div', 
-          'root ' + (FLAGS.embed_value_explorer ? 'embed_value_explorer' : ''),
+      (this.root = el('div', 'root',
         this.editor_container = el('div', 'editor_container'),
-        FLAGS.embed_value_explorer
-          ? null
-          : (this.eval_container = el('div', {class: 'eval'})),
         el('div', 'bottom', 
           this.debugger_container = el('div', 'debugger',
             this.debugger_loaded = el('div', 'debugger_wrapper', 
@@ -172,17 +166,6 @@ export class UI {
         this.fullscreen_editor()
       }
     })
-
-    if(!FLAGS.embed_value_explorer) {
-      this.eval = new Eval(this, this.eval_container)
-    } else {
-      // Stub
-      this.eval = {
-        show_value_or_error(){},
-        clear_value_or_error(){},
-        focus_value_or_error(){},
-      }
-    }
 
     this.editor = new Editor(this, this.editor_container)
 
