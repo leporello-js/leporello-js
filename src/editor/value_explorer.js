@@ -59,20 +59,22 @@ export const stringify_for_header = v => {
   } else if(type == 'function') {
     // TODO clickable link, 'fn', cursive
     return 'fn ' + v.name
-  } else if (isPromise(v)) {
-    if(v.status == null) {
-      return `Promise<pending>`
-    } else {
-      if(v.status.ok) {
-        return `Promise<fulfilled: ${stringify_for_header(v.status.value)}>`
-      } else {
-        return `Promise<rejected: ${stringify_for_header(v.status.error)}>`
-      }
-    }
-  } else if(isError(v)) {
-    return v.toString()
+  } else if(type == 'string') {
+    return JSON.stringify(v)
   } else if(type == 'object') {
-    if(Array.isArray(v)) {
+    if (isPromise(v)) {
+      if(v.status == null) {
+        return `Promise<pending>`
+      } else {
+        if(v.status.ok) {
+          return `Promise<fulfilled: ${stringify_for_header(v.status.value)}>`
+        } else {
+          return `Promise<rejected: ${stringify_for_header(v.status.error)}>`
+        }
+      }
+    } else if(isError(v)) {
+      return v.toString()
+    } else if(Array.isArray(v)) {
       if(v.length == 0) {
         return '[]'
       } else {
@@ -87,19 +89,24 @@ export const stringify_for_header = v => {
         return '{…}'
       }
     }
-  } else if(type == 'string') {
-    return JSON.stringify(v)
   } else {
     return v.toString()
   }
 }
 
 export const header = object => {
-  if(typeof(object) == 'undefined') {
-    return 'undefined'
-  } else if(object == null) {
+  const type = typeof(object)
+
+  if(object === null) {
     return 'null'
-  } else if(typeof(object) == 'object') {
+  } else if(object === undefined) {
+    return 'undefined'
+  } else if(type == 'function') {
+    // TODO clickable link, 'fn', cursive
+    return 'fn ' + object.name
+  } else if(type == 'string') {
+    return JSON.stringify(object)
+  } else if(type == 'object') {
     if(isPromise(object)) {
       if(object.status == null) {
         return `Promise<pending>`
@@ -133,11 +140,6 @@ export const header = object => {
         .join(', ')
       return `${prefix} {${inner}}`
     }
-  } else if(typeof(object) == 'function') {
-    // TODO clickable link, 'fn', cursive
-    return 'fn ' + object.name
-  } else if(typeof(object) == 'string') {
-    return JSON.stringify(object)
   } else {
     return object.toString()
   }
