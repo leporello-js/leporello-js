@@ -92,13 +92,11 @@ const do_load_dir = async (handle, path) => {
       name: handle.name, 
       path,
       kind: 'directory',
-      children: await Promise.all(
-        children
-        .map(c => 
-          do_load_dir(c, path == null ? c.name : path + '/' + c.name)
-        )
-        .sort((a,b) => a.name > b.name)
-      )
+      children: (await Promise.all(
+          children.map(c => 
+            do_load_dir(c, path == null ? c.name : path + '/' + c.name)
+          )
+        )).sort((a, b) => a.name.localeCompare(b.name))
     }
   } else if(handle.kind == 'file') {
     return {
