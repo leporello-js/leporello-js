@@ -22,7 +22,7 @@ const map_find_definitions = (nodes, mapper) => {
 const scope_from_node = n => {
   if(n.type == 'import') {
     return Object.fromEntries(
-      n.imports.map(i => [i.value, i])
+      n.children.map(i => [i.value, i])
     )
   } else if(n.type == 'export'){
     return scope_from_node(n.binding)
@@ -137,7 +137,13 @@ export const find_definitions = (ast, scope = {}, closure_scope = {}, module_nam
     let children, full_import_path
     if(ast.type == 'import') {
       full_import_path = concat_path(module_name, ast.module)
-      children = ast.children.map(c => ({...c, definition: {module: full_import_path}}))
+      children = ast.children.map((c, i) => ({
+        ...c, 
+        definition: {
+          module: full_import_path, 
+          is_default: i == 0 && ast.default_import != null,
+        }
+      }))
     } else if(ast.type == 'const') {
       children = [add_trivial_definition(ast.name_node), ...ast.children.slice(1)]
     } else if(ast.type == 'let') {
@@ -162,16 +168,6 @@ export const find_definitions = (ast, scope = {}, closure_scope = {}, module_nam
   }
 }
 
-export const find_export = (name, module) => {
-  return map_find(module.stmts, n => {
-    if(n.type != 'export') {
-      return null
-    }
-    const ids = collect_destructuring_identifiers(n.binding.name_node)
-    return ids.find(i => i.value == name)
-  })
-}
-
 const BASE = 'dummy://dummy/'
 const concat_path = (base, i) => {
   const result = new URL(i, BASE + base).toString()
@@ -184,11 +180,9 @@ const concat_path = (base, i) => {
 
 export const topsort_modules = (modules) => {
   const sort_module_deps = (module) => {
-    return Object.keys(collect_imports(modules[module]))
-      .reduce(
-        (result, m) => result.concat(sort_module_deps(m)),
-        []
-      )
+    return collect_imports(modules[module])
+      .map(m => sort_module_deps(m))
+      .flat()
       .concat(module)
   }
 
@@ -235,6 +229,8 @@ export const check_imports = modules => {
       .reduce(
         (imports, n) => [
           ...imports,
+          // TODO imports
+          // TODO use flatmap
           ...(n.imports.map(i => ({name: i.value, from: n.module})))
         ],
         []
@@ -245,7 +241,8 @@ export const check_imports = modules => {
       .reduce((all, current) => [...all, ...current], [])
 
     return {imports, exports}
-    //TODO check for each import, there is export
+    // TODO check for each import, there is export. For default import there is
+    // default export
   })
   // Topological sort
   // For each module

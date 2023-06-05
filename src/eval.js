@@ -261,18 +261,25 @@ ${JSON.stringify(errormessage)}, true)`
   } else if(node.type == 'destructuring_pair') {
     return do_codegen(node.key) + ' : ' + do_codegen(node.value);
   } else if(node.type == 'import') {
-    const names = node.imports.map(n => n.value)
-    if(names.length == 0) {
-      return ''
+    let names, def
+    if(node.default_import != null) {
+      def = `default: ${node.default_import},`
+      names = node.children.slice(1).map(n => n.value)
     } else {
-      return `const {${names.join(',')}} = __cxt.modules['${node.full_import_path}'];`;
+      def = ''
+      names = node.children.map(n => n.value)
     }
+    return `const {${def} ${names.join(',')}} = __cxt.modules['${node.full_import_path}'];`;
   } else if(node.type == 'export') {
-    const identifiers = collect_destructuring_identifiers(node.binding.name_node)
-      .map(i => i.value)
-    return do_codegen(node.binding)
-      +
-      `Object.assign(__cxt.modules['${node_cxt.module}'], {${identifiers.join(',')}});`
+    if(node.is_default) {
+      return `__cxt.modules['${node_cxt.module}'].default = ${do_codegen(node.children[0])};`
+    } else {
+      const identifiers = collect_destructuring_identifiers(node.binding.name_node)
+        .map(i => i.value)
+      return do_codegen(node.binding)
+        +
+        `Object.assign(__cxt.modules['${node_cxt.module}'], {${identifiers.join(',')}});`
+    }
   } else if(node.type == 'function_decl') {
     const expr = node.children[0]
     return `const ${expr.name} = ${codegen_function_expr(expr, node_cxt)};`
@@ -991,12 +998,20 @@ const eval_statement = (s, scope, calls, context) => {
       node: {...s, children: [node], result: {ok: node.result.ok}}
     }
   } else if(s.type == 'import') {
-    const children = s.imports.map(i => (
-      {...i, 
-        result: {ok: true, value: context.modules[s.full_import_path][i.value]}
+    const module = context.modules[s.full_import_path]
+    const children = s.children.map((imp, i) => (
+      {...imp, 
+        result: {
+          ok: true, 
+          value: imp.definition.is_default
+            ? module['default']
+            : module[imp.value]
+        }
       }
     ))
-    const imported_scope = Object.fromEntries(children.map(i => [i.value, i.result.value]))
+    const imported_scope = Object.fromEntries(
+      children.map(imp => [imp.value, imp.result.value])
+    )
     return {
       ok: true,
       scope: {...scope, ...imported_scope},

@@ -1226,20 +1226,34 @@ const import_statement =
       optional(by_type('pragma_external')),
       seq([
         literal('import'),
+        // TODO import can have both named import and default import,
+        // like 'import foo, {bar} from "module"'
         optional(
-          seq([
-            list(
-              ['{', '}'],
+          seq_select(0, [
+            either(
+              list(
+                ['{', '}'],
+                identifier,
+              ),
               identifier,
             ),
             literal('from'),
-          ])
+          ]),
         ),
         string_literal
       ])
     ]),
     ({value: [pragma_external, imp]}) => {
-      const {value: [_import, identifiers, module], ...node} = imp
+      const {value: [_import, imports, module], ...node} = imp
+      let default_import, children
+      if(imports == null) {
+        children = []
+      } else if(imports.value.type == 'identifier') {
+        default_import = imports.value.value
+        children = [imports.value]
+      } else {
+        children = imports.value.value
+      }
       // remove quotes
       const module_string = module.value.slice(1, module.value.length - 1)
       // if url starts with protocol, then it is always external
@@ -1252,25 +1266,44 @@ const import_statement =
         // TODO refactor hanlding of string literals. Drop quotes from value and
         // fix codegen for string_literal
         module: module_string,
-        children: identifiers == null ? [] : identifiers.value[0].value,
+        default_import,
+        children,
       }
     }
   )
 
 const export_statement =
-  if_ok(
-    seq_select(1, [
-      literal('export'),
-      // TODO export let statement, export default, etc. Or not allow
-      // let statement because export let cannot be compiled properly?
-      const_statement,
-    ]),
-    ({value, ...node}) => ({
-      ...node,
-      not_evaluatable: true,
-      type: 'export',
-      children: [value],
-    })
+  either(
+    if_ok(
+      seq_select(1, [
+        literal('export'),
+        // TODO export let statement, export default, etc. Or not allow
+        // let statement because export let cannot be compiled properly?
+        const_statement,
+      ]),
+      ({value, ...node}) => ({
+        ...node,
+        not_evaluatable: true,
+        type: 'export',
+        is_default: false,
+        children: [value],
+      })
+    ),
+    if_ok(
+      seq_select(2, [
+        literal('export'),
+        literal('default'),
+        expr,
+      ]),
+      ({value, ...node}) => ({
+        ...node,
+        not_evaluatable: true,
+        type: 'export',
+        is_default: true,
+        children: [value],
+      })
+    ),
+
   )
 
 
@@ -1479,7 +1512,6 @@ const update_children_not_rec = (node, children = node.children) => {
     }
   } else if(node.type == 'import') {
     return {...node,
-      imports: children,
       is_statement: true,
     }
   } else if(node.type == 'export') {
@@ -1685,7 +1717,7 @@ const do_load_modules = (module_names, loader, already_loaded) => {
 
   const deps = uniq(
     Object.values(modules)
-      .map(m => Object.keys(collect_imports(m)))
+      .map(m => collect_imports(m))
       .flat()
   )
 

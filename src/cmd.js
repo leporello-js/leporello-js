@@ -1,12 +1,11 @@
-import {map_object, filter_object, collect_nodes_with_parents, uniq} 
+import {map_object, map_find, filter_object, collect_nodes_with_parents, uniq} 
   from './utils.js'
 import {
   is_eq, is_child, ancestry, ancestry_inc, map_tree,
   find_leaf, find_fn_by_location, find_node, find_error_origin_node,
-  collect_external_imports
+  collect_external_imports, collect_destructuring_identifiers
 } from './ast_utils.js'
 import {load_modules} from './parse_js.js'
-import {find_export} from './find_definitions.js'
 import {eval_modules} from './eval.js'
 import {
   root_calltree_node, root_calltree_module, make_calltree, 
@@ -555,7 +554,17 @@ const goto_definition = (state, index) => {
       } else {
         let loc
         if(d.module != null) {
-          const exp = find_export(node.value, state.parse_result.modules[d.module])
+          const exp = map_find(state.parse_result.modules[d.module].stmts, n => {
+            if(n.type != 'export') {
+              return null
+            }
+            if(n.is_default && d.is_default) {
+              return n.children[0]
+            } else if(!n.is_default && !d.is_default) {
+              const ids = collect_destructuring_identifiers(n.binding.name_node)
+              return ids.find(i => i.value == node.value)
+            }
+          })
           loc = {module: d.module, index: exp.index}
         } else {
           loc = {module: state.current_module, index: d.index}

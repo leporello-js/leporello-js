@@ -41,34 +41,12 @@ export const map_destructuring_identifiers = (node, mapper) => {
 }
 
 export const collect_imports = module => {
-  const import_statements =
+  return uniq(
     module.stmts
       .filter(n => n.type == 'import')
       .filter(n => !n.is_external)
-
-  const imported_modules = uniq(
-    import_statements.map(n => n.full_import_path)
+      .map(n => n.full_import_path)
   )
-
-  const imports = 
-    import_statements
-    .map(n => 
-      n.imports.map(i => 
-        ({name: i.value, module: n.full_import_path})
-      )
-    )
-    .flat()
-
-  const by_module = Object.fromEntries(imported_modules.map(m => 
-    [
-      m,
-      imports
-        .filter(i => i.module == m)
-        .map(i => i.name)
-    ]
-  ))
-
-  return by_module
 }
 
 export const collect_external_imports = modules =>

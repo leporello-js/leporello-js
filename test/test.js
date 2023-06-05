@@ -1145,6 +1145,37 @@ export const tests = [
     assert_equal(state.parse_result.ok, true)
   }),
 
+  test('modules default export', () => {
+    const modules = {
+      '' : "import foo from 'foo'; foo",
+      'foo': `export default 1`
+    }
+    assert_code_evals_to(modules , 1)
+
+    const i = test_initial_state(modules)
+    const s = COMMANDS.goto_definition(i, modules[''].indexOf('foo')).state
+    assert_equal(current_cursor_position(s), modules['foo'].indexOf('1'))
+    assert_equal(s.current_module, 'foo')
+  }),
+
+  test('modules default import', () => {
+    const code = `
+      // external
+      import foo from 'foo.js'
+      foo
+    `
+    const initial = test_initial_state(code)
+
+    const next = COMMANDS.external_imports_loaded(initial, initial, {
+      'foo.js': {
+        ok: true,
+        module: {
+          'default': 'foo_value'
+        },
+      }
+    })
+    assert_equal(active_frame(next).children.at(-1).result.value, 'foo_value')
+  }),
 
   // Static analysis
 
