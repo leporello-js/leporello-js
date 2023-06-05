@@ -77,7 +77,7 @@ const io_patch = (path, use_context = false) => {
           : original.apply(this, args)
 
         if(value instanceof cxt.window.Promise) {
-          // TODO use cxt.promise_then, not finally which calls
+          // TODO use __original_then, not finally which calls
           // patched 'then'?
           value = value.finally(() => {
             if(cxt_copy != cxt) {

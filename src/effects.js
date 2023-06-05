@@ -183,7 +183,7 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     next.eval_modules_state != null
   ) {
     const s = next.eval_modules_state
-    s.promise.then(result => {
+    s.promise.__original_then(result => {
       exec('eval_modules_finished', 
         next, /* becomes prev_state */
         result, 

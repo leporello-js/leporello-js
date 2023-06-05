@@ -3050,6 +3050,31 @@ const y = x()`
     assert_equal(moved_state.active_calltree_node.fn.name, 'fn2')
   }),
   
+  test('async/await async deferred call', async () => {
+    const code = `
+      await new Object()
+      export const fn = () => 1
+    `
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
+
+    await i.eval_modules_state.promise.__original_then(result => {
+      const s = COMMANDS.eval_modules_finished(
+        i, 
+        i,
+        result, 
+        i.eval_modules_state.node, 
+        i.eval_modules_state.toplevel
+      )
+
+      // Make deferred call
+      s.modules[''].fn()
+      const state = on_deferred_call(s)
+      assert_equal(get_deferred_calls(state).length, 1)
+      assert_equal(get_deferred_calls(state)[0].value, 1)
+    })
+
+  }),
+
   test('async/await await argument bug', async () => {
     await assert_code_evals_to_async(
       `

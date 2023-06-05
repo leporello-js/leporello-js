@@ -362,7 +362,7 @@ export const eval_modules = (
   })
 
   if(is_async) {
-    return result.then(make_result)
+    return result.__original_then(make_result)
   } else {
     return make_result(result)
   }

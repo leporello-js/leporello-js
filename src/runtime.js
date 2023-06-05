@@ -16,8 +16,7 @@ const gen_to_promise = gen_fn => {
       } else {
         // If promise
         if(result.value?.then != null) {
-          return result.value.then.__original.call(
-            result.value,
+          return result.value.__original_then(
             value => next(gen.next(value)),
             error => next(gen.throw(error)),
           )
@@ -113,6 +112,10 @@ const apply_promise_patch = cxt => {
 
   cxt.promise_then = cxt.window.Promise.prototype.then
 
+  if(cxt.window.Promise.prototype.__original_then == null) {
+    cxt.window.Promise.prototype.__original_then = cxt.window.Promise.prototype.then
+  }
+
   cxt.window.Promise.prototype.then = function then(on_resolve, on_reject) {
 
     if(cxt.children == null) {
@@ -135,14 +138,11 @@ const apply_promise_patch = cxt => {
           }
         }
 
-    return cxt.promise_then.call(
-      this,
+    return this.__original_then(
       make_callback(on_resolve, true),
       make_callback(on_reject, false),
     )
   }
-
-  cxt.window.Promise.prototype.then.__original = cxt.promise_then
 }
 
 const remove_promise_patch = cxt => {
@@ -266,7 +266,7 @@ const __do_await = async (cxt, value) => {
   }
   const children_copy = cxt.children
   if(value instanceof cxt.window.Promise) {
-    cxt.promise_then.call(value,
+    value.__original_then(
       v => {
         value.status = {ok: true, value: v}
       },
