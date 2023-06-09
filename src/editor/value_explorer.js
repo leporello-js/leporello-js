@@ -121,13 +121,17 @@ export const header = object => {
     } else if(has_custom_toString(object)) {
       return object.toString()
     } else {
+      const prefix = 
+        (object.constructor.name == null || object.constructor.name == 'Object')
+          ? ''
+          : object.constructor.name + ' '
       const inner = displayed_entries(object)
         .map(([k,v]) => {
           const value = stringify_for_header(v)
           return `${k}: ${value}`
         })
         .join(', ')
-      return `{${inner}}`
+      return `${prefix} {${inner}}`
     }
   } else if(typeof(object) == 'function') {
     // TODO clickable link, 'fn', cursive
