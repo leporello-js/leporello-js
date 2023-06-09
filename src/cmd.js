@@ -319,6 +319,15 @@ const validate_index_action = state => {
   if(!state.parse_result.ok){
     return {state, effects: {type: 'set_status', args: ['invalid syntax']}}
   }
+
+  if(
+    state.loading_external_imports_state != null 
+    || 
+    state.eval_modules_state != null
+  ) {
+    return {state, effects: {type: 'set_status', args: ['loading']}}
+  }
+
   if(
     state.active_calltree_node == null
     ||
