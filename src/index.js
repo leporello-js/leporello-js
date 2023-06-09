@@ -210,6 +210,15 @@ export const exec = (cmd, ...args) => {
     throw new Error('illegal state')
   }
 
+  /*
+    supress is_recording_deferred_calls while rendering, because rendering may
+    call toJSON(), which can call trigger deferred call (see lodash.js lazy
+    chaining)
+  */
+  if(nextstate.eval_cxt != null) {
+    nextstate.eval_cxt.is_recording_deferred_calls = false
+  }
+
   render_common_side_effects(state, nextstate, cmd, ui);
 
   if(effects != null) {
@@ -223,6 +232,11 @@ export const exec = (cmd, ...args) => {
       EFFECTS[e.type](nextstate, e.args, ui)
     })
   }
+
+  if(nextstate.eval_cxt != null) {
+    nextstate.eval_cxt.is_recording_deferred_calls = true
+  }
+
 
   // Expose for debugging
   globalThis.__prev_state = state

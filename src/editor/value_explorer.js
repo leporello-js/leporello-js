@@ -1,9 +1,8 @@
-// TODO large arrays/objects
+// TODO paging for large arrays/objects
 // TODO maps, sets
 // TODO show Errors in red
 // TODO fns as clickable links (jump to definition), both for header and for
 // content
-// TODO show constructor.name in header?
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 
@@ -24,13 +23,47 @@ const isError = object =>
 const isPromise = object =>
   object instanceof globalThis.run_window.Promise
 
+// Override behaviour for Date, becase Date has toJSON defined
+const isDate = object => 
+  object instanceof globalThis.run_window.Date
+  ||
+  object instanceof globalThis.run_window.Date.__original
+
+const toJSON_safe = object => {
+  try {
+    return object.toJSON() 
+  } catch(e) {
+    return object
+  }
+}
+
 const displayed_entries = object => {
-  if(isPromise(object)) {
+  if(typeof(object) != 'object') {
+    return []
+  } else if(isPromise(object)) {
     return displayed_entries(
       object.status.ok ? object.status.value : object.status.error
     )
   } else if(Array.isArray(object)) {
     return object.map((v, i) => [i, v])
+  } else if(typeof(object.toJSON) == 'function') {
+    // hack. Lodash has toJSON fn that returns null. So 
+    //
+    // 'import _ from "lodash"'
+    //
+    // Shows undefined in value explorer and breaks product demo. Make dirty
+    // workaround
+    if(object['sortedLastIndexOf'] != null) {
+      return Object.entries(object)
+    }
+
+    const result = toJSON_safe(object)
+    if(result == object) {
+      // avoid infinite recursion when toJSON returns itself
+      return Object.entries(object)
+    } else {
+      return displayed_entries(result)
+    }
   } else {
     return Object.entries(object)
   }
@@ -72,6 +105,8 @@ export const stringify_for_header = v => {
           return `Promise<rejected: ${stringify_for_header(v.status.error)}>`
         }
       }
+    } else if (isDate(v)) {
+      return v.toString()
     } else if(isError(v)) {
       return v.toString()
     } else if(Array.isArray(v)) {
@@ -80,6 +115,9 @@ export const stringify_for_header = v => {
       } else {
         return '[…]'
       }
+    } else if(typeof(v.toJSON) == 'function') {
+      // TODO fix inifinite recursion if toJSON returns itself
+      return stringify_for_header(toJSON_safe(v))
     } else if(has_custom_toString(v)) {
       return v.toString()
     } else {
@@ -94,7 +132,8 @@ export const stringify_for_header = v => {
   }
 }
 
-export const header = object => {
+
+export const header = (object, no_toJSON = false) => {
   const type = typeof(object)
 
   if(object === null) {
@@ -117,6 +156,8 @@ export const header = object => {
           return `Promise<rejected: ${header(object.status.error)}>`
         }
       }
+    } else if(isDate(object)) {
+      return object.toString()
     } else if(isError(object)) {
       return object.toString()
     } else if(Array.isArray(object)) {
@@ -125,6 +166,20 @@ export const header = object => {
           .map(stringify_for_header)
           .join(', ')
         + ']'
+    } else if(typeof(object.toJSON) == 'function' && !no_toJSON) {
+      // hack. Lodash has toJSON fn that returns null. So 
+      //
+      // 'import _ from "lodash"'
+      //
+      // Shows undefined in value explorer and breaks product demo. Make dirty
+      // workaround
+      if(object['sortedLastIndexOf'] != null) {
+        return header(object, true)
+      }
+
+      // TODO fix inifinite recursion if toJSON returns itself (call with
+      // no_toJSON)
+      return header(toJSON_safe(object))
     } else if(has_custom_toString(object)) {
       return object.toString()
     } else {
