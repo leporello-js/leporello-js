@@ -1,4 +1,4 @@
-import {map_object, filter_object, pick_keys, collect_nodes_with_parents, uniq} 
+import {map_object, filter_object, collect_nodes_with_parents, uniq} 
   from './utils.js'
 import {
   is_eq, is_child, ancestry, ancestry_inc, map_tree,
@@ -718,10 +718,7 @@ const get_value_explorer = (state, index) => {
     } else if(stmt.type == 'import'){
       result = {
         ok: true,
-        value: pick_keys(
-          state.modules[stmt.full_import_path],
-          stmt.imports.map(i => i.value)
-        ),
+        value: state.modules[stmt.full_import_path],
       }
     } else if (stmt.type == 'export') {
       result = stmt.children[0].children[1].result

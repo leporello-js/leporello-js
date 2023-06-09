@@ -41,12 +41,6 @@ export const map_find = (arr, mapper) => arr.reduce(
   null
 )
 
-export const pick_keys = (obj, keys) => {
-  return Object.fromEntries(
-    Object.entries(obj).filter(([k,v]) => keys.includes(k))
-  )
-}
-
 export const stringify = val => JSON.stringify(val, null, 2)
 
 export const zip = (x,y) => {
