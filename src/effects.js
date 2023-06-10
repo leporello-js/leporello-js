@@ -278,14 +278,6 @@ export const render_common_side_effects = (prev, next, command, ui) => {
     } 
   }
 
-  const selresult = next.selection_state?.result
-  if(selresult != null && prev.selection_state?.result != selresult) {
-    const node = next.selection_state.node
-    ui.editor.embed_value_explorer({
-      index: node.index + node.length, 
-      result: next.selection_state.result,
-    })
-  }
 
   // Value explorer
   if(prev.value_explorer != next.value_explorer) {

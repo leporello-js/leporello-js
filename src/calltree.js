@@ -713,8 +713,11 @@ const select_return_value = state => {
       selection_state: {
         node,
         initial_is_expand: true,
+      },
+      value_explorer: {
+        index: node.index + node.length, 
         result: result_node.result,
-      }
+      },
     }, 
     effects: {type: 'set_focus'}
   }
@@ -755,8 +758,11 @@ const select_arguments = (state, with_focus = true) => {
       selection_state: {
         node,
         initial_is_expand: true,
+      },
+      value_explorer: {
+        index: node.index + node.length, 
         result,
-      }
+      },
     }, 
     effects: with_focus
       ? {type: 'set_focus'}

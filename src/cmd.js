@@ -453,16 +453,18 @@ const get_next_selection_state = (selection_state, frame, is_expand, index) => {
 export const selection = (selection_state, frame, is_expand, index) => {
   const leaf = find_leaf(frame, index)
   if(leaf == null) {
-    return { 
-      ok: false,
-      message: 'out of scope',
+    return {
+      selection_state: { 
+        ok: false,
+        message: 'out of scope',
+      }
     }
   }
 
   const next_selection_state = get_next_selection_state(selection_state, frame, is_expand, index)
 
   if(!next_selection_state.ok) {
-    return next_selection_state
+    return {selection_state: next_selection_state}
   }
 
   const {ok, message} = can_evaluate_node(frame, next_selection_state.node)
@@ -470,9 +472,11 @@ export const selection = (selection_state, frame, is_expand, index) => {
     const node = find_node(frame, n => is_eq(n, next_selection_state.node))
     if(node.result == null) {
       return {
-        ...next_selection_state, 
-        ok: false,
-        message: 'expression was not reached during program execution',
+        selection_state: {
+          ...next_selection_state, 
+          ok: false,
+          message: 'expression was not reached during program execution',
+        }
       }
     } else {
       let result
@@ -482,10 +486,15 @@ export const selection = (selection_state, frame, is_expand, index) => {
         const error_node = find_error_origin_node(node)
         result = error_node.result
       }
-      return {...next_selection_state, ok: true, result}
+      return {
+        selection_state: {...next_selection_state, ok: true},
+        result
+      }
     }
   } else {
-    return {...next_selection_state, ok: false, message}
+    return {
+      selection_state: {...next_selection_state, ok: false, message}
+    }
   }
 }
 
@@ -495,14 +504,22 @@ const eval_selection = (state, index, is_expand) => {
     return validate_result
   }
 
-  const selection_state = selection(
+  const {selection_state, result} = selection(
     state.selection_state, 
     active_frame(state),
     is_expand, 
     index
   )
 
-  const nextstate = {...state, selection_state}
+  const nextstate = {...state, 
+    selection_state,
+    value_explorer: selection_state.ok
+      ? {
+          index: selection_state.node.index + selection_state.node.length, 
+          result,
+        }
+      : null
+  }
 
   if(!selection_state.ok) {
     return {state: nextstate, effects: {type: 'set_status', args: [selection_state.message]}}

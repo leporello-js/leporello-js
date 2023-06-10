@@ -1952,15 +1952,15 @@ const y = x()`
     `
     const s0 = test_initial_state(code)
     const s1 = COMMANDS.eval_selection(s0, code.indexOf('2'), true).state
-    assert_equal(s1.selection_state.result.value, 2)
+    assert_equal(s1.value_explorer.result.value, 2)
     
     // Expand selection
     const s2 = COMMANDS.eval_selection(s1, code.indexOf('2'), true).state
-    assert_equal(s2.selection_state.result.value, 4)
+    assert_equal(s2.value_explorer.result.value, 4)
     
     const s3 = COMMANDS.eval_selection(s2, code.indexOf('2'), true).state
     // Selection is not expanded beyond expression to statement
-    assert_equal(s3.selection_state.result.value, 4)
+    assert_equal(s3.value_explorer.result.value, 4)
     assert_equal(s3.selection_state.node.index, code.indexOf('2'))
     assert_equal(s3.selection_state.node.length, 3)
 
@@ -2101,7 +2101,7 @@ const y = x()`
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.calltree.arrow_right(s1)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
-    assert_equal(s3.selection_state.result.value, 1)
+    assert_equal(s3.value_explorer.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('x()'))
     assert_equal(current_cursor_position(s3), code.indexOf('x()'))
     assert_equal(effects, {type: 'set_focus'})
@@ -2117,7 +2117,7 @@ const y = x()`
     // Expand
     const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
-    assert_equal(s3.selection_state.result.value, 1)
+    assert_equal(s3.value_explorer.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('1'))
     assert_equal(current_cursor_position(s3), code.indexOf('1'))
     assert_equal(effects, {type: 'set_focus'})
@@ -2133,7 +2133,7 @@ const y = x()`
     // Expand
     const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
-    assert_equal(s3.selection_state.result.value, 1)
+    assert_equal(s3.value_explorer.result.value, 1)
     assert_equal(s3.selection_state.node.index, code.indexOf('1'))
     assert_equal(current_cursor_position(s3), code.indexOf('1'))
     assert_equal(effects, {type: 'set_focus'})
@@ -2162,7 +2162,7 @@ const y = x()`
     // Select map
     const s2 = COMMANDS.calltree.arrow_right(s1)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
-    assert_equal(s3.selection_state.result.value, [1, 1, 1])
+    assert_equal(s3.value_explorer.result.value, [1, 1, 1])
   }),
 
   test('select_return_value new call', () => {
@@ -2170,7 +2170,7 @@ const y = x()`
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.calltree.arrow_right(s1)
     const {state: s3, effects} = COMMANDS.calltree.select_return_value(s2)
-    assert_equal(s3.selection_state.result.value, '1')
+    assert_equal(s3.value_explorer.result.value, '1')
   }),
   
   test('select_arguments not_expanded', () => {
@@ -2182,7 +2182,7 @@ const y = x()`
     // focus call
     const s2 = COMMANDS.calltree.arrow_right(s1)
     const s3 = COMMANDS.calltree.select_arguments(s2)
-    assert_equal(s3.state.selection_state.result, {ok: true, value: [1]})
+    assert_equal(s3.state.value_explorer.result, {ok: true, value: [1]})
     assert_equal(current_cursor_position(s3.state), code.indexOf('(1)'))
     assert_equal(s3.effects, {type: 'set_focus'})
   }),
@@ -2198,7 +2198,7 @@ const y = x()`
     // expand call
     const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const s3 = COMMANDS.calltree.select_arguments(s2)
-    assert_equal(s3.state.selection_state.result, {ok: true, value: {a: 1}})
+    assert_equal(s3.state.value_explorer.result, {ok: true, value: {a: 1}})
     assert_equal(current_cursor_position(s3.state), code.indexOf('(a)'))
     assert_equal(s3.effects, {type: 'set_focus'})
   }),
@@ -2208,7 +2208,7 @@ const y = x()`
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.calltree.arrow_right(s1)
     const s3 = COMMANDS.calltree.select_arguments(s2).state
-    assert_equal(s3.selection_state.result, {ok: true, value: ["1"]})
+    assert_equal(s3.value_explorer.result, {ok: true, value: ["1"]})
   }),
 
   test('move_cursor arguments', () => {
@@ -2567,7 +2567,7 @@ const y = x()`
     assert_equal(i.logs.logs[0].args, [10])
     const state = COMMANDS.calltree.navigate_logs_position(i, 0)
     assert_equal(state.logs.log_position, 0)
-    assert_equal(state.selection_state.result.value, [10])
+    assert_equal(state.value_explorer.result.value, [10])
     assert_equal(current_cursor_position(state), code.indexOf('(x)'))
   }),
 
