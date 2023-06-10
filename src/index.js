@@ -1,5 +1,5 @@
 import {UI} from './editor/ui.js'
-import {EFFECTS, render_initial_state, render_common_side_effects} from './effects.js'
+import {EFFECTS, render_initial_state, apply_side_effects} from './effects.js'
 import {load_dir} from './filesystem.js'
 
 const EXAMPLE = `const fib = n =>
@@ -231,7 +231,7 @@ export const exec = (cmd, ...args) => {
 
 
   with_code_execution(() => {
-    render_common_side_effects(state, nextstate, cmd, ui);
+    apply_side_effects(state, nextstate, cmd, ui);
 
     if(effects != null) {
       (Array.isArray(effects) ? effects : [effects]).forEach(e => {
