@@ -5,6 +5,7 @@
 // content
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
+import {with_code_execution} from '../index.js'
 
 
 // We test both for Object and globalThis.run_window.Object because objects may
@@ -31,7 +32,9 @@ const isDate = object =>
 
 const toJSON_safe = object => {
   try {
-    return object.toJSON() 
+    return with_code_execution(() => {
+      return object.toJSON() 
+    })
   } catch(e) {
     return object
   }

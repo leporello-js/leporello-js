@@ -177,6 +177,25 @@ export const init = (container, _COMMANDS) => {
 
 export const get_state = () => state
 
+export const with_code_execution = (action, state = get_state()) => {
+  /*
+    supress is_recording_deferred_calls while rendering, because rendering may
+    call toJSON(), which can call trigger deferred call (see lodash.js lazy
+    chaining)
+  */
+  if(state.eval_cxt != null) {
+    state.eval_cxt.is_recording_deferred_calls = false
+  }
+
+  try {
+    return action()
+  } finally {
+    if(state.eval_cxt != null) {
+      state.eval_cxt.is_recording_deferred_calls = true
+    }
+  }
+}
+
 export const exec = (cmd, ...args) => {
   if(cmd == 'input' || cmd == 'write') {
     // Do not print file to console
@@ -210,32 +229,23 @@ export const exec = (cmd, ...args) => {
     throw new Error('illegal state')
   }
 
-  /*
-    supress is_recording_deferred_calls while rendering, because rendering may
-    call toJSON(), which can call trigger deferred call (see lodash.js lazy
-    chaining)
-  */
-  if(nextstate.eval_cxt != null) {
-    nextstate.eval_cxt.is_recording_deferred_calls = false
-  }
 
-  render_common_side_effects(state, nextstate, cmd, ui);
+  with_code_execution(() => {
+    render_common_side_effects(state, nextstate, cmd, ui);
 
-  if(effects != null) {
-    (Array.isArray(effects) ? effects : [effects]).forEach(e => {
-      if(e.type == 'write' || e.type == 'save_to_localstorage') {
-        // do not spam to console
-        console.log('apply effect', e.type)
-      } else {
-        console.log('apply effect', e.type, ...(e.args ?? []))
-      }
-      EFFECTS[e.type](nextstate, e.args, ui)
-    })
-  }
+    if(effects != null) {
+      (Array.isArray(effects) ? effects : [effects]).forEach(e => {
+        if(e.type == 'write' || e.type == 'save_to_localstorage') {
+          // do not spam to console
+          console.log('apply effect', e.type)
+        } else {
+          console.log('apply effect', e.type, ...(e.args ?? []))
+        }
+        EFFECTS[e.type](nextstate, e.args, ui)
+      })
+    }
+  }, nextstate)
 
-  if(nextstate.eval_cxt != null) {
-    nextstate.eval_cxt.is_recording_deferred_calls = true
-  }
 
 
   // Expose for debugging
