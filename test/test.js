@@ -1227,6 +1227,26 @@ export const tests = [
     )
   }),
 
+  test('function decl', () => {
+    const code = `
+      function fib(n) {
+        if(n == 0 || n == 1) {
+          return n
+        } else {
+          return fib(n - 1) + fib(n - 2)
+        }
+      }
+
+      fib(6)
+    `
+    const i = test_initial_state(code)
+    const s = COMMANDS.calltree.arrow_right(COMMANDS.calltree.arrow_down(
+        COMMANDS.calltree.arrow_right(COMMANDS.calltree.arrow_down(i))
+      ))
+    const s2 = COMMANDS.calltree.arrow_down(s)
+    assert_equal(s2.active_calltree_node.value, 5)
+  }),
+
   /*
   TODO use before assignment
   test('no use before assignment', () => {

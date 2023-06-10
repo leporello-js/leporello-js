@@ -70,7 +70,7 @@ const codegen_function_expr = (node, node_cxt) => {
 
   const decl = node.is_arrow 
     ? `(${args}) => `
-    : `function ${node.name}(${args})`
+    : `function(${args})`
 
   const call = (node.is_async ? 'async ' : '') + decl + (
     // TODO gensym __obj, __fn
