@@ -352,14 +352,20 @@ export const eval_modules = (
 
   const result = run(module_fns, cxt, io_cache)
 
-  const make_result = result => ({
-    modules: result.modules,
-    logs: result.logs,
-    eval_cxt: result.eval_cxt,
-    calltree: assign_code(parse_result.modules, result.calltree),
-    call: result.call && assign_code(parse_result.modules, result.call),
-    io_cache: result.eval_cxt.io_cache,
-  })
+  const make_result = result => {
+    const calltree = assign_code(parse_result.modules, result.calltree)
+    const call = result.call == null
+      ? null
+      : find_node(calltree, node => node.id == result.call.id)
+    return {
+      modules: result.modules,
+      logs: result.logs,
+      eval_cxt: result.eval_cxt,
+      calltree,
+      call,
+      io_cache: result.eval_cxt.io_cache,
+    }
+  }
 
   if(is_async) {
     return result.__original_then(make_result)

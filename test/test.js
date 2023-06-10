@@ -1737,6 +1737,19 @@ const y = x()`
     assert_equal(e.current_calltree_node.toplevel, true)
   }),
 
+  test('edit function step out', () => {
+    const code = `
+      const x = () => {
+        return 1
+      }
+      x()
+    `
+    const i = test_initial_state(code)
+    const edited = COMMANDS.input(i, code.replace('1', '100'), code.indexOf('1')).state
+    const left = COMMANDS.calltree.arrow_left(edited)
+    assert_equal(left.active_calltree_node.toplevel, true)
+  }),
+
   test('expand_calltree_node', () => {
     // Test expecting MAX_DEPTH = 1
     const s = test_initial_state(`
