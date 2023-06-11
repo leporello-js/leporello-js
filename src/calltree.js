@@ -245,9 +245,18 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
   
   const next = add_frame(state, active_calltree_node, current_calltree_node)
 
-  const loc = show_body
-    ? calltree_node_loc(next.active_calltree_node)
-    : find_callsite(next.modules, active_calltree_node, current_calltree_node)
+  let loc, callsite_node
+
+  if(show_body) {
+    loc = calltree_node_loc(next.active_calltree_node)
+  } else {
+    const frame = eval_frame(active_calltree_node, next.modules)
+    callsite_node = find_node(frame, n => n.result?.call == current_calltree_node)
+    loc = {
+      module: calltree_node_loc(active_calltree_node).module, 
+      index: callsite_node.index
+    }
+  }
 
   const with_location = next.current_calltree_node.toplevel
     ? {...next, current_module: loc.module}
@@ -272,7 +281,11 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
                 '*throws*': current_calltree_node.error,
               }
           }
-        }
+        },
+
+    selection_state: show_body
+      ? null
+      : {node: callsite_node}
   }
 }
 
@@ -449,11 +462,6 @@ const arrow_right = state => {
   }
 }
 
-const find_callsite = (modules, parent, node) => {
-  const frame = eval_frame(parent, modules)
-  const result = find_node(frame, n => n.result?.call == node)
-  return {module: calltree_node_loc(parent).module, index: result.index}
-}
 
 export const toggle_expanded = (state, is_exp) => {
   const node_id = state.current_calltree_node.id
@@ -712,7 +720,6 @@ const select_return_value = state => {
       ...set_location(state, {module: loc.module, index: node.index}),
       selection_state: {
         node,
-        initial_is_expand: true,
       },
       value_explorer: {
         index: node.index + node.length, 
@@ -757,7 +764,6 @@ const select_arguments = (state, with_focus = true) => {
       ...set_location(state, {module: loc.module, index: node.index}),
       selection_state: {
         node,
-        initial_is_expand: true,
       },
       value_explorer: {
         index: node.index + node.length, 

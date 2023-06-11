@@ -1861,6 +1861,18 @@ const y = x()`
 
   }),
 
+  test('jump_calltree select callsite', () => {
+    const code = `
+      function x(y) {}
+      x()
+    `
+    const i = test_initial_state(code)
+    const call_selected = COMMANDS.calltree.arrow_right(i)
+    const node = call_selected.selection_state.node
+    assert_equal(node.index, code.indexOf('x()'))
+    assert_equal(node.length, 'x()'.length)
+  }),
+
   // Test very specific case
   test('jump_calltree_location after error', () => {
     const code = `
