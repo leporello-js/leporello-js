@@ -41,8 +41,10 @@ const toJSON_safe = object => {
 }
 
 const displayed_entries = object => {
-  if(typeof(object) != 'object') {
+  if(object == null || typeof(object) != 'object') {
     return []
+  } else if((object[Symbol.toStringTag]) == 'Module') {
+    return Object.entries(object)
   } else if(isPromise(object)) {
     return displayed_entries(
       object.status.ok ? object.status.value : object.status.error
@@ -50,16 +52,6 @@ const displayed_entries = object => {
   } else if(Array.isArray(object)) {
     return object.map((v, i) => [i, v])
   } else if(typeof(object.toJSON) == 'function') {
-    // hack. Lodash has toJSON fn that returns null. So 
-    //
-    // 'import _ from "lodash"'
-    //
-    // Shows undefined in value explorer and breaks product demo. Make dirty
-    // workaround
-    if(object['sortedLastIndexOf'] != null) {
-      return Object.entries(object)
-    }
-
     const result = toJSON_safe(object)
     if(result == object) {
       // avoid infinite recursion when toJSON returns itself
@@ -85,7 +77,15 @@ const is_expandable = v =>
     )
 
 
-export const stringify_for_header = v => {
+const stringify_for_header_object = v => {
+  if(displayed_entries(v).length == 0) {
+    return '{}'
+  } else {
+    return '{…}'
+  }
+}
+
+export const stringify_for_header = (v, no_toJSON = false) => {
   const type = typeof(v)
 
   if(v === null) {
@@ -98,7 +98,10 @@ export const stringify_for_header = v => {
   } else if(type == 'string') {
     return JSON.stringify(v)
   } else if(type == 'object') {
-    if (isPromise(v)) {
+    if((v[Symbol.toStringTag]) == 'Module') {
+      // protect against lodash module contains toJSON function
+      return stringify_for_header_object(v)
+    } else if (isPromise(v)) {
       if(v.status == null) {
         return `Promise<pending>`
       } else {
@@ -118,23 +121,37 @@ export const stringify_for_header = v => {
       } else {
         return '[…]'
       }
-    } else if(typeof(v.toJSON) == 'function') {
-      // TODO fix inifinite recursion if toJSON returns itself
-      return stringify_for_header(toJSON_safe(v))
+    } else if(typeof(v.toJSON) == 'function' && !no_toJSON) {
+      const json = toJSON_safe(v)
+      if(json == v) {
+        // prevent infinite recursion
+        return stringify_for_header(json, true)
+      } else {
+        return stringify_for_header(json)
+      }
     } else if(has_custom_toString(v)) {
       return v.toString()
     } else {
-      if(displayed_entries(v).length == 0) {
-        return '{}'
-      } else {
-        return '{…}'
-      }
+      return stringify_for_header_object(v)
     }
   } else {
     return v.toString()
   }
 }
 
+const header_object = object => {
+  const prefix = 
+    (object.constructor?.name == null || object.constructor?.name == 'Object')
+      ? ''
+      : object.constructor.name + ' '
+  const inner = displayed_entries(object)
+    .map(([k,v]) => {
+      const value = stringify_for_header(v)
+      return `${k}: ${value}`
+    })
+    .join(', ')
+  return `${prefix} {${inner}}`
+}
 
 export const header = (object, no_toJSON = false) => {
   const type = typeof(object)
@@ -149,7 +166,10 @@ export const header = (object, no_toJSON = false) => {
   } else if(type == 'string') {
     return JSON.stringify(object)
   } else if(type == 'object') {
-    if(isPromise(object)) {
+    if((object[Symbol.toStringTag]) == 'Module') {
+      // protect against lodash module contains toJSON function
+      return header_object(object)
+    } else if(isPromise(object)) {
       if(object.status == null) {
         return `Promise<pending>`
       } else {
@@ -170,33 +190,17 @@ export const header = (object, no_toJSON = false) => {
           .join(', ')
         + ']'
     } else if(typeof(object.toJSON) == 'function' && !no_toJSON) {
-      // hack. Lodash has toJSON fn that returns null. So 
-      //
-      // 'import _ from "lodash"'
-      //
-      // Shows undefined in value explorer and breaks product demo. Make dirty
-      // workaround
-      if(object['sortedLastIndexOf'] != null) {
+      const json = toJSON_safe(object)
+      if(json == object) {
+        // prevent infinite recursion
         return header(object, true)
+      } else {
+        return header(json)
       }
-
-      // TODO fix inifinite recursion if toJSON returns itself (call with
-      // no_toJSON)
-      return header(toJSON_safe(object))
     } else if(has_custom_toString(object)) {
       return object.toString()
     } else {
-      const prefix = 
-        (object.constructor.name == null || object.constructor.name == 'Object')
-          ? ''
-          : object.constructor.name + ' '
-      const inner = displayed_entries(object)
-        .map(([k,v]) => {
-          const value = stringify_for_header(v)
-          return `${k}: ${value}`
-        })
-        .join(', ')
-      return `${prefix} {${inner}}`
+      return header_object(object)
     }
   } else {
     return object.toString()
