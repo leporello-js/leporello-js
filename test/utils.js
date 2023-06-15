@@ -1,4 +1,5 @@
-import {print_debug_node, load_modules} from '../src/parse_js.js'
+import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
+import {eval_modules} from '../src/eval.js'
 import {active_frame, pp_calltree} from '../src/calltree.js'
 import {COMMANDS} from '../src/cmd.js'
 
@@ -47,6 +48,17 @@ export const original_setTimeout = globalThis.run_window.__original_setTimeout
 
 export const parse_modules = (entry, modules) => 
   load_modules(entry, module_name => modules[module_name])
+
+export const eval_tree = code => {
+  const parse_result = parse(code)
+  assert_equal(parse_result.ok, true)
+  return eval_modules(
+    {
+      modules: {'': parse_result.node}, 
+      sorted: ['']
+    }
+  ).calltree
+}
 
 export const assert_code_evals_to = (codestring, expected) => {
   const s = test_initial_state(codestring)

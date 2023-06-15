@@ -414,16 +414,6 @@ const assign_code = (modules, call) => {
 }
 
 
-export const eval_tree = node => {
-  return eval_modules(
-    {
-      modules: {'': node}, 
-      sorted: ['']
-    }
-  ).calltree
-}
-
-
 /* ------------- Metacircular interpreter ---------------------------- */
 
 /*
