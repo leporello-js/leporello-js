@@ -1,22 +1,13 @@
-import React from 'react'
-import PropTypes from 'prop-types'
+const h = React.createElement
 
 const Link = ({ active, children, onClick }) => (
-    <button
-       onClick={onClick}
-       disabled={active}
-       style={{
+    h('button', {
+       onClick,
+       disabled: active,
+       style:{
            marginLeft: '4px',
-       }}
-    >
-      {children}
-    </button>
+       }
+    }, children)
 )
-
-Link.propTypes = {
-  active: PropTypes.bool.isRequired,
-  children: PropTypes.node.isRequired,
-  onClick: PropTypes.func.isRequired
-}
 
 export default Link
