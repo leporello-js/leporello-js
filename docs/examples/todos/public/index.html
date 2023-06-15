@@ -10,7 +10,11 @@
     <script src='https://unpkg.com/redux'></script>
     <script src='https://unpkg.com/react-redux'></script>
 
-    <script type='module' src='../src/index.js'></script>
+    <script type='module'>
+      if(new URLSearchParams(window.location.search).get('leporello') == null) {
+        await import('../src/index.js');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

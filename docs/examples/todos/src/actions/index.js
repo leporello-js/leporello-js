@@ -1,7 +1,13 @@
-let nextTodoId = 0
+const nextTodoId = new Function(`
+  let nextId = 0
+  return function() {
+    return nextId++
+  }
+`)()
+
 export const addTodo = text => ({
   type: 'ADD_TODO',
-  id: nextTodoId++,
+  id: nextTodoId(),
   text
 })
 

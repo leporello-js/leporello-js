@@ -3,11 +3,15 @@ import TodoList from '../components/TodoList.js'
 import { VisibilityFilters } from '../actions/index.js'
 
 const getVisibleTodos = (todos, filter) => {
-  return {
-    [VisibilityFilters.SHOW_ALL]: todos,
-    [VisibilityFilters.SHOW_COMPLETED]: todos.filter(t => t.completed),
-    [VisibilityFilters.SHOW_ACTIVE]: todos.filter(t => !t.completed),
-  }[filter]
+  if(filter == VisibilityFilters.SHOW_ALL) {
+    return todos
+  } else if(filter == VisibilityFilters.SHOW_COMPLETED) {
+    return todos.filter(t => t.completed)
+  } else if(filter == VisibilityFilters.SHOW_ACTIVE) {
+    return todos.filter(t => !t.completed)
+  } else {
+    throw new Error('Unknown filter: ' + filter)
+  }
 }
 
 const mapStateToProps = state => ({
