@@ -3,8 +3,6 @@
 import {set_push, set_diff, set_union, map_object, map_find, uniq} from './utils.js'
 import {collect_destructuring_identifiers, collect_imports, ancestry, find_leaf} from './ast_utils.js'
 
-import {globals} from './globals.js'
-
 const map_find_definitions = (nodes, mapper) => {
   const result = nodes.map(mapper)
   const undeclared = result.reduce(
@@ -74,7 +72,14 @@ const add_trivial_definition = node => {
  */
 
 // TODO in same pass find already declared
-export const find_definitions = (ast, scope = {}, closure_scope = {}, module_name) => {
+export const find_definitions = (ast, globals, scope = {}, closure_scope = {}, module_name) => {
+  
+
+  // sanity check
+  if(!globals instanceof Set) {
+    throw new Error('not a set')
+  }
+
   if(ast.type == 'identifier'){
     if(ast.definition != null) {
       // Definition previously added by add_trivial_definition
@@ -112,7 +117,7 @@ export const find_definitions = (ast, scope = {}, closure_scope = {}, module_nam
       )
     const local_scope = children_with_scope.scope
     const {nodes, undeclared, closed} = map_find_definitions(children_with_scope.children, cs => 
-      find_definitions(cs.node, {...scope, ...cs.scope}, local_scope, module_name)
+      find_definitions(cs.node, globals, {...scope, ...cs.scope}, local_scope, module_name)
     )
     return {
       node: {...ast, children: nodes}, 
@@ -125,7 +130,7 @@ export const find_definitions = (ast, scope = {}, closure_scope = {}, module_nam
       a.value, a
     ]))
     const {nodes, undeclared, closed} = map_find_definitions(ast.children, 
-      node => find_definitions(node, {...scope, ...closure_scope, ...args_scope})
+      node => find_definitions(node, globals, {...scope, ...closure_scope, ...args_scope})
     )
     const next_closed = set_diff(closed, new Set(args_identifiers.map(a => a.value)))
     return {
@@ -153,7 +158,7 @@ export const find_definitions = (ast, scope = {}, closure_scope = {}, module_nam
     }
 
     const {nodes, undeclared, closed} = map_find_definitions(children, 
-      c => find_definitions(c, scope, closure_scope)
+      c => find_definitions(c, globals, scope, closure_scope)
     )
 
     return {

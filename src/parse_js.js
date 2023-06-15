@@ -1580,7 +1580,7 @@ const deduce_fn_names = node => {
   return do_deduce_fn_names(node, null)[0]
 }
 
-export const parse = (str, is_module = false, module_name) => {
+export const parse = (str, globals, is_module = false, module_name) => {
 
   // Add string to node for debugging
   // TODO remove, only need for debug
@@ -1629,6 +1629,7 @@ export const parse = (str, is_module = false, module_name) => {
     } else {
       const {node, undeclared} = find_definitions(
         update_children(result.value), 
+        globals,
         null, 
         null, 
         module_name
@@ -1675,7 +1676,7 @@ export const print_debug_node = node => {
   return stringify(do_print_debug_node(node))
 }
 
-const do_load_modules = (module_names, loader, already_loaded) => {
+const do_load_modules = (module_names, loader, already_loaded, globals) => {
   const parsed = module_names
     .filter(module_name => already_loaded[module_name] == null)
     .map(module_name => {
@@ -1686,7 +1687,7 @@ const do_load_modules = (module_names, loader, already_loaded) => {
         // Allows cache parse result
         return [module_name, m]
       } else if(typeof(m) == 'string') {
-        return [module_name, parse(m, true, module_name)]
+        return [module_name, parse(m, globals, true, module_name)]
       } else {
         throw new Error('illegal state')
       }
@@ -1728,7 +1729,12 @@ const do_load_modules = (module_names, loader, already_loaded) => {
   // TODO when refactor this function to async, do not forget that different
   // deps can be loaded independently. So dont just put `await Promise.all(`
   // here
-  const loaded_deps = do_load_modules(deps, loader, {...already_loaded, ...modules})
+  const loaded_deps = do_load_modules(
+    deps, 
+    loader, 
+    {...already_loaded, ...modules}, 
+    globals
+  )
   if(loaded_deps.ok) {
     return {
       ok: true, 
@@ -1770,11 +1776,11 @@ const do_load_modules = (module_names, loader, already_loaded) => {
   }
 }
 
-export const load_modules = (entry_module, loader) => {
+export const load_modules = (entry_module, loader, globals) => {
   // TODO check_imports. detect cycles while modules are loading, in
   // do_load_modules
 
-  const result = do_load_modules([entry_module], loader, {})
+  const result = do_load_modules([entry_module], loader, {}, globals)
   if(!result.ok) {
     return result
   } else {

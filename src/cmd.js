@@ -77,7 +77,7 @@ const run_code = (s, dirty_files) => {
       return s.files[module]
     }
 
-  })
+  }, s.globals)
 
   const state = {
     ...s,
@@ -839,12 +839,15 @@ const create_file = (state, dir, current_module) => {
   return {...load_dir(state, dir), current_module}
 }
 
-const open_run_window = state => {
+const open_run_window = (state, globals) => {
   // After we reopen run window, we should reload external modules in the
   // context of new window. Clear external_imports_cache
   return run_code({
     ...state,
+    globals,
     external_imports_cache: null,
+    // Bust parse result cache because list of globals may change
+    parse_result: null,
   })
 }
 

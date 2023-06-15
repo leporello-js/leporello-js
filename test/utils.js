@@ -46,11 +46,16 @@ export const patch_builtin = new Function(`
 
 export const original_setTimeout = globalThis.run_window.__original_setTimeout
 
+export const do_parse = code => parse(
+  code, 
+  new Set(Object.getOwnPropertyNames(globalThis.run_window))
+)
+
 export const parse_modules = (entry, modules) => 
   load_modules(entry, module_name => modules[module_name])
 
 export const eval_tree = code => {
-  const parse_result = parse(code)
+  const parse_result = do_parse(code)
   assert_equal(parse_result.ok, true)
   return eval_modules(
     {
@@ -102,7 +107,8 @@ export const test_initial_state = (code, state) => {
         current_module: '',
         ...state,
       },
-    )
+    ),
+    new Set(Object.getOwnPropertyNames(globalThis.run_window))
   )
 }
 

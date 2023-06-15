@@ -67,7 +67,10 @@ export const open_run_window = state => {
   // event fired.  TODO: better register SW explicitly and don't rely on
   // already registered SW?
   const onload = () => {
-    exec('open_run_window')
+    exec(
+      'open_run_window', 
+      new Set(Object.getOwnPropertyNames(globalThis.run_window))
+    )
   }
 
   const add_load_handler = () => {
@@ -170,7 +173,10 @@ export const init = (container, _COMMANDS) => {
     render_initial_state(ui, state)
 
     open_run_iframe(state, () => {
-      exec('open_run_window')
+      exec(
+        'open_run_window', 
+        new Set(Object.getOwnPropertyNames(globalThis.run_window))
+      )
     })
   })
 }

@@ -1,5 +1,5 @@
 import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
-import {parse, print_debug_node} from '../src/parse_js.js'
+import {print_debug_node} from '../src/parse_js.js'
 import {eval_frame, eval_modules} from '../src/eval.js'
 import {COMMANDS} from '../src/cmd.js'
 import {
@@ -15,6 +15,7 @@ import {
   test_only,
   assert_equal, 
   stringify, 
+  do_parse,
   eval_tree,
   assert_code_evals_to, assert_code_evals_to_async,
   assert_code_error, assert_code_error_async,
@@ -30,7 +31,7 @@ import {
 export const tests = [
 
   test('invalid token in the beginning', () => {
-    const result = parse('# import')
+    const result = do_parse('# import')
     assert_equal(result, { 
       ok: false, 
       problems: [ { message: 'unexpected lexical token', index: 0 } ] 
@@ -38,7 +39,7 @@ export const tests = [
   }),
 
   test('invalid token in the middle', () => {
-    const result = parse(': # import')
+    const result = do_parse(': # import')
     assert_equal(result, { 
       ok: false, 
       problems: [ { message: 'unexpected lexical token', index: 2 } ] 
@@ -46,7 +47,7 @@ export const tests = [
   }),
 
   test('invalid token in the end', () => {
-    const result = parse(': ^')
+    const result = do_parse(': ^')
     assert_equal(result, { 
       ok: false, 
       problems: [ { message: 'unexpected lexical token', index: 2 } ] 
@@ -61,7 +62,7 @@ export const tests = [
   }),
   
   test('empty if branch', () => {
-    const r = parse(`
+    const r = do_parse(`
       if(true) {
       } else {
       }
@@ -70,7 +71,7 @@ export const tests = [
   }),
 
   test('Must be finished by eof', () => {
-    const result = parse('}')
+    const result = do_parse('}')
     assert_equal(result.ok, false)
   }),
 
@@ -330,7 +331,7 @@ export const tests = [
       };
       x
     `
-    const parse_result = parse(code)
+    const parse_result = do_parse(code)
     const assignment = find_leaf(
       parse_result.node,
       code.indexOf('x = 0')
@@ -397,7 +398,7 @@ export const tests = [
   }),
 
   test('ASI_1', () => {
-    const parse_result = parse(`
+    const parse_result = do_parse(`
       1
       const y = 2;
     `)
@@ -409,7 +410,7 @@ export const tests = [
   }),
 
   test('ASI_2', () => {
-    const parse_result = parse(`
+    const parse_result = do_parse(`
       1
       2
     `)
@@ -423,14 +424,14 @@ export const tests = [
   test('ASI_restrited', () => {
     // Currently we forbid bare return statement, TODO
     assert_equal(
-      parse(`
+      do_parse(`
         return
         1
       `).ok,
       false
     )
     assert_equal(
-      parse(`
+      do_parse(`
         throw
         1
       `).ok,
@@ -921,7 +922,7 @@ export const tests = [
   }),
 
   test('bug parser pragma external', () => {
-    const result = parse(`
+    const result = do_parse(`
       // external
     `)
     assert_equal(result.ok, true)
@@ -1158,7 +1159,7 @@ export const tests = [
       const bar = baz => qux(foo, bar, baz, quux);
       const qux = 3;
     `
-    const result = parse(undeclared_test)
+    const result = do_parse(undeclared_test)
     assert_equal(result.problems.length, 1)
     assert_equal(result.problems[0].message, 'undeclared identifier: quux')
   }),
@@ -1177,7 +1178,7 @@ export const tests = [
     const code = `
       const x = x;
     `
-    return assert_equal(parse(code).problems[0].message, 'undeclared identifier: x')
+    return assert_equal(do_parse(code).problems[0].message, 'undeclared identifier: x')
   }),
 
   test('function hoisting', () => {
@@ -1221,13 +1222,25 @@ export const tests = [
   }),
 
   /*
+  test('await only in async', () => {
+    const code = `
+      () => {
+        await 1
+      }
+    `
+    console.log(do_parse(code).problems[0])
+    //return assert_equal(do_parse(code).problems[0].message, 'undeclared identifier: x')
+  }),
+  */
+
+  /*
   TODO use before assignment
   test('no use before assignment', () => {
     const test = `
       let x;
       x;
     `
-    return assert_equal(parse(test).problems[0].message, 'undeclared identifier: x')
+    return assert_equal(do_parse(test).problems[0].message, 'undeclared identifier: x')
   }),
   */
 
@@ -1513,7 +1526,7 @@ const y = x()`
         1 2
       }
     `
-    const r = parse(code)
+    const r = do_parse(code)
     assert_equal(r.ok, false)
     const p = r.problems[0]
     assert_equal(p.index, code.indexOf('2'))
@@ -1527,7 +1540,7 @@ const y = x()`
         ,
       }
     `
-    const r = parse(code)
+    const r = do_parse(code)
     assert_equal(r.ok, false)
     const p = r.problems[0]
     assert_equal(p.index, code.indexOf(','))
@@ -1535,7 +1548,7 @@ const y = x()`
   
   test('better parse errors 3', () => {
     const code = `[() => { , }] `
-    const r = parse(code)
+    const r = do_parse(code)
     const p = r.problems[0]
     assert_equal(p.index, code.indexOf(','))
   }),
