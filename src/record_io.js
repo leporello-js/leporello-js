@@ -4,10 +4,10 @@ import {set_record_call} from './runtime.js'
 let cxt
 
 export const set_current_context = _cxt => {
-  const should_apply_io_patches = cxt == null || cxt.window != _cxt.window
   cxt = _cxt
-  if(should_apply_io_patches) {
+  if(!cxt.window.__is_io_pached) {
     apply_io_patches()
+    cxt.window.__is_io_pached = true
   }
 }
 
