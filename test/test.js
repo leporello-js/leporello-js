@@ -2756,6 +2756,23 @@ const y = x()`
     assert_equal(get_deferred_calls(result), null)
   }),
 
+  test('deferred_calls several calls bug', () => {
+    const code = `
+      export const fn = i => i == 0 ? 0 : fn(i - 1)
+    `
+
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
+
+    // Make deferred call
+    i.modules[''].fn(10)
+
+    const state = on_deferred_call(i)
+    const call = get_deferred_calls(state)[0]
+    const expanded = COMMANDS.calltree.click(state, call.id)
+    // Make deferred call again. There was a runtime error
+    expanded.modules[''].fn(10)
+  }),
+
   test('async/await await non promise', async () => {
     await assert_code_evals_to_async(
       `

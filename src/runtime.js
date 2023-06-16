@@ -185,7 +185,9 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
     // do nothing. Exception was caught and recorded inside '__trace'
   }
   cxt.is_recording_deferred_calls = true
-  return do_expand_calltree_node(cxt, node)
+  const result = do_expand_calltree_node(cxt, node)
+  cxt.children = null
+  return result
 }
 
 
