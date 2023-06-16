@@ -2451,9 +2451,10 @@ const y = x()`
 
     // Check that when we move cursor inside unreachable function, find_call
     // not called again
+    assert_equal(s2.eval_cxt != null, true)
     const s3 = COMMANDS.move_cursor(
-      // Set calltree_actions to null, ensure it would not be called again
-      {...s2, calltree_actions: null},
+      // Set eval_cxt to null, ensure it would not be called again
+      {...s2, eval_cxt: null},
       code.indexOf('2')
     )
     assert_equal(s3.active_calltree_node, null)
