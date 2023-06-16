@@ -57,9 +57,15 @@ export class UI {
                 tabindex: 0,
               }),
             ),
-            this.debugger_loading = el('div', 'debugger_wrapper')
+            this.debugger_loading = el('div', 'debugger_wrapper',
+              el('div', 'entrypoint_select'),
+              this.debugger_loading_message = el('div'),
+            ),
           ),
-          this.problems_container = el('div', {"class": 'problems', tabindex: 0}),
+          this.problems_container = el('div', {"class": 'problems_container', tabindex: 0},
+            el('div', 'entrypoint_select'),
+            this.problems = el('div'),
+          )
         ),
 
         this.files.el,
@@ -211,7 +217,13 @@ export class UI {
   }
 
   render_entrypoint_select(state) {
-    this.entrypoint_select.replaceChildren(
+    for(let select of this.root.getElementsByClassName('entrypoint_select')) {
+      this.do_render_entrypoint_select(state, select)
+    }
+  }
+
+  do_render_entrypoint_select(state, select) {
+    select.replaceChildren(
       el('span', 'entrypoint_title', 'js entrypoint'),
       el('select', {
         click: e => e.stopPropagation(),
@@ -277,7 +289,7 @@ export class UI {
     this.debugger_loaded.style = 'display: none'
     this.debugger_loading.style = ''
 
-    this.debugger_loading.innerText = 
+    this.debugger_loading_message.innerText = 
       state.loading_external_imports_state != null
         ? 'Loading external modules...'
         : 'Waiting...'
@@ -307,12 +319,12 @@ export class UI {
   render_problems(problems) {
     this.debugger_container.style = 'display: none'
     this.problems_container.style = ''
-    this.problems_container.innerHTML = ''
+    this.problems.innerHTML = ''
     problems.forEach(p => {
       const s = this.editor.get_session(p.module)
       const pos = s.doc.indexToPosition(p.index)
       const module = p.module == '' ? "*scratch*" : p.module
-      this.problems_container.appendChild(
+      this.problems.appendChild(
         el('div', 'problem', 
           el('a', {
             href: 'javascript:void(0)', 

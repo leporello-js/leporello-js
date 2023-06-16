@@ -62,7 +62,7 @@
         box-shadow: 1px 1px 6px 3px var(--shadow_color);
       }
 
-      .tab_content:focus-within, .problems:focus-within {
+      .tab_content:focus-within, .problems_container:focus-within {
         outline: none;
       }
 
@@ -137,7 +137,7 @@
         overflow: auto;
       }
 
-      .debugger, .problems {
+      .debugger, .problems_container {
         padding: 5px;
         overflow: auto;
       }
@@ -160,12 +160,17 @@
 
       .entrypoint_select {
         display: flex;
+        width: fit-content;
         align-items: center;
         margin-left: auto;
+        min-height: 55px;
       }
 
       .entrypoint_title {
         margin-right: 0.5em;
+      }
+
+      .entrypoint_title:not(:first-child) {
         margin-left: 1.5em;
       }
 
