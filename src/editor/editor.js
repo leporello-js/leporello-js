@@ -199,7 +199,7 @@ export class Editor {
     }
   }
 
-  embed_value_explorer({index, result: {ok, value, error}}) {
+  embed_value_explorer({index, length, result: {ok, value, error}}) {
     this.unembed_value_explorer()
 
     const session = this.ace_editor.getSession()

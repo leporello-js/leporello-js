@@ -2262,8 +2262,10 @@ const y = x()`
     // expand call
     const s3 = COMMANDS.calltree.arrow_right(s2)
     const s4 = COMMANDS.move_cursor(s3, code.indexOf('a'))
+    const selected = '(a, b)'
     assert_equal(s4.value_explorer, {
-      index: code.indexOf('(a, b)'),
+      index: code.indexOf(selected),
+      length: selected.length,
       result: {ok: true, value: {a: 1, b: 2}},
     })
   }),
@@ -2277,6 +2279,7 @@ const y = x()`
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('2'))
     assert_equal(s2.value_explorer, {
       index: code.indexOf('y*2'),
+      length: 3,
       result: {ok: true, value: 4},
     })
   }),
@@ -2290,6 +2293,7 @@ const y = x()`
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('x'))
     assert_equal(s2.value_explorer, {
       index: code.indexOf('let x'),
+      length: 5,
       result: {ok: true, value: {x: 1}},
     })
   }),

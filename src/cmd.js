@@ -515,7 +515,8 @@ const eval_selection = (state, index, is_expand) => {
     selection_state,
     value_explorer: selection_state.ok
       ? {
-          index: selection_state.node.index + selection_state.node.length, 
+          index: selection_state.node.index,
+          length: selection_state.node.length,
           result,
         }
       : null
@@ -660,6 +661,7 @@ const get_value_explorer = (state, index) => {
       // cursor in args, show args
       return {
         index: frame.children[0].index,
+        length: frame.children[0].length,
         result: frame.children[0].result,
       }
     }
@@ -669,6 +671,7 @@ const get_value_explorer = (state, index) => {
     const result = frame.children[1].result
     return {
       index: frame.children[1].index,
+      length: frame.children[1].length,
       result: result.ok
         ? result
         : find_error_origin_node(frame.children[1]).result
@@ -729,6 +732,7 @@ const get_value_explorer = (state, index) => {
     } else if(stmt.type == 'let') {
       return {
         index: stmt.index,
+        length: stmt.length,
         result: 
           {
             ok: true, 
@@ -755,7 +759,7 @@ const get_value_explorer = (state, index) => {
     result = find_error_origin_node(stmt).result
   }
 
-  return {index: stmt.index, result}
+  return {index: stmt.index, length: stmt.length, result}
 }
 
 const do_move_cursor = (state, index) => {

@@ -722,7 +722,8 @@ const select_return_value = state => {
         node,
       },
       value_explorer: {
-        index: node.index + node.length, 
+        index: node.index,
+        length: node.length,
         result: result_node.result,
       },
     }, 
@@ -766,7 +767,8 @@ const select_arguments = (state, with_focus = true) => {
         node,
       },
       value_explorer: {
-        index: node.index + node.length, 
+        index: node.index,
+        length: node.length,
         result,
       },
     }, 
