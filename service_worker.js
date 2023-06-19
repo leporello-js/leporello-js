@@ -18,10 +18,10 @@ let dir_handle
 self.addEventListener('message', async function(e) {
   const msg = e.data
   let reply
-  if(msg.type == 'SET') {
+  if(msg.type == 'SET_DIR_HANDLE') {
     dir_handle = msg.data
     reply = null
-  } else if(msg.type == 'GET') {
+  } else if(msg.type == 'GET_DIR_HANDLE') {
     reply = dir_handle
   } else {
     throw new Error('unknown message type: ' + msg.type)
@@ -29,38 +29,75 @@ self.addEventListener('message', async function(e) {
   e.ports[0].postMessage(reply)
 })
 
+const send_message = (client, message) => {
+  return new Promise(function(resolve) {
+    const messageChannel = new MessageChannel();
+    messageChannel.port1.onmessage = function(event) {
+      resolve(event.data)
+    };
+    client.postMessage(message,
+      [messageChannel.port2]);
+  });
+}
+
 // Fake directory, http requests to this directory intercepted by service_worker
 const FILES_ROOT = new URL('.', globalThis.location).pathname + '__leporello_files/'
+
+const serve_response_from_dir = async event => {
+  const url = new URL(event.request.url)
+  const path = url.pathname.replace(FILES_ROOT, '')
+
+  let file
+
+  if(path == '__leporello_blank.html') {
+    file = ''
+  } else if(dir_handle != null) {
+    file = await read_file(dir_handle, path)
+  } else {
+    let client = await self.clients.get(event.clientId)
+
+    if(client == null) {
+      // Try to find main window and get dir_handle from it
+      for(const c of await self.clients.matchAll()) {
+        if(new URL(c.url).pathname == '/') {
+          client = c
+        }
+      }
+    }
+
+
+    // client is null for run_window initial page load, and is run_window for
+    // js scripts
+    if(client == null) {
+      // User probably reloaded run_window by manually hitting F5 after IDE
+      // window was closed
+      return new Response("", {status: 404})
+    } else {
+      dir_handle = await send_message(client, {type: 'GET_DIR_HANDLE'})
+      if(dir_handle == null) {
+        return new Response("", {status: 404})
+      } else {
+        file = await read_file(dir_handle, path)
+      }
+    }
+  }
+
+  const headers = new Headers([
+    [
+      'Content-Type', 
+      path.endsWith('.js') || path.endsWith('.mjs')
+        ? 'text/javascript'
+        : 'text/html'
+    ]
+  ])
+
+  return new Response(file, {headers})
+}
 
 self.addEventListener("fetch", event => {
   const url = new URL(event.request.url)
   if(url.pathname.startsWith(FILES_ROOT)) {
-    const path = url.pathname.replace(FILES_ROOT, '')
-
-    let file
-
-    if(path == '__leporello_blank.html') {
-      file = Promise.resolve('')
-    } else if(dir_handle != null) {
-      file = read_file(dir_handle, path)
-    } else {
-      // Delegate request to browser
-      return
-    }
-
-    const headers = new Headers([
-      [
-        'Content-Type', 
-        path.endsWith('.js') || path.endsWith('.mjs')
-          ? 'text/javascript'
-          : 'text/html'
-      ]
-    ])
-
-    const response = file.then(file => 
-      new Response(file, {headers})
-    )
-    event.respondWith(response)
+    event.respondWith(serve_response_from_dir(event))
   }
 })
 

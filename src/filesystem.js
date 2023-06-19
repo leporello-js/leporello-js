@@ -16,7 +16,7 @@ const send_message = (message) => {
 }
 
 globalThis.clear_directory_handle = () => {
-  send_message({type: 'SET', data: null})
+  send_message({type: 'SET_DIR_HANDLE', data: null})
   window.location.reload()
 }
 
@@ -24,14 +24,31 @@ let dir_handle
 
 const request_directory_handle = async () => {
   dir_handle = await globalThis.showDirectoryPicker()
-  await send_message({type: 'SET', data: dir_handle})
+  await send_message({type: 'SET_DIR_HANDLE', data: dir_handle})
   return dir_handle
+}
+
+export const init_window_service_worker = window => {
+  window.navigator.serviceWorker.ready.then(() => {
+    window.navigator.serviceWorker.addEventListener('message', e => {
+      if(e.data.type == 'GET_DIR_HANDLE') {
+        e.ports[0].postMessage(dir_handle)
+      }
+    })
+  })
 }
 
 export const load_persisted_directory_handle = () => {
   return navigator.serviceWorker.register('service_worker.js')
     .then(() => navigator.serviceWorker.ready)
-    .then(() => send_message({type: 'GET'}))
+    /*
+      Main window also provides dir_handle to service worker, together with
+      run_window. run_window provides dir_handle to service worker when it
+      issues fetch event. If clientId is '' then service worker will try to get
+      dir_handle from main window
+    */
+    .then(() => init_window_service_worker(globalThis))
+    .then(() => send_message({type: 'GET_DIR_HANDLE'}))
     .then(async h => {
       if(h == null || (await h.queryPermission()) != 'granted') {
         return null

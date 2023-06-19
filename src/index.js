@@ -1,6 +1,6 @@
 import {UI} from './editor/ui.js'
 import {EFFECTS, render_initial_state, apply_side_effects} from './effects.js'
-import {load_dir} from './filesystem.js'
+import {load_dir, init_window_service_worker} from './filesystem.js'
 
 const EXAMPLE = `const fib = n =>
   n == 0 || n == 1
@@ -34,9 +34,18 @@ const get_html_url = state => {
     : base + state.html_file + '?leporello'
 }
 
+const on_window_load = () => {
+  init_window_service_worker(globalThis.run_window)
+  exec(
+    'open_run_window', 
+    new Set(Object.getOwnPropertyNames(globalThis.run_window))
+  )
+}
+
+
 // By default run code in hidden iframe, until user explicitly opens visible
 // window
-const open_run_iframe = (state, onload) => {
+const open_run_iframe = (state) => {
   const iframe = document.createElement('iframe')
   iframe.src = get_html_url(state)
   iframe.setAttribute('hidden', '')
@@ -44,7 +53,7 @@ const open_run_iframe = (state, onload) => {
   // for run_window, do not set unhandled rejection, because having rejected
   // promises in user code is normal condition
   set_error_handler(iframe.contentWindow, false)
-  iframe.contentWindow.addEventListener('load', onload)
+  iframe.contentWindow.addEventListener('load', on_window_load)
   globalThis.run_window = iframe.contentWindow
 }
 
@@ -60,17 +69,6 @@ export const open_run_window = state => {
   const is_loaded = () => {
     const nav = next_window.performance.getEntriesByType("navigation")[0]
     return nav != null && nav.loadEventEnd > 0
-  }
-
-  // Wait until `load` event before executing code, because service worker that
-  // is responsible for loading external modules seems not working until `load`
-  // event fired.  TODO: better register SW explicitly and don't rely on
-  // already registered SW?
-  const onload = () => {
-    exec(
-      'open_run_window', 
-      new Set(Object.getOwnPropertyNames(globalThis.run_window))
-    )
   }
 
   const add_load_handler = () => {
@@ -89,11 +87,15 @@ export const open_run_window = state => {
     if(is_loaded()) {
       // Already loaded
       add_unload_handler()
-      onload()
+      on_window_load()
     } else {
       next_window.addEventListener('load', () => {
         add_unload_handler()
-        onload()
+        // Wait until `load` event before executing code, because service worker that
+        // is responsible for loading external modules seems not working until `load`
+        // event fired.  TODO: better register SW explicitly and don't rely on
+        // already registered SW?
+        on_window_load()
       })
     }
   }
@@ -185,12 +187,7 @@ export const init = (container, _COMMANDS) => {
 
     render_initial_state(ui, state)
 
-    open_run_iframe(state, () => {
-      exec(
-        'open_run_window', 
-        new Set(Object.getOwnPropertyNames(globalThis.run_window))
-      )
-    })
+    open_run_iframe(state)
   })
 }
 
