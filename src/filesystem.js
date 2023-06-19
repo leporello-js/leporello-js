@@ -17,10 +17,33 @@ const send_message = (message) => {
 
 globalThis.clear_directory_handle = () => {
   send_message({type: 'SET_DIR_HANDLE', data: null})
+  clearInterval(keepalive_interval_id)
+  keepalive_interval_id = null
   window.location.reload()
 }
 
 let dir_handle
+
+let keepalive_interval_id
+
+/*
+Service worker is killed by the browser after 40 seconds of inactivity see
+https://github.com/mswjs/msw/issues/367
+
+There is hard 5 minute limit on service worker lifetime See
+https://chromium.googlesource.com/chromium/src/+/master/docs/security/service-worker-security-faq.md#do-service-workers-live-forever
+
+Keep reviving serivce worker, so when user reloads page, dir_handle is picked
+up from service worker
+*/
+const keep_service_worker_alive = () => {
+  if(keepalive_interval_id != null) {
+    return
+  }
+  keepalive_interval_id = setInterval(() => {
+    send_message({type: 'SET_DIR_HANDLE', data: dir_handle})
+  }, 10_000)
+}
 
 const request_directory_handle = async () => {
   dir_handle = await globalThis.showDirectoryPicker()
@@ -38,7 +61,7 @@ export const init_window_service_worker = window => {
   })
 }
 
-export const load_persisted_directory_handle = () => {
+const load_persisted_directory_handle = () => {
   return navigator.serviceWorker.register('service_worker.js')
     .then(() => navigator.serviceWorker.ready)
     /*
@@ -142,9 +165,11 @@ export const load_dir = async (should_request_access) => {
     handle = await request_directory_handle()
   } else {
     handle = await load_persisted_directory_handle()
-    if(handle == null) {
-      return null
-    }
+  }
+  if(handle == null) {
+    return null
+  } else {
+    keep_service_worker_alive()
   }
   return do_load_dir(handle, null)
 }
