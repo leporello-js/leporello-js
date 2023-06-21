@@ -447,7 +447,7 @@ export const eval_codestring = (codestring, scope) =>
     `
   ))(codestring, scope)
 
-const get_args_scope = (fn_node, args) => {
+const get_args_scope = (fn_node, args, closure) => {
   const arg_names = 
     collect_destructuring_identifiers(fn_node.function_args)
     .map(i => i.value)
@@ -464,7 +464,10 @@ const get_args_scope = (fn_node, args) => {
   */
   const codestring = `(([${destructuring}]) => [${arg_names.join(',')}])(__args)`
 
-  const {ok, value, error} = eval_codestring(codestring, {__args: args})
+  const {ok, value, error} = eval_codestring(codestring, {
+    ...closure,
+    __args: args,
+  })
 
   if(!ok) {
     // TODO show exact destructuring error
@@ -1142,7 +1145,11 @@ export const eval_frame = (calltree_node, modules) => {
   } else {
     // TODO default values for destructuring can be function calls
 
-    const args_scope_result = get_args_scope(node, calltree_node.args)
+    const args_scope_result = get_args_scope(
+      node, 
+      calltree_node.args,
+      calltree_node.fn.__closure
+    )
 
     // TODO fine-grained destructuring error, only for identifiers that
     // failed destructuring

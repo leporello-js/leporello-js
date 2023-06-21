@@ -820,6 +820,23 @@ export const tests = [
     assert_equal(frame.children[0].children[0].children[0].result.value, [1,2,3])
   }),
 
+  test('eval_frame default arg', () => {
+    const code = `
+      const x = 1
+      function y(z = x) {
+        return z 
+      }
+      y()
+    `
+    const tree = eval_tree(code)
+    const frame = eval_frame(tree.children[0])
+    assert_equal(
+      // value for z in return statement
+      frame.children[1].children[0].children[0].result.value, 
+      1
+    )
+  }),
+
   test('module not found', () => {
     const parsed = parse_modules(
       'a',
@@ -3173,6 +3190,7 @@ const y = x()`
     // Remove patch
     patch_builtin('random', null)
   }),
+
 
   test('record io cache discarded if args does not match', async () => {
     // Patch fetch
