@@ -126,27 +126,36 @@ export const reload_run_window = state => {
 
 const read_modules = async () => {
   const default_module = {'': localStorage.code || EXAMPLE}
-  const current = {
-    // TODO fix when there are no such modules anymore
-    current_module: localStorage.current_module ?? '',
-    entrypoint: localStorage.entrypoint ?? '',
-    html_file: localStorage.html_file ?? '',
-  }
   const project_dir = await load_dir(false)
   if(project_dir == null) {
     // Single anonymous module
     return {
-      ...current,
       files: default_module,
     }
   } else {
     return {
-      ...current,
       project_dir,
       files: default_module,
     }
   }
 }
+
+const get_entrypoint_settings = () => ({
+  current_module: localStorage.current_module ?? '',
+  entrypoint: localStorage.entrypoint ?? '',
+  html_file: localStorage.html_file ?? '',
+})
+
+
+export const open_directory = () => {
+  if(globalThis.showDirectoryPicker == null) {
+    throw new Error('Your browser is not supporting File System Access API')
+  }
+  load_dir(true).then(dir => {
+    exec('load_dir', dir, get_entrypoint_settings())
+  })
+}
+
 
 let COMMANDS
 let ui
@@ -159,10 +168,14 @@ export const init = (container, _COMMANDS) => {
 
   read_modules().then(initial_state => {
 
-    state = COMMANDS.get_initial_state({
-      ...initial_state, 
-      on_deferred_call: (...args) => exec('on_deferred_call', ...args)
-    })
+    state = COMMANDS.get_initial_state(
+      {
+        ...initial_state, 
+        on_deferred_call: (...args) => exec('on_deferred_call', ...args)
+      },
+
+      get_entrypoint_settings(),
+    )
 
     // Expose state for debugging
     globalThis.__state = state

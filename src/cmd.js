@@ -824,10 +824,31 @@ const do_load_dir = (state, dir) => {
   }
 }
 
-const load_dir = (state, dir) => {
+const apply_entrypoint_settings = (state, entrypoint_settings) => {
+  const blank_if_not_exists = key =>
+    state.files[entrypoint_settings[key]] == null 
+      ? ''
+      : entrypoint_settings[key]
+
+  const entrypoint = blank_if_not_exists('entrypoint')
+  const current_module = blank_if_not_exists('current_module')
+  const html_file = blank_if_not_exists('html_file')
+
+  return {
+    ...state,
+    entrypoint,
+    current_module,
+    html_file,
+  }
+}
+
+const load_dir = (state, dir, entrypoint_settings) => {
   // Clear parse cache and rerun code
   return run_code({
-    ...do_load_dir(state, dir),
+    ...apply_entrypoint_settings(
+      do_load_dir(state, dir),
+      entrypoint_settings,
+    ),
     // remove cache. We have to clear cache because imports of modules that are
     // not available because project_dir is not available have errors and the
     // errors are cached
@@ -851,26 +872,16 @@ const open_run_window = (state, globals) => {
   })
 }
 
-const get_initial_state = state => {
+const get_initial_state = (state, entrypoint_settings) => {
   const with_files = state.project_dir == null
     ? state
     : do_load_dir(state, state.project_dir)
 
-  const blank_if_not_exists = key =>
-    with_files.files[with_files[key]] == null 
-      ? ''
-      : with_files[key]
-
-  const entrypoint = blank_if_not_exists('entrypoint')
-  const current_module = blank_if_not_exists('current_module')
-  const html_file = blank_if_not_exists('html_file')
+  const with_settings = apply_entrypoint_settings(with_files, entrypoint_settings)
 
   return {
-    ...with_files,
-    entrypoint,
-    current_module,
-    html_file,
-    cursor_position_by_file: {[current_module]: 0},
+    ...with_settings,
+    cursor_position_by_file: {[with_settings.current_module]: 0},
   }
 }
 

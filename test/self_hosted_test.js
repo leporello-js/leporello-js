@@ -69,7 +69,8 @@ console.time('run')
 
 const i = test_initial_state(
   {}, // files
-  {project_dir: dir, entrypoint: 'test/run.js'}
+  {entrypoint: 'test/run.js'},
+  {project_dir: dir}
 )
 
 assert_equal(i.loading_external_imports_state != null, true)

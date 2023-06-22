@@ -1,22 +1,13 @@
 import {el} from './domutils.js'
 import {map_find} from '../utils.js'
 import {load_dir, create_file} from '../filesystem.js'
-import {exec, get_state} from '../index.js'
+import {exec, get_state, open_directory} from '../index.js'
 
 export class Files {
   constructor(ui) {
     this.ui = ui
     this.el =  el('div', 'files_container')
     this.render(get_state())
-  }
-
-  open_directory() {
-    if(globalThis.showDirectoryPicker == null) {
-      throw new Error('Your browser is not supporting File System Access API')
-    }
-    load_dir(true).then(dir => {
-      exec('load_dir', dir)
-    })
   }
 
   render(state) {
@@ -26,7 +17,7 @@ export class Files {
         el('div', 'allow_file_access',
           el('a', {
               href: 'javascript:void(0)',
-              click: this.open_directory.bind(this),
+              click: open_directory,
           },
             `Allow access to local project folder`,
           ),

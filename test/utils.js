@@ -98,15 +98,18 @@ export const assert_code_error_async = async (codestring, error) => {
   assert_equal(result.error, error)
 }
 
-export const test_initial_state = (code, state) => {
+export const test_initial_state = (code, entrypoint_settings, other) => {
   return COMMANDS.open_run_window(
     COMMANDS.get_initial_state(
       {
         files: typeof(code) == 'object' ? code : { '' : code},
+        ...other
+      },
+      {
         entrypoint: '',
         current_module: '',
-        ...state,
-      },
+        ...entrypoint_settings,
+      }
     ),
     new Set(Object.getOwnPropertyNames(globalThis.run_window))
   )
@@ -150,7 +153,7 @@ export const test_deferred_calls_state = code => {
     }
   `))()
 
-  const state = test_initial_state(code, { on_deferred_call })
+  const state = test_initial_state(code, null, { on_deferred_call })
 
   return {
     state, 
