@@ -434,19 +434,18 @@ account
 
 // Workaround with statement forbidden in strict mode (imposed by ES6 modules)
 // Also currently try/catch is not implemented TODO
-
-
-// TODO also create in Iframe Context?
-const eval_codestring = new Function('codestring', 'scope', 
-  // Make a copy of `scope` to not mutate it with assignments
-  `
-    try {
-      return {ok: true, value: eval('with({...scope}){' + codestring + '}')}
-    } catch(error) {
-      return {ok: false, error}
-    }
-  `
-)
+export const eval_codestring = (codestring, scope) => 
+  // Note that we eval code in context of run_window
+  (new (globalThis.run_window.Function)('codestring', 'scope', 
+    // Make a copy of `scope` to not mutate it with assignments
+    `
+      try {
+        return {ok: true, value: eval('with({...scope}){' + codestring + '}')}
+      } catch(error) {
+        return {ok: false, error}
+      }
+    `
+  ))(codestring, scope)
 
 const get_args_scope = (fn_node, args) => {
   const arg_names = 
