@@ -85,6 +85,9 @@ export class Editor {
       behavioursEnabled: false,
       // Scroll past end for value explorer
       scrollPastEnd: 100 /* Allows to scroll 100*<screen size> */,
+
+      enableLiveAutocompletion: false,
+      enableBasicAutocompletion: true,
     })
 
     normalize_events(this.ace_editor, {
