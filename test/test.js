@@ -3358,4 +3358,23 @@ const y = x()`
     const next_rnd = i.active_calltree_node.children[0].value
     assert_equal(rnd, next_rnd)
   }),
+
+  test('record io Date', () => {
+    assert_equal(
+      test_initial_state('new Date()').io_cache.length,
+      1
+    )
+    assert_equal(
+      test_initial_state('new Date("2020-01-01")').io_cache,
+      undefined,
+    )
+    assert_equal(
+      typeof(test_initial_state('Date()').io_cache[0].value),
+      'string',
+    )
+    assert_equal(
+      typeof(test_initial_state('new Date()').io_cache[0].value),
+      'object',
+    )
+  }),
 ]

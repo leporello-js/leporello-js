@@ -23,9 +23,15 @@ const io_patch = (path, use_context = false) => {
   }
   const name = path.join('.')
 
-
   const original = obj[method]
-  obj[method] = function(...args) {
+
+  obj[method] = make_patched_method(original, name, use_context)
+
+  obj[method].__original = original
+}
+
+const make_patched_method = (original, name, use_context) => {
+  const method = function(...args) {
     if(cxt.io_cache_is_replay_aborted) {
       // Try to finish fast
       // TODO invoke callback to notify that code must be restarted?
@@ -210,9 +216,37 @@ const io_patch = (path, use_context = false) => {
     }
   }
 
-  Object.defineProperty(obj[method], 'name', {value: original.name})
+  Object.defineProperty(method, 'name', {value: original.name})
 
-  obj[method].__original = original
+  return method
+}
+
+const patch_Date = () => {
+  const Date = cxt.window.Date
+  const Date_patched = make_patched_method(Date, 'Date', false)
+  cxt.window.Date = function(...args) {
+    if(args.length == 0) {
+      // return current Date, IO operation
+      if(new.target != null) {
+        return new Date_patched(...args)
+      } else {
+        return Date_patched(...args)
+      }
+    } else {
+      // pure function
+      if(new.target != null) {
+        return new Date(...args)
+      } else {
+        return Date(...args)
+      }
+    }
+  }
+  cxt.window.Date.__original = Date
+
+  cxt.window.Date.parse = Date.parse
+  cxt.window.Date.now =   Date.now
+  cxt.window.Date.UTC =   Date.UTC
+  io_patch(['Date', 'now'])
 }
 
 export const apply_io_patches = () => {
@@ -226,13 +260,7 @@ export const apply_io_patches = () => {
 
   // TODO patch setInterval to only cleanup all intervals on finish
 
-  const Date = cxt.window.Date
-  io_patch(['Date'])
-  cxt.window.Date.parse = Date.parse
-  cxt.window.Date.now =   Date.now
-  cxt.window.Date.UTC =   Date.UTC
-  io_patch(['Date', 'now'])
-
+  patch_Date()
 
   io_patch(['fetch'])
   // Check if Response is defined, for node.js
