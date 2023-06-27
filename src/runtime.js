@@ -29,23 +29,23 @@ const gen_to_promise = gen_fn => {
   }
 }
 
-const do_run = function*(module_fns, cxt, io_cache){
+const do_run = function*(module_fns, cxt, io_trace){
   let calltree
 
-  cxt = (io_cache == null || io_cache.length == 0)
-    // TODO group all io_cache_ properties to single object?
+  cxt = (io_trace == null || io_trace.length == 0)
+    // TODO group all io_trace_ properties to single object?
     ? {...cxt,
-      io_cache_is_recording: true,
-      io_cache: [],
+      io_trace_is_recording: true,
+      io_trace: [],
     }
     : {...cxt,
-      io_cache_is_recording: false,
-      io_cache,
-      io_cache_is_replay_aborted: false,
-      io_cache_resolver_is_set: false,
-      // Map of (index in io_cache) -> resolve
-      io_cache_resolvers: new Map(),
-      io_cache_index: 0,
+      io_trace_is_recording: false,
+      io_trace,
+      io_trace_is_replay_aborted: false,
+      io_trace_resolver_is_set: false,
+      // Map of (index in io_trace) -> resolve
+      io_trace_resolvers: new Map(),
+      io_trace_index: 0,
     }
 
   apply_promise_patch(cxt)
@@ -94,14 +94,14 @@ const do_run = function*(module_fns, cxt, io_cache){
   }
 }
 
-export const run = gen_to_promise(function*(module_fns, cxt, io_cache) {
-  const result = yield* do_run(module_fns, cxt, io_cache)
+export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
+  const result = yield* do_run(module_fns, cxt, io_trace)
 
-  if(result.eval_cxt.io_cache_is_replay_aborted) {
+  if(result.eval_cxt.io_trace_is_replay_aborted) {
     // TODO test next line
     result.eval_cxt.is_recording_deferred_calls = false
 
-    // run again without io cache
+    // run again without io trace
     return yield* do_run(module_fns, cxt, null)
   } else {
     return result

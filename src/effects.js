@@ -225,11 +225,11 @@ export const apply_side_effects = (prev, next, command, ui) => {
         ui.logs.rerender_logs(next.logs)
 
         if(
-          prev.io_cache != next.io_cache 
+          prev.io_trace != next.io_trace 
           || 
-          prev.eval_cxt?.io_cache_index != next.eval_cxt.io_cache_index
+          prev.eval_cxt?.io_trace_index != next.eval_cxt.io_trace_index
         ) {
-          ui.render_io_cache(next)
+          ui.render_io_trace(next)
         }
       }
 

@@ -51,11 +51,11 @@ const apply_eval_result = (state, eval_result) => {
       log_position: null
     },
     modules: eval_result.modules,
-    io_cache: 
-      (eval_result.io_cache == null || eval_result.io_cache.length == 0)
-        // If new cache is empty, reuse previous cache
-        ? state.io_cache
-        : eval_result.io_cache
+    io_trace: 
+      (eval_result.io_trace == null || eval_result.io_trace.length == 0)
+        // If new trace is empty, reuse previous trace
+        ? state.io_trace
+        : eval_result.io_trace
   }
 }
 
@@ -201,7 +201,7 @@ const external_imports_loaded = (
       external_imports,
       state.on_deferred_call,
       state.calltree_changed_token,
-      state.io_cache,
+      state.io_trace,
     )
     toplevel = true
   } else {
@@ -210,7 +210,7 @@ const external_imports_loaded = (
       external_imports,
       state.on_deferred_call,
       state.calltree_changed_token,
-      state.io_cache,
+      state.io_trace,
       {index: node.index, module: state.current_module},
     )
     toplevel = false
@@ -804,8 +804,8 @@ const on_deferred_call = (state, call, calltree_changed_token, logs) => {
   }
 }
 
-const clear_io_cache = state => {
-  return run_code({...state, io_cache: null})
+const clear_io_trace = state => {
+  return run_code({...state, io_trace: null})
 }
 
 const do_load_dir = (state, dir) => {
@@ -902,6 +902,6 @@ export const COMMANDS = {
   external_imports_loaded,
   eval_modules_finished,
   on_deferred_call,
-  clear_io_cache,
+  clear_io_trace,
   calltree: calltree_commands,
 }

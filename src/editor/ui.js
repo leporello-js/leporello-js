@@ -3,7 +3,7 @@ import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
 import {Logs} from './logs.js'
-import {IO_Cache} from './io_cache.js'
+import {IO_Trace} from './io_trace.js'
 import {el} from './domutils.js'
 
 export class UI {
@@ -36,11 +36,11 @@ export class UI {
                     href: 'javascript: void(0)',
                   }, 'Logs (F3)')
                 ),
-                this.tabs.io_cache = el('div', 'tab', 
+                this.tabs.io_trace = el('div', 'tab', 
                   el('a', {
-                    click: () => this.set_active_tab('io_cache'),
+                    click: () => this.set_active_tab('io_trace'),
                     href: 'javascript: void(0)',
-                  }, 'IO cache (F4)')
+                  }, 'IO trace (F4)')
                 ),
                 this.entrypoint_select = el('div', 'entrypoint_select')
               ),
@@ -52,8 +52,8 @@ export class UI {
                 'class': 'tab_content logs', 
                 tabindex: 0,
               }),
-              this.debugger.io_cache = el('div', {
-                'class': 'tab_content io_cache', 
+              this.debugger.io_trace = el('div', {
+                'class': 'tab_content io_trace', 
                 tabindex: 0,
               }),
             ),
@@ -87,9 +87,9 @@ export class UI {
           el('a', {
             'class': 'statusbar_action first',
             href: 'javascript: void(0)',
-            click: () => exec('clear_io_cache')
+            click: () => exec('clear_io_trace')
           },
-            'Clear IO cache (F6)'
+            'Clear IO trace (F6)'
           ),
 
           el('a', {
@@ -157,11 +157,11 @@ export class UI {
       }
 
       if(e.key == 'F4'){
-        this.set_active_tab('io_cache')
+        this.set_active_tab('io_trace')
       }
 
       if(e.key == 'F6'){
-        exec('clear_io_cache')
+        exec('clear_io_trace')
       }
 
       if(e.key == 'F7'){
@@ -177,7 +177,7 @@ export class UI {
 
     this.calltree = new CallTree(this, this.debugger.calltree)
     this.logs = new Logs(this, this.debugger.logs)
-    this.io_cache = new IO_Cache(this, this.debugger.io_cache)
+    this.io_trace = new IO_Trace(this, this.debugger.io_trace)
 
     // TODO jump to another module
     // TODO use exec
@@ -207,8 +207,8 @@ export class UI {
     Object.values(this.debugger).forEach(el => el.style.display = 'none')
     this.debugger[tab_id].style.display = 'block'
 
-    if(tab_id == 'io_cache') {
-      this.io_cache.render_io_cache(get_state(), false)
+    if(tab_id == 'io_trace') {
+      this.io_trace.render_io_trace(get_state(), false)
     }
 
     if(!skip_focus) {
@@ -306,13 +306,13 @@ export class UI {
     this.logs.render_logs(null, state.logs)
   }
 
-  render_io_cache(state) {
+  render_io_trace(state) {
     // render lazily, only if selected
-    if(this.active_tab == 'io_cache') {
-      this.io_cache.render_io_cache(state, true)
+    if(this.active_tab == 'io_trace') {
+      this.io_trace.render_io_trace(state, true)
     } else {
       // Do not render until user switch to the tab
-      this.io_cache.clear()
+      this.io_trace.clear()
     }
   }
 
@@ -367,8 +367,8 @@ export class UI {
       ['Focus console logs', 'F3'],
       ['Navigate console logs', '↑ ↓ or jk'],
       ['Leave console logs', 'F3 or Esc'],
-      ['Focus IO cache', 'F4'],
-      ['Leave IO cache', 'F4 or Esc'],
+      ['Focus IO trace', 'F4'],
+      ['Leave IO trace', 'F4 or Esc'],
       ['Jump to definition', 'F5', 'gd'],
       ['Expand selection to eval expression', 'Ctrl-↓ or Ctrl-j'],
       ['Collapse selection', 'Ctrl-↑ or Ctrl-k'],
@@ -376,7 +376,7 @@ export class UI {
       ['Step out of call', 'Ctrl-o', '\\o'],
       ['When in call tree view, jump to return statement', 'Enter'],
       ['When in call tree view, jump to function arguments', 'a'],
-      ['Clear IO cache', 'F6'],
+      ['Clear IO trace', 'F6'],
       ['(Re)open run window (F7)', 'F7'],
       ['Expand/collapse editor to fullscreen', 'F8'],
     ]

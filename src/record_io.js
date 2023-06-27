@@ -32,7 +32,7 @@ const io_patch = (path, use_context = false) => {
 
 const make_patched_method = (original, name, use_context) => {
   const method = function(...args) {
-    if(cxt.io_cache_is_replay_aborted) {
+    if(cxt.io_trace_is_replay_aborted) {
       // Try to finish fast
       // TODO invoke callback to notify that code must be restarted?
       throw new Error('io replay aborted')
@@ -41,7 +41,7 @@ const make_patched_method = (original, name, use_context) => {
     const has_new_target = new.target != null
 
     if(cxt.is_recording_deferred_calls) {
-      // TODO record cache on deferred calls?
+      // TODO record trace on deferred calls?
       return has_new_target 
         ? new original(...args)
         : original.apply(this, args)
@@ -49,7 +49,7 @@ const make_patched_method = (original, name, use_context) => {
 
     const cxt_copy = cxt
 
-    if(cxt.io_cache_is_recording) {
+    if(cxt.io_trace_is_recording) {
       let ok, value, error
       try {
         // save call, so on expand_call and find_call IO functions would not be
@@ -58,7 +58,7 @@ const make_patched_method = (original, name, use_context) => {
         // lib and async context is lost
         set_record_call(cxt)
 
-        const index = cxt.io_cache.length
+        const index = cxt.io_trace.length
 
         if(name == 'setTimeout') {
           args = args.slice()
@@ -69,11 +69,11 @@ const make_patched_method = (original, name, use_context) => {
               // If code execution was cancelled, then never call callback
               return
             }
-            if(cxt.io_cache_is_replay_aborted) {
+            if(cxt.io_trace_is_replay_aborted) {
               // Non necessary
               return
             }
-            cxt.io_cache.push({type: 'resolution', index})
+            cxt.io_trace.push({type: 'resolution', index})
             cb()
           }, 'name', {value: cb.name})
         }
@@ -89,11 +89,11 @@ const make_patched_method = (original, name, use_context) => {
             if(cxt_copy != cxt) {
               return
             }
-            if(cxt.io_cache_is_replay_aborted) {
+            if(cxt.io_trace_is_replay_aborted) {
               // Non necessary
               return
             }
-            cxt.io_cache.push({type: 'resolution', index})
+            cxt.io_trace.push({type: 'resolution', index})
           })
         }
 
@@ -104,7 +104,7 @@ const make_patched_method = (original, name, use_context) => {
         ok = false
         throw e
       } finally {
-        cxt.io_cache.push({
+        cxt.io_trace.push({
           type: 'call',
           name,
           ok, 
@@ -119,11 +119,11 @@ const make_patched_method = (original, name, use_context) => {
         })
       }
     } else {
-      const call = cxt.io_cache[cxt.io_cache_index]
+      const call = cxt.io_trace[cxt.io_trace_index]
 
       // TODO if call == null or call.type == 'resolution', then do not discard
-      // cache, instead switch to record mode and append new calls to the
-      // cache?
+      // trace, instead switch to record mode and append new calls to the
+      // trace?
       if(
         call == null
         || call.type != 'call'
@@ -140,53 +140,53 @@ const make_patched_method = (original, name, use_context) => {
             )
            )
       ){
-        cxt.io_cache_is_replay_aborted = true
+        cxt.io_trace_is_replay_aborted = true
         // Try to finish fast
         throw new Error('io replay aborted')
       } else {
 
-        const next_resolution = cxt.io_cache.find((e, i) => 
-          e.type == 'resolution' && i > cxt.io_cache_index
+        const next_resolution = cxt.io_trace.find((e, i) => 
+          e.type == 'resolution' && i > cxt.io_trace_index
         )
 
-        if(next_resolution != null && !cxt.io_cache_resolver_is_set) {
+        if(next_resolution != null && !cxt.io_trace_resolver_is_set) {
           const original_setTimeout = cxt.window.setTimeout.__original
-          cxt.io_cache_resolver_is_set = true
+          cxt.io_trace_resolver_is_set = true
 
           original_setTimeout(() => {
             if(cxt_copy != cxt) {
               return
             }
 
-            if(cxt.io_cache_is_replay_aborted) {
+            if(cxt.io_trace_is_replay_aborted) {
               return
             }
 
-            cxt.io_cache_resolver_is_set = false
+            cxt.io_trace_resolver_is_set = false
 
             // Sanity check
-            if(cxt.io_cache_index >= cxt.io_cache.length) {
+            if(cxt.io_trace_index >= cxt.io_trace.length) {
               throw new Error('illegal state')
             }  
 
-            const next_event = cxt.io_cache[cxt.io_cache_index]
+            const next_event = cxt.io_trace[cxt.io_trace_index]
             if(next_event.type == 'call') {
-              cxt.io_cache_is_replay_aborted = true
+              cxt.io_trace_is_replay_aborted = true
             } else {
               while(
-                cxt.io_cache_index < cxt.io_cache.length 
+                cxt.io_trace_index < cxt.io_trace.length 
                 && 
-                cxt.io_cache[cxt.io_cache_index].type == 'resolution'
+                cxt.io_trace[cxt.io_trace_index].type == 'resolution'
               ) {
-                const resolution = cxt.io_cache[cxt.io_cache_index]
-                const resolver = cxt.io_cache_resolvers.get(resolution.index)
+                const resolution = cxt.io_trace[cxt.io_trace_index]
+                const resolver = cxt.io_trace_resolvers.get(resolution.index)
 
-                cxt.io_cache_index++
+                cxt.io_trace_index++
 
-                if(cxt.io_cache[resolution.index].name == 'setTimeout') {
+                if(cxt.io_trace[resolution.index].name == 'setTimeout') {
                   resolver()
                 } else {
-                  resolver(cxt.io_cache[resolution.index].value)
+                  resolver(cxt.io_trace[resolution.index].value)
                 }
               }
             }
@@ -194,17 +194,17 @@ const make_patched_method = (original, name, use_context) => {
             }, 0)
         }
 
-        cxt.io_cache_index++
+        cxt.io_trace_index++
 
         if(call.ok) {
           if(call.value instanceof cxt.window.Promise) {
             // Always make promise originate from run_window
             return new cxt.window.Promise(resolve => {
-              cxt.io_cache_resolvers.set(cxt.io_cache_index - 1, resolve)
+              cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, resolve)
             })
           } else if(name == 'setTimeout') {
             const timeout_cb = args[0]
-            cxt.io_cache_resolvers.set(cxt.io_cache_index - 1, timeout_cb)
+            cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, timeout_cb)
             return call.value
           } else {
             return call.value
@@ -253,9 +253,9 @@ export const apply_io_patches = () => {
   io_patch(['Math', 'random'])
 
   io_patch(['setTimeout'])
-  // TODO if call setTimeout and then clearTimeout, cache it and remove call of
+  // TODO if call setTimeout and then clearTimeout, trace it and remove call of
   // clearTimeout, and make only setTimeout, then it would never be called when
-  // replaying from cache
+  // replaying from trace
   io_patch(['clearTimeout'])
 
   // TODO patch setInterval to only cleanup all intervals on finish

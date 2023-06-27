@@ -2,7 +2,7 @@ import {header, stringify_for_header} from './value_explorer.js'
 import {el} from './domutils.js'
 import {has_error} from '../calltree.js'
 
-export class IO_Cache {
+export class IO_Trace {
   constructor(ui, el) {
     this.el = el
     this.ui = ui
@@ -25,7 +25,7 @@ export class IO_Cache {
     this.is_rendered = false
   }
 
-  render_io_cache(state, force) {
+  render_io_trace(state, force) {
     if(force) {
       this.is_rendered = false
     }
@@ -38,9 +38,9 @@ export class IO_Cache {
 
     this.el.innerHTML = ''
 
-    const items = state.io_cache ?? []
+    const items = state.io_trace ?? []
     // Number of items that were used during execution
-    const used_count = state.eval_cxt.io_cache_index ?? items.length
+    const used_count = state.eval_cxt.io_trace_index ?? items.length
 
     for(let i = 0; i < items.length; i++) {
       const item = items[i]

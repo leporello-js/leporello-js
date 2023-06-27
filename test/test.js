@@ -3172,7 +3172,7 @@ const y = x()`
 
     const next = COMMANDS.input(initial, `const x = Math.random()*2`, 0).state
     assert_equal(next.value_explorer.result.value, 2)
-    assert_equal(next.eval_cxt.io_cache_index, 1)
+    assert_equal(next.eval_cxt.io_trace_index, 1)
 
     // Patch Math.random to return 2. 
     // TODO The first call to Math.random() is cached with value 1, and the
@@ -3192,7 +3192,7 @@ const y = x()`
   }),
 
 
-  test('record io cache discarded if args does not match', async () => {
+  test('record io trace discarded if args does not match', async () => {
     // Patch fetch
     patch_builtin('fetch', async () => 'first')
 
@@ -3318,19 +3318,19 @@ const y = x()`
     patch_builtin('fetch', null)
   }),
 
-  test('record io clear io cache', async () => {
+  test('record io clear io trace', async () => {
     const s1 = test_initial_state(`Math.random()`)
     const rnd = s1.value_explorer.result.value
     const s2 = COMMANDS.input(s1, `Math.random() + 1`, 0).state
     assert_equal(s2.value_explorer.result.value, rnd + 1)
-    const cleared = COMMANDS.clear_io_cache(s2)
+    const cleared = COMMANDS.clear_io_trace(s2)
     assert_equal(
       cleared.value_explorer.result.value == rnd + 1,
       false
     )
   }),
 
-  test('record io no io cache on deferred calls', async () => {
+  test('record io no io trace on deferred calls', async () => {
     const code = `
       const x = Math.random
       export const fn = () => x()
@@ -3344,7 +3344,7 @@ const y = x()`
     const state = on_deferred_call(i)
 
     // Deferred calls should not be record in cache
-    assert_equal(state.eval_cxt.io_cache.length, 0)
+    assert_equal(state.eval_cxt.io_trace.length, 0)
   }),
 
   test('record io discard prev execution', () => {
@@ -3361,19 +3361,19 @@ const y = x()`
 
   test('record io Date', () => {
     assert_equal(
-      test_initial_state('new Date()').io_cache.length,
+      test_initial_state('new Date()').io_trace.length,
       1
     )
     assert_equal(
-      test_initial_state('new Date("2020-01-01")').io_cache,
+      test_initial_state('new Date("2020-01-01")').io_trace,
       undefined,
     )
     assert_equal(
-      typeof(test_initial_state('Date()').io_cache[0].value),
+      typeof(test_initial_state('Date()').io_trace[0].value),
       'string',
     )
     assert_equal(
-      typeof(test_initial_state('new Date()').io_cache[0].value),
+      typeof(test_initial_state('new Date()').io_trace[0].value),
       'object',
     )
   }),

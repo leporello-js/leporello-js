@@ -294,7 +294,7 @@ export const eval_modules = (
   external_imports, 
   on_deferred_call,
   calltree_changed_token,
-  io_cache,
+  io_trace,
   location
 ) => {
   // TODO gensym __cxt, __trace, __trace_call
@@ -350,7 +350,7 @@ export const eval_modules = (
     window: globalThis.run_window,
   }
 
-  const result = run(module_fns, cxt, io_cache)
+  const result = run(module_fns, cxt, io_trace)
 
   const make_result = result => {
     const calltree = assign_code(parse_result.modules, result.calltree)
@@ -363,7 +363,7 @@ export const eval_modules = (
       eval_cxt: result.eval_cxt,
       calltree,
       call,
-      io_cache: result.eval_cxt.io_cache,
+      io_trace: result.eval_cxt.io_trace,
     }
   }
 

@@ -119,11 +119,11 @@ served from service workers).
 
 ## IO
 
-To provide interactive experience, Leporello.js caches calls to IO functions
-made by your app and can later replay them from cache, allowing to program by
+To provide interactive experience, Leporello.js traces calls to IO functions
+made by your app and can later replay them from trace, allowing to program by
 making small iterations on your code and instantly getting feedback.
 
-Current list of builtin functions which calls are cached is:
+Current list of builtin functions which calls are traced is:
 - `Date`
 - `Math.random()`
 - `fetch`
@@ -136,18 +136,18 @@ Current list of builtin functions which calls are cached is:
 - `setTimeout`
 - `clearTimeout`
 
-Leporello.js caches all IO calls when the code is run for the first time. Then,
+Leporello.js traces all IO calls when the code is run for the first time. Then,
 every time you edit your code, Leporello.js tries to execute it, taking results
-of IO calls from cache (it is called replay). Cached calls are stored in array.
+of IO calls from the trace (it is called replay). Traced calls are stored in array.
 While replay, when IO call is made, Leporello.js takes next call from the
 array, and checks if function and arguments are the same for current call and
-cached call. If they are the same, then Leporello.js returns cached result. To
+traced call. If they are the same, then Leporello.js returns result from the trace. To
 compare arguments for equality, Leporello.js uses deep equality comparison with
-`JSON.stringify`. Otherwise, the cache gets discarded, and Leporello.js
-executes code again, this time without cache, so the new cache array is
+`JSON.stringify`. Otherwise, the trace gets discarded, and Leporello.js
+executes code again, this time without the trace, so the new trace array is
 populated.
 
-If you want to bust cache manually, there is a button and a hotkey for this.
+If you want to discard trace manually, there is a button and a hotkey for this.
 
 ## Hotkeys
 
