@@ -53,8 +53,8 @@ const open_run_iframe = (state) => {
   // for run_window, do not set unhandled rejection, because having rejected
   // promises in user code is normal condition
   set_error_handler(iframe.contentWindow, false)
-  iframe.contentWindow.addEventListener('load', on_window_load)
   globalThis.run_window = iframe.contentWindow
+  init_run_window()
 }
 
 // Open another browser window so user can interact with application
@@ -63,11 +63,14 @@ export const open_run_window = state => {
   // TODO set_error_handler? Or we dont need to set_error_handler for child
   // window because error is always caught by parent window handler?
   globalThis.run_window.close()
+  globalThis.run_window = open(get_html_url(state))
+  init_run_window()
+}
 
-  const next_window = globalThis.run_window = open(get_html_url(state))
+const init_run_window = () => {
 
   const is_loaded = () => {
-    const nav = next_window.performance.getEntriesByType("navigation")[0]
+    const nav = globalThis.run_window.performance.getEntriesByType("navigation")[0]
     return nav != null && nav.loadEventEnd > 0
   }
 
@@ -89,7 +92,7 @@ export const open_run_window = state => {
       add_unload_handler()
       on_window_load()
     } else {
-      next_window.addEventListener('load', () => {
+      globalThis.run_window.addEventListener('load', () => {
         add_unload_handler()
         // Wait until `load` event before executing code, because service worker that
         // is responsible for loading external modules seems not working until `load`
@@ -101,12 +104,12 @@ export const open_run_window = state => {
   }
 
   const add_unload_handler = () => {
-    next_window.addEventListener('unload', (e) => {
+    globalThis.run_window.addEventListener('unload', (e) => {
       // Set timeout to 100ms because it takes some time for page to get closed
       // after triggering 'unload' event
       setTimeout(() => {
-        if(next_window.closed) {
-          // If by that time next_window.closed was set to true, then page was
+        if(globalThis.run_window.closed) {
+          // If by that time globalThis.run_window.closed was set to true, then page was
           // closed
           // TODO get back to iframe?
         } else {
