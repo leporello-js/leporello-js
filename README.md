@@ -119,7 +119,7 @@ served from service workers).
 
 ## IO
 
-To provide livecoding experience, Leporello.js caches calls to IO functions
+To provide interactive experience, Leporello.js caches calls to IO functions
 made by your app and can later replay them from cache, allowing to program by
 making small iterations on your code and instantly getting feedback.
 
