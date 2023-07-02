@@ -52,7 +52,11 @@ export const do_parse = code => parse(
 )
 
 export const parse_modules = (entry, modules) => 
-  load_modules(entry, module_name => modules[module_name])
+  load_modules(
+    entry, 
+    module_name => modules[module_name],
+    new Set(Object.getOwnPropertyNames(globalThis.run_window))
+  )
 
 export const eval_tree = code => {
   const parse_result = do_parse(code)

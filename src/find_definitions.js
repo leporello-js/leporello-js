@@ -76,7 +76,7 @@ export const find_definitions = (ast, globals, scope = {}, closure_scope = {}, m
   
 
   // sanity check
-  if(!globals instanceof Set) {
+  if(!(globals instanceof Set)) {
     throw new Error('not a set')
   }
 
