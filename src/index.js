@@ -34,19 +34,20 @@ const get_html_url = state => {
     : base + state.html_file + '?leporello'
 }
 
-const on_window_load = () => {
-  init_window_service_worker(globalThis.run_window)
+const on_window_load = w => {
+  init_window_service_worker(w)
   exec(
     'open_run_window', 
-    new Set(Object.getOwnPropertyNames(globalThis.run_window))
+    new Set(Object.getOwnPropertyNames(w))
   )
 }
 
 
 // By default run code in hidden iframe, until user explicitly opens visible
 // window
+let iframe
 const open_run_iframe = (state) => {
-  const iframe = document.createElement('iframe')
+  iframe = document.createElement('iframe')
   iframe.src = get_html_url(state)
   iframe.setAttribute('hidden', '')
   document.body.appendChild(iframe)
@@ -54,7 +55,7 @@ const open_run_iframe = (state) => {
   // promises in user code is normal condition
   set_error_handler(iframe.contentWindow, false)
   globalThis.run_window = iframe.contentWindow
-  init_run_window()
+  init_run_window(globalThis.run_window)
 }
 
 // Open another browser window so user can interact with application
@@ -64,13 +65,13 @@ export const open_run_window = state => {
   // window because error is always caught by parent window handler?
   globalThis.run_window.close()
   globalThis.run_window = open(get_html_url(state))
-  init_run_window()
+  init_run_window(globalThis.run_window)
 }
 
-const init_run_window = () => {
+const init_run_window = w => {
 
   const is_loaded = () => {
-    const nav = globalThis.run_window.performance.getEntriesByType("navigation")[0]
+    const nav = w.performance.getEntriesByType("navigation")[0]
     return nav != null && nav.loadEventEnd > 0
   }
 
@@ -90,28 +91,29 @@ const init_run_window = () => {
     if(is_loaded()) {
       // Already loaded
       add_unload_handler()
-      on_window_load()
+      on_window_load(w)
     } else {
-      globalThis.run_window.addEventListener('load', () => {
+      w.addEventListener('load', () => {
         add_unload_handler()
         // Wait until `load` event before executing code, because service worker that
         // is responsible for loading external modules seems not working until `load`
         // event fired.  TODO: better register SW explicitly and don't rely on
         // already registered SW?
-        on_window_load()
+        on_window_load(w)
       })
     }
   }
 
   const add_unload_handler = () => {
-    globalThis.run_window.addEventListener('unload', (e) => {
+    w.addEventListener('unload', (e) => {
       // Set timeout to 100ms because it takes some time for page to get closed
       // after triggering 'unload' event
       setTimeout(() => {
-        if(globalThis.run_window.closed) {
-          // If by that time globalThis.run_window.closed was set to true, then page was
-          // closed
-          // TODO get back to iframe?
+        if(w.closed && w == globalThis.run_window) {
+          // If by that time w.closed was set to true, then page was
+          // closed. Get back to using iframe
+          globalThis.run_window = iframe.contentWindow
+          reload_run_window(get_state())
         } else {
           add_load_handler()
         }
