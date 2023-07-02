@@ -1,4 +1,5 @@
 import {write_file} from './filesystem.js'
+import {write_example} from './examples.js'
 import {color_file} from './color.js'
 import {
   root_calltree_node, 
@@ -293,6 +294,12 @@ export const EFFECTS = {
     localStorage[key] = value
   },
 
-  write: (state, [name, contents], ui) => write_file(name, contents),
+  write: (state, [name, contents], ui) => {
+    if(state.has_file_system_access) {
+      write_file(name, contents)
+    } else {
+      write_example(name, contents)
+    }
+  }
 }
 

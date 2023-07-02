@@ -15,11 +15,10 @@ const send_message = (message) => {
   });
 }
 
-globalThis.clear_directory_handle = () => {
+export const close_dir = () => {
   send_message({type: 'SET_DIR_HANDLE', data: null})
   clearInterval(keepalive_interval_id)
   keepalive_interval_id = null
-  window.location.reload()
 }
 
 let dir_handle
@@ -120,7 +119,7 @@ const read_file = async handle => {
   return await file_data.text()
 }
 
-const do_load_dir = async (handle, path) => {
+const do_open_dir = async (handle, path) => {
   if(handle.kind == 'directory') {
     const children = []
     for await (let [name, h] of handle) {
@@ -134,7 +133,7 @@ const do_load_dir = async (handle, path) => {
       kind: 'directory',
       children: (await Promise.all(
           children.map(c => 
-            do_load_dir(c, path == null ? c.name : path + '/' + c.name)
+            do_open_dir(c, path == null ? c.name : path + '/' + c.name)
           )
         )).sort((a, b) => a.name.localeCompare(b.name))
     }
@@ -159,7 +158,7 @@ export const create_file = (path, is_dir) => {
   )
 }
 
-export const load_dir = async (should_request_access) => {
+export const open_dir = async (should_request_access) => {
   let handle
   if(should_request_access) {
     handle = await request_directory_handle()
@@ -171,5 +170,5 @@ export const load_dir = async (should_request_access) => {
   } else {
     keep_service_worker_alive()
   }
-  return do_load_dir(handle, null)
+  return do_open_dir(handle, null)
 }

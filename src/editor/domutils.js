@@ -21,7 +21,7 @@ export function el(tag, className, ...children){
     const append = child => {
       if(typeof(child) == 'undefined') {
         throw new Error('illegal state')
-      } else if(child !== null) {
+      } else if(child !== null && child !== false) {
         result.appendChild(
           typeof(child) == 'string'
             ? document.createTextNode(child)

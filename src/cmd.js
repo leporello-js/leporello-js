@@ -808,7 +808,7 @@ const clear_io_trace = state => {
   return run_code({...state, io_trace: null})
 }
 
-const do_load_dir = (state, dir) => {
+const load_files = (state, dir) => {
   const collect_files = dir => dir.kind == 'file' 
     ? [dir]
     : dir.children.map(collect_files).flat()
@@ -820,7 +820,7 @@ const do_load_dir = (state, dir) => {
   return {
     ...state,
     project_dir: dir,
-    files: {...files, ...state.files},
+    files: {...files, '': state.files['']},
   }
 }
 
@@ -842,24 +842,29 @@ const apply_entrypoint_settings = (state, entrypoint_settings) => {
   }
 }
 
-const load_dir = (state, dir, entrypoint_settings) => {
+const load_dir = (state, dir, has_file_system_access, entrypoint_settings) => {
   // Clear parse cache and rerun code
-  const with_dir = do_load_dir(state, dir)
+  const with_dir = load_files(state, dir)
   return run_code({
     ...(
       entrypoint_settings == null
         ? with_dir
         : apply_entrypoint_settings(with_dir, entrypoint_settings)
     ),
+
+    has_file_system_access,
+
     // remove cache. We have to clear cache because imports of modules that are
     // not available because project_dir is not available have errors and the
     // errors are cached
     parse_result: null,
+
+    external_imports_cache: null,
   })
 }
 
 const create_file = (state, dir, current_module) => {
-  return {...load_dir(state, dir), current_module}
+  return {...load_dir(state, dir, true), current_module}
 }
 
 const open_run_window = (state, globals) => {
@@ -877,7 +882,7 @@ const open_run_window = (state, globals) => {
 const get_initial_state = (state, entrypoint_settings) => {
   const with_files = state.project_dir == null
     ? state
-    : do_load_dir(state, state.project_dir)
+    : load_files(state, state.project_dir)
 
   const with_settings = apply_entrypoint_settings(with_files, entrypoint_settings)
 

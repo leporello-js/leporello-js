@@ -1,7 +1,13 @@
 import {el} from './domutils.js'
 import {map_find} from '../utils.js'
-import {load_dir, create_file} from '../filesystem.js'
-import {exec, get_state, open_directory, reload_run_window} from '../index.js'
+import {open_dir, create_file} from '../filesystem.js'
+import {
+  exec, 
+  get_state, 
+  open_directory, 
+  reload_run_window,
+  close_directory,
+} from '../index.js'
 
 const is_html = path => path.endsWith('.htm') || path.endsWith('.html')
 const is_js = path => path == '' || path.endsWith('.js') || path.endsWith('.mjs')
@@ -25,27 +31,56 @@ export class Files {
     reload_run_window(get_state())
   }
 
-  render(state) {
-    if(state.project_dir == null) {
-      this.el.innerHTML = ''
-      this.el.appendChild(
-        el('div', 'allow_file_access',
-          el('a', {
-              href: 'javascript:void(0)',
-              click: open_directory,
-          },
-            `Allow access to local project folder`,
-          ),
-          el('div', 'subtitle', `Your files will never leave your device`)
-        )
-      )
-    } else {
-      this.render_files(state)
-    }
-  }
 
-  render_files(state) {
-    const children = [
+  render(state) {
+    const file_actions = state.has_file_system_access
+      ? el('div', 'file_actions',
+          el('a', {
+            'class': 'file_action',
+            href: 'javascript: void(0)', 
+            click: this.create_file.bind(this, false),
+          }, 
+            'New file'
+          ),
+
+          el('a', {
+            'class': 'file_action',
+            href: 'javascript: void(0)',
+            click: this.create_file.bind(this, true),
+          }, 
+            'New dir'
+          ),
+
+          el('a', {
+            'class': 'file_action',
+            href: 'javascript: void(0)',
+            click: close_directory,
+          }, 
+            'Revoke access'
+          ),
+
+          el('a', {
+            href: 'https://github.com/leporello-js/leporello-js#selecting-entrypoint-module',
+            target: '__blank',
+            "class": 'select_entrypoint_title',
+            title: 'Select entrypoint',
+          }, 
+            'Entry point'
+          ),
+      )
+      : el('div', 'file_actions',
+          el('div', 'file_action allow_file_access',
+            el('a', {
+              href: 'javascript: void(0)',
+              click: open_directory,
+            }, 'Allow access to local project folder'),
+            el('span', 'subtitle', `Your files will never leave your device`)
+          ),
+        )
+
+
+
+    const file_elements = [
       this.render_file({name: '*scratch*', path: ''}, state),
       this.render_file(state.project_dir, state),
     ]
@@ -54,41 +89,19 @@ export class Files {
 
     if(files == null) {
       this.el.innerHTML = ''
+      this.el.appendChild(file_actions)
       this.el.appendChild(
-        el('div', 'file_actions',
-          el('a', {
-            'class': 'file_action',
-            href: 'javascript: void(0)', 
-            click: this.create_file.bind(this, false),
-          }, 
-            'Create file'
-          ),
-          el('a', {
-            'class': 'file_action',
-            href: 'javascript: void(0)',
-            click: this.create_file.bind(this, true),
-          }, 'Create dir'),
-          el('a', {
-            href: 'https://github.com/leporello-js/leporello-js#selecting-entrypoint-module',
-            target: '__blank',
-            "class": 'select_entrypoint_title',
-            title: 'Select entrypoint',
-          }, 'Entry point'),
-        )
-      )
-      this.el.appendChild(
-        el('div', 'files',
-          children
-        )
+        el('div', 'files', file_elements)
       )
     } else {
       // Replace to preserve scroll position
-      files.replaceChildren(...children)
+      this.el.replaceChild(file_actions, this.el.children[0])
+      files.replaceChildren(...file_elements)
     }
   }
 
   render_select_entrypoint(file, state) {
-    if(file.kind == 'directory') {
+    if(!state.has_file_system_access || file.kind == 'directory') {
       return null
     } else if(is_js(file.path)) {
       return el('span', 'select_entrypoint',
@@ -189,9 +202,9 @@ export class Files {
     await create_file(path, is_dir)
 
     // Reload all files for simplicity
-    load_dir(false).then(dir => {
+    open_dir(false).then(dir => {
       if(is_dir) {
-        exec('load_dir', dir)
+        exec('load_dir', dir, true)
       } else {
         exec('create_file', dir, path)
       }
@@ -205,8 +218,15 @@ export class Files {
     this.active_el = e.currentTarget.parentElement
     e.currentTarget.classList.add('active')
     this.active_file = file
+
     if(file.kind != 'directory') {
-      exec('change_current_module', file.path)
+      if(get_state().has_file_system_access) {
+        exec('change_current_module', file.path)
+      } else {
+        // in examples mode, on click file we also change entrypoint for
+        // simplicity
+        exec('change_entrypoint', file.path)
+      }
     }
   }
 }

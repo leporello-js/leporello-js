@@ -1,12 +1,22 @@
 import {UI} from './editor/ui.js'
 import {EFFECTS, render_initial_state, apply_side_effects} from './effects.js'
-import {load_dir, init_window_service_worker} from './filesystem.js'
+import {
+  open_dir, 
+  close_dir, 
+  init_window_service_worker
+} from './filesystem.js'
+import {examples_promise} from './examples.js'
 
-const EXAMPLE = `const fib = n =>
-  n == 0 || n == 1
-    ? n
-    : fib(n - 1) + fib(n - 2)
-fib(6)`
+const EXAMPLE = `function fib(n) {
+  if(n == 0 || n == 1) {
+    return n
+  } else {
+    return fib(n - 1) + fib(n - 2)
+  }
+}
+
+fib(6)
+`
 
 
 const set_error_handler = (w, with_unhandled_rejection = true) => {
@@ -131,36 +141,54 @@ export const reload_run_window = state => {
   globalThis.run_window.location = get_html_url(state)
 }
 
+
 const read_modules = async () => {
   const default_module = {'': localStorage.code || EXAMPLE}
-  const project_dir = await load_dir(false)
+  const project_dir = await open_dir(false)
   if(project_dir == null) {
-    // Single anonymous module
     return {
+      project_dir: await examples_promise,
       files: default_module,
+      has_file_system_access: false,
     }
   } else {
     return {
       project_dir,
       files: default_module,
+      has_file_system_access: true,
     }
   }
 }
 
-const get_entrypoint_settings = () => ({
-  current_module: localStorage.current_module ?? '',
-  entrypoint: localStorage.entrypoint ?? '',
-  html_file: localStorage.html_file ?? '',
-})
+const get_entrypoint_settings = () => {
+
+  const params = new URLSearchParams(window.location.search)
+
+  const entrypoint = null 
+    ?? params.get('entrypoint')
+    ?? localStorage.entrypoint
+    ?? ''
+
+  return {
+    current_module: params.get('entrypoint') ?? localStorage.current_module ?? '',
+    entrypoint,
+    html_file: localStorage.html_file ?? '',
+  }
+}
 
 
 export const open_directory = () => {
   if(globalThis.showDirectoryPicker == null) {
     throw new Error('Your browser is not supporting File System Access API')
   }
-  load_dir(true).then(dir => {
-    exec('load_dir', dir, get_entrypoint_settings())
+  open_dir(true).then(dir => {
+    exec('load_dir', dir, true, get_entrypoint_settings())
   })
+}
+
+export const close_directory = async () => {
+  close_dir()
+  exec('load_dir', await examples_promise, false, get_entrypoint_settings())
 }
 
 
