@@ -844,10 +844,12 @@ const apply_entrypoint_settings = (state, entrypoint_settings) => {
 
 const load_dir = (state, dir, entrypoint_settings) => {
   // Clear parse cache and rerun code
+  const with_dir = do_load_dir(state, dir)
   return run_code({
-    ...apply_entrypoint_settings(
-      do_load_dir(state, dir),
-      entrypoint_settings,
+    ...(
+      entrypoint_settings == null
+        ? with_dir
+        : apply_entrypoint_settings(with_dir, entrypoint_settings)
     ),
     // remove cache. We have to clear cache because imports of modules that are
     // not available because project_dir is not available have errors and the
