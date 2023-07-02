@@ -140,16 +140,6 @@ export const apply_side_effects = (prev, next, command, ui) => {
     ui.files.render(next)
   }
 
-  if(
-    prev.project_dir != next.project_dir 
-    || 
-    prev.entrypoint != next.entrypoint
-    ||
-    prev.html_file != next.html_file
-  ) {
-    ui.render_entrypoint_select(next)
-  }
-
   if(prev.current_module != next.current_module) {
     localStorage.current_module = next.current_module
     ui.render_current_module(next.current_module)

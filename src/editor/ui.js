@@ -1,4 +1,4 @@
-import {exec, get_state, open_run_window, reload_run_window} from '../index.js'
+import {exec, get_state, open_run_window} from '../index.js'
 import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
@@ -8,8 +8,6 @@ import {el} from './domutils.js'
 
 export class UI {
   constructor(container, state){
-    this.change_entrypoint = this.change_entrypoint.bind(this)
-    this.change_html_file = this.change_html_file.bind(this)
     this.open_run_window = this.open_run_window.bind(this)
 
     this.files = new Files(this)
@@ -42,7 +40,6 @@ export class UI {
                     href: 'javascript: void(0)',
                   }, 'IO trace (F4)')
                 ),
-                this.entrypoint_select = el('div', 'entrypoint_select')
               ),
               this.debugger.calltree = el('div', {
                 'class': 'tab_content', 
@@ -58,12 +55,10 @@ export class UI {
               }),
             ),
             this.debugger_loading = el('div', 'debugger_wrapper',
-              el('div', 'entrypoint_select'),
               this.debugger_loading_message = el('div'),
             ),
           ),
           this.problems_container = el('div', {"class": 'problems_container', tabindex: 0},
-            el('div', 'entrypoint_select'),
             this.problems = el('div'),
           )
         ),
@@ -194,7 +189,6 @@ export class UI {
     // instead
     this.debugger.calltree.addEventListener('click', jump_to_fn_location)
 
-    this.render_entrypoint_select(state)
     this.render_current_module(state.current_module)
 
     this.set_active_tab('calltree', true)
@@ -216,70 +210,8 @@ export class UI {
     }
   }
 
-  render_entrypoint_select(state) {
-    for(let select of this.root.getElementsByClassName('entrypoint_select')) {
-      this.do_render_entrypoint_select(state, select)
-    }
-  }
-
-  do_render_entrypoint_select(state, select) {
-    select.replaceChildren(
-      el('span', 'entrypoint_title', 'js entrypoint'),
-      el('select', {
-        click: e => e.stopPropagation(),
-        change: this.change_entrypoint,
-      },
-        Object
-          .keys(state.files)
-          .sort()
-          .filter(f => f == '' || f.endsWith('.js') || f.endsWith('.mjs'))
-          .map(f =>
-            el('option', 
-              state.entrypoint == f
-                ? { value: f, selected: true }
-                : { value: f},
-              f == '' ? "*scratch*" : f
-            )
-          )
-      ),
-      el('span', 'entrypoint_title', 'html page'),
-      el('select', {
-        click: e => e.stopPropagation(),
-        change: this.change_html_file,
-      },
-        ['']
-          .concat(
-            Object
-              .keys(state.files)
-              .sort()
-              .filter(f => f.endsWith('.htm') || f.endsWith('.html'))
-          )
-          .map(f =>
-            el('option', 
-              state.html_file == f
-                ? { value: f, selected: true }
-                : { value: f},
-              f == '' ? 'about:blank' : f
-            )
-          )
-      ),
-    )
-  }
-
   open_run_window() {
     open_run_window(get_state())
-  }
-
-  change_entrypoint(e) {
-    const file = e.target.value
-    exec('change_entrypoint', file)
-    this.editor.focus()
-  }
-
-  change_html_file(e) {
-    const html_file = e.target.value
-    exec('change_html_file', html_file)
-    reload_run_window(get_state())
   }
 
   render_debugger_loading(state) {

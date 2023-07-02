@@ -1,13 +1,28 @@
 import {el} from './domutils.js'
 import {map_find} from '../utils.js'
 import {load_dir, create_file} from '../filesystem.js'
-import {exec, get_state, open_directory} from '../index.js'
+import {exec, get_state, open_directory, reload_run_window} from '../index.js'
+
+const is_html = path => path.endsWith('.htm') || path.endsWith('.html')
+const is_js = path => path == '' || path.endsWith('.js') || path.endsWith('.mjs')
 
 export class Files {
   constructor(ui) {
     this.ui = ui
     this.el =  el('div', 'files_container')
     this.render(get_state())
+  }
+
+  change_entrypoint(e) {
+    const file = e.target.value
+    exec('change_entrypoint', file)
+    this.ui.editor.focus()
+  }
+
+  change_html_file(e) {
+    const html_file = e.target.value
+    exec('change_html_file', html_file)
+    reload_run_window(get_state())
   }
 
   render(state) {
@@ -25,32 +40,40 @@ export class Files {
         )
       )
     } else {
-      this.render_files(state.project_dir, state.current_module)
+      this.render_files(state)
     }
   }
 
-  render_files(dir, current_module) {
-    const files = this.el.querySelector('.files')
-
+  render_files(state) {
     const children = [
-      this.render_file({name: '*scratch*', path: ''}, current_module),
-      this.render_file(dir, current_module),
+      this.render_file({name: '*scratch*', path: ''}, state),
+      this.render_file(state.project_dir, state),
     ]
+
+    const files = this.el.querySelector('.files')
 
     if(files == null) {
       this.el.innerHTML = ''
       this.el.appendChild(
         el('div', 'file_actions',
           el('a', {
+            'class': 'file_action',
             href: 'javascript: void(0)', 
             click: this.create_file.bind(this, false),
           }, 
             'Create file'
           ),
           el('a', {
+            'class': 'file_action',
             href: 'javascript: void(0)',
             click: this.create_file.bind(this, true),
           }, 'Create dir'),
+          el('a', {
+            href: 'https://github.com/leporello-js/leporello-js#selecting-entrypoint-module',
+            target: '__blank',
+            "class": 'select_entrypoint_title',
+            title: 'Select entrypoint',
+          }, 'Entry point'),
         )
       )
       this.el.appendChild(
@@ -64,10 +87,40 @@ export class Files {
     }
   }
 
-  render_file(file, current_module) {
+  render_select_entrypoint(file, state) {
+    if(file.kind == 'directory') {
+      return null
+    } else if(is_js(file.path)) {
+      return el('span', 'select_entrypoint',
+        el('input', {
+          type: 'radio', 
+          name: 'js_entrypoint', 
+          value: file.path,
+          checked: state.entrypoint == file.path,
+          change: e => this.change_entrypoint(e),
+          click: e => e.stopPropagation(),
+        })
+      )
+    } else if(is_html(file.path)) {
+      return el('span', 'select_entrypoint',
+        el('input', {
+          type: 'radio', 
+          name: 'html_file', 
+          value: file.path,
+          checked: state.html_file == file.path,
+          change: e => this.change_html_file(e),
+          click: e => e.stopPropagation(),
+        })
+      )
+    } else {
+      return null
+    }
+  }
+
+  render_file(file, state) {
     const result =  el('div', 'file',
       el('div', {
-          'class': 'file_title' + (file.path == current_module ? ' active' : ''), 
+          'class': 'file_title' + (file.path == state.current_module ? ' active' : ''), 
           click: e => this.on_click(e, file)
         }, 
         el('span', 'icon',
@@ -76,13 +129,14 @@ export class Files {
             : '\xa0',
         ),
         file.name, 
+        this.render_select_entrypoint(file, state),
       ),
       file.children == null 
         ? null
-        : file.children.map(c => this.render_file(c, current_module))
+        : file.children.map(c => this.render_file(c, state))
     )
 
-    if(file.path == current_module) {
+    if(file.path == state.current_module) {
       this.active_el = result
       this.active_file = file
     }

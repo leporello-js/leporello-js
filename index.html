@@ -161,28 +161,6 @@
         overflow: auto;
       }
 
-      .entrypoint_select {
-        overflow: hidden;
-        display: flex;
-        width: fit-content;
-        align-items: center;
-        margin-left: auto;
-        min-height: 55px;
-      }
-
-      .entrypoint_select select {
-        min-width: 20px;
-        flex: 1;
-      }
-
-      .entrypoint_title {
-        margin-right: 0.5em;
-      }
-
-      .entrypoint_title:not(:first-child) {
-        margin-left: 1.5em;
-      }
-
       .callnode {
         margin-left: 1em;
       }
@@ -248,8 +226,18 @@
         margin-left: 0em !important;
       }
 
+      .files .file_title {
+        display: flex;
+      }
+
       .files .file_title.active {
         background-color: rgb(225, 244, 253);
+      }
+
+      .files .file_title .select_entrypoint {
+        margin-left: auto;
+        width: 40px;
+        text-align: center;
       }
 
       .files .file_title .icon {
@@ -259,11 +247,25 @@
       }
 
       .file_actions {
+        position: relative;
         display: flex;
         flex-direction: row;
-        justify-content: space-evenly;
+        justify-content: flex-start;
+        align-items: center;
         padding: 5px;
         background-color: rgb(225 244 253 / 80%);
+      }
+
+      .file_actions .file_action {
+        margin-right: 2em;
+      }
+
+      .file_actions .select_entrypoint_title {
+        width: 40px;
+        position: absolute; 
+        right: 7px;
+        font-size: 0.8em;
+        text-align: center;
       }
 
       /* value_explorer */

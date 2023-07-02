@@ -197,6 +197,9 @@ in production, you can do it like this:
 Leporello.js appends `?leporello` query parameter to your HTML file, so you can
 test if HTML file is run in Leporello.js or in production.
 
+You can add javascript libraries by including `script` tag to HTML file. If the library is exposing globals, they will be available in your javascript code after you select that HTML file as an entrypoint.
+
+
 ## Run and debug UI code in separate window
 
 By default your code is run in invisible iframe. If you want to run and debug
