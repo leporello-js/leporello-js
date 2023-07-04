@@ -102,7 +102,7 @@ export class Editor {
       },
 
       on_change_immediate: () => {
-        this.update_value_explorer_margin()
+        this.unembed_value_explorer()
       },
 
       on_change_selection: () => {
@@ -175,10 +175,26 @@ export class Editor {
 
   update_value_explorer_margin() {
     if(this.widget != null) {
-      // TODO: set margin left based on current line width, not on max line
-      // width?
-      this.widget.content.style.marginLeft = 
-        (this.ace_editor.getSession().getScreenWidth() + 1) + 'ch'
+      const session = this.ace_editor.getSession()
+      this.ace_editor.renderer.layerConfig.lastRow
+
+      // Calculate left margin in such way that value explorer does not cover
+      // code. It has sufficient left margin so all visible code is to the left
+      // of it
+      const lines_count = session.getLength()
+      let margin = 0
+      for(
+        let i = this.widget.row; 
+        i <= this.ace_editor.renderer.layerConfig.lastRow; 
+        i++
+      ) {
+        margin = Math.max(margin, session.getLine(i).length)
+      }
+
+      // Next line sets margin based on whole file
+      //const margin = this.ace_editor.getSession().getScreenWidth() 
+
+      this.widget.content.style.marginLeft = (margin + 1) + 'ch'
     }
   }
 
