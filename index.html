@@ -39,7 +39,7 @@
           "bottom files"
           "statusbar statusbar";
         grid-template-columns: 70% 30%;
-        grid-template-rows: 1fr 0.7fr 2.5em;
+        grid-template-rows: auto 1fr 2.5em;
       }
 
       .root.fullscreen_editor {
@@ -68,6 +68,8 @@
       }
 
       .editor_container {
+        height: 55vh;
+        resize: vertical;
         position: relative;
         grid-area: code;
         font-size: 16px;

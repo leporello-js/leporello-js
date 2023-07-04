@@ -76,6 +76,8 @@ export class Editor {
     this.ui = ui
     this.editor_container = editor_container
 
+    this.make_resizable()
+
     this.markers = {}
     this.sessions = {}
 
@@ -467,6 +469,48 @@ export class Editor {
     for(let file in this.sessions) {
       cb(file, this.sessions[file])
     }
+  }
+
+  make_resizable() {
+
+    const apply_height = () => {
+      this.editor_container.style.height = localStorage.editor_height + 'vh'
+    }
+
+    let last_resize_time = new Date().getTime()
+
+    window.addEventListener('resize', () => {
+      last_resize_time = new Date().getTime()
+    })
+
+    // Save editor_height on resize and restore it on reopen
+    if(localStorage.editor_height != null) {
+      apply_height()
+    }
+
+    let is_first_run = true
+
+    new ResizeObserver((e) => {
+      if(is_first_run) {
+        // Resize observer callback seems to fire immediately on create
+        is_first_run = false
+        return
+      }
+      if(new Date().getTime() - last_resize_time < 100) {
+        // Resize observer triggered by window resize, skip
+        return
+      }
+
+      // See https://stackoverflow.com/a/57166828/795038
+      // ace editor must be updated based on container size change
+      this.ace_editor.resize()
+
+      const height = this.editor_container.offsetHeight / window.innerHeight * 100
+      localStorage.editor_height = height
+      // resize applies height in pixels. Wait for it and apply height in vh
+      setTimeout(apply_height, 0)
+
+    }).observe(this.editor_container)
   }
 }
 
