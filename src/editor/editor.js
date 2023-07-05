@@ -178,7 +178,6 @@ export class Editor {
   update_value_explorer_margin() {
     if(this.widget != null) {
       const session = this.ace_editor.getSession()
-      this.ace_editor.renderer.layerConfig.lastRow
 
       // Calculate left margin in such way that value explorer does not cover
       // code. It has sufficient left margin so all visible code is to the left
@@ -187,7 +186,7 @@ export class Editor {
       let margin = 0
       for(
         let i = this.widget.row; 
-        i <= this.ace_editor.renderer.layerConfig.lastRow; 
+        i <= this.ace_editor.renderer.getLastVisibleRow();
         i++
       ) {
         margin = Math.max(margin, session.getLine(i).length)
@@ -276,14 +275,20 @@ export class Editor {
        content,
      }
 
-    this.update_value_explorer_margin()
 
     const LineWidgets = require("ace/line_widgets").LineWidgets;
     if (!session.widgetManager) {
       session.widgetManager = new LineWidgets(session);
       session.widgetManager.attach(this.ace_editor);
     }
-    session.widgetManager.addLineWidget(this.widget) 
+
+    // update_value_explorer_margin relies on getLastVisibleRow which can be
+    // incorrect because it may be executed right after set_cursor_position
+    // which is async in ace_editor. Use setTimeout
+    setTimeout(() => {
+      this.update_value_explorer_margin()
+      session.widgetManager.addLineWidget(this.widget) 
+    }, 0)
   }
 
   focus_value_explorer(return_to) {
