@@ -3,11 +3,21 @@ import {set_record_call} from './runtime.js'
 // Current context for current execution of code
 let cxt
 
+const label = Symbol('io_patches_applied')
+
 export const set_current_context = _cxt => {
   cxt = _cxt
-  if(!cxt.window.__is_io_pached) {
+  // When we develop leporello.js inside itself, patches may be applied twice,
+  // once for host leporello, and another for leporello under development. This
+  // module would be loaded twice, once from host window, another time from
+  // run_window. Every module will have its own 'label', so we can apply
+  // patches twice
+  if(cxt.window.__io_patched_by == null) {
+    cxt.window.__io_patched_by = new Set()
+  }
+  if(!cxt.window.__io_patched_by.has(label)) {
     apply_io_patches()
-    cxt.window.__is_io_pached = true
+    cxt.window.__io_patched_by.add(label)
   }
 }
 
