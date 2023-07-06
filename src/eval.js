@@ -171,7 +171,7 @@ const codegen = (node, node_cxt, parent) => {
   } else if(node.type == 'object_literal'){
     const elements = 
       node.elements.map(el => {
-        if(el.type == 'spread'){
+        if(el.type == 'object_spread'){
           return do_codegen(el)
         } else if(el.type == 'identifier') {
           return el.value
@@ -241,7 +241,7 @@ const codegen = (node, node_cxt, parent) => {
       + node.operator
       + ' '
       + do_codegen(node.args[1])
-  } else if(node.type == 'spread'){
+  } else if(node.type == 'array_spread' || node.type == 'object_spread'){
     return '...(' + do_codegen(node.expr) + ')'
   } else if(node.type == 'new') {
     const args = `[${node.args.children.map(do_codegen).join(',')}]`
@@ -510,8 +510,24 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
     // TODO exprs inside backtick string
     // Pass scope for backtick string
     return {...eval_codestring(node.value, scope), calls: callsleft}
+  } else if(node.type == 'array_spread') {
+    const result = eval_children(node, scope, callsleft, context)
+    if(!result.ok) {
+      return result
+    }
+    const child = result.children[0]
+    if((typeof(child.result.value?.[Symbol.iterator])) == 'function') {
+      return result
+    } else {
+      return {
+        ok: false,
+        children: result.children,
+        calls: result.calls,
+        error: new TypeError(child.string + ' is not iterable'),
+      }
+    }
   } else if([
-    'spread',
+    'object_spread',
     'key_value_pair',
     'computed_property'
   ].includes(node.type)) {
@@ -523,8 +539,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
     }
     const value = children.reduce(
       (arr, el) => {
-        if(el.type == 'spread') {
-          // TODO check if iterable and throw error
+        if(el.type == 'array_spread') {
           return [...arr, ...el.children[0].result.value]
         } else {
           return [...arr, el.result.value]
@@ -540,7 +555,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
     }
     const value = children.reduce(
       (value, el) => {
-        if(el.type == 'spread'){
+        if(el.type == 'object_spread'){
           return {...value, ...el.children[0].result.value}
         } else if(el.type == 'identifier') {
           // TODO check that it works

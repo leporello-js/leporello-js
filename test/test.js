@@ -837,6 +837,23 @@ export const tests = [
     )
   }),
 
+  test('array spread not iterable', () => {
+    assert_code_error(
+      `[...null]`,
+      new Error('null is not iterable'),
+    )
+  }),
+
+  test('args spread not iterable', () => {
+    assert_code_error(
+      `
+        function x() {} 
+        x(...null)
+      `,
+      new Error('null is not iterable'),
+    )
+  }),
+
   test('module not found', () => {
     const parsed = parse_modules(
       'a',
@@ -2334,6 +2351,20 @@ const y = x()`
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('throws()'))
     assert_equal(s2.value_explorer.result.error.message, 'boom')
+  }),
+
+  test('move_cursor error in fn args bug', () => {
+    const code = `
+    function x() {} 
+    x(null.foo)
+    `
+    const i = test_initial_state(code)
+    
+    const m = COMMANDS.move_cursor(i, code.indexOf('x(null'))
+    assert_equal(
+      m.value_explorer.result.error, 
+      new Error("Cannot read properties of null (reading 'foo')")
+    )
   }),
 
   test('frame follows cursor toplevel', () => {

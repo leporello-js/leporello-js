@@ -828,7 +828,12 @@ const array_element = either(
       literal('...'),
       cxt => expr(cxt),
     ]),
-    ({value, ...node}) => ({...node, type: 'spread', not_evaluatable: true, children: [value]})
+    ({value, ...node}) => ({
+      ...node, 
+      type: 'array_spread', 
+      not_evaluatable: true, 
+      children: [value]
+    })
   ),
   cxt => expr(cxt),
 )
@@ -857,7 +862,12 @@ const object_literal =
             literal('...'),
             cxt => expr(cxt),
           ]),
-          ({value, ...node}) => ({...node, type: 'spread', children: [value], not_evaluatable: true})
+          ({value, ...node}) => ({
+            ...node, 
+            type: 'object_spread', 
+            children: [value], 
+            not_evaluatable: true
+          })
         ),
 
         // Or key-value pair
@@ -1456,7 +1466,7 @@ const update_children_not_rec = (node, children = node.children) => {
     }
   } else if(node.type == 'call_args') {
     return node
-  } else if(node.type == 'spread') {
+  } else if(node.type == 'array_spread' || node.type == 'object_spread') {
     return {...node,
       expr: children[0],
     }

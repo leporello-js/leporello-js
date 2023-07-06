@@ -13,6 +13,8 @@ const node_to_color = node => ({
       ? null
       : node.result.ok
         ? {ok: true}
+        // node.result.error may be null, for example if throw null
+        // See find_error_origin_node
         : node.result.error == null
           ? {ok: false, error_origin: false}
           : {ok: false, error_origin: true}

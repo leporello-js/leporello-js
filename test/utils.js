@@ -1,3 +1,4 @@
+import {find_error_origin_node} from '../src/ast_utils.js'
 import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
 import {eval_modules} from '../src/eval.js'
 import {active_frame, pp_calltree} from '../src/calltree.js'
@@ -81,9 +82,8 @@ export const assert_code_evals_to = (codestring, expected) => {
 export const assert_code_error = (codestring, error) => {
   const state = test_initial_state(codestring)
   const frame = active_frame(state)
-  const result = frame.children.at(-1).result
-  assert_equal(result.ok, false)
-  assert_equal(result.error, error)
+  assert_equal(frame.result.ok, false)
+  assert_equal(find_error_origin_node(frame).result.error, error)
 }
 
 export const assert_code_evals_to_async = async (codestring, expected) => {
@@ -168,9 +168,10 @@ export const test_deferred_calls_state = code => {
 
 export const stringify = val => 
   JSON.stringify(val, (key, value) => {
-    // TODO do not use instanceof because currently not implemented in parser
-    if(value?.constructor == Set){
+    if(value instanceof Set){
       return [...value]
+    } else if(value instanceof Error) {
+      return {message: value.message}
     } else {
       return value
     }
