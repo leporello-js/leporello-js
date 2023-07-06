@@ -119,6 +119,8 @@ const make_patched_method = (original, name, use_context) => {
         })
       }
     } else {
+      // IO trace replay
+
       const call = cxt.io_trace[cxt.io_trace_index]
 
       // TODO if call == null or call.type == 'resolution', then do not discard
@@ -197,7 +199,10 @@ const make_patched_method = (original, name, use_context) => {
         cxt.io_trace_index++
 
         if(call.ok) {
-          if(call.value instanceof cxt.window.Promise) {
+          // Use Symbol.toStringTag for comparison because Promise may
+          // originate from another window (if window was reopened after record
+          // trace) and instanceof would not work
+          if(call.value?.[Symbol.toStringTag] == 'Promise') {
             // Always make promise originate from run_window
             return new cxt.window.Promise(resolve => {
               cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, resolve)
