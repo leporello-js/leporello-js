@@ -1,4 +1,4 @@
-import {ethers} from 'https://unpkg.com/ethers@5.7.2/dist/ethers.esm.js'
+import {ethers} from 'https://unpkg.com/ethers/dist/ethers.js'
 
 const URL = 'https://rpc.ankr.com/eth'
 
@@ -6,6 +6,9 @@ const provider = await ethers.getDefaultProvider(URL)
 
 const latest = await provider.getBlock('latest')
 
+/*
+  Find ethereum block by timestamp using binary search
+*/
 async function getBlockNumberByTimestamp(timestamp, low = 0, high = latest.number) {
   if(low + 1 == high) {
     return low
