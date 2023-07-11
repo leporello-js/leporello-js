@@ -8,27 +8,27 @@ import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 import {with_code_execution} from '../index.js'
 
 
-// We test both for Object and globalThis.run_window.Object because objects may
-// come both from run_window and current window (where they are created in
+// We test both for Object and globalThis.app_window.Object because objects may
+// come both from app_window and current window (where they are created in
 // metacircular interpreter
 const has_custom_toString = object =>
   object.toString != null
-  && object.toString != globalThis.run_window.Object.prototype.toString
+  && object.toString != globalThis.app_window.Object.prototype.toString
   && object.toString != Object.prototype.toString
 
 const isError = object => 
   object instanceof Error
   ||
-  object instanceof globalThis.run_window.Error
+  object instanceof globalThis.app_window.Error
 
 const isPromise = object =>
-  object instanceof globalThis.run_window.Promise
+  object instanceof globalThis.app_window.Promise
 
 // Override behaviour for Date, becase Date has toJSON defined
 const isDate = object => 
-  object instanceof globalThis.run_window.Date
+  object instanceof globalThis.app_window.Date
   ||
-  object instanceof globalThis.run_window.Date.__original
+  object instanceof globalThis.app_window.Date.__original
 
 const toJSON_safe = object => {
   try {

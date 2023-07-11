@@ -867,7 +867,7 @@ const create_file = (state, dir, current_module) => {
   return {...load_dir(state, dir, true), current_module}
 }
 
-const open_run_window = (state, globals) => {
+const open_app_window = (state, globals) => {
   // After we reopen run window, we should reload external modules in the
   // context of new window. Clear external_imports_cache
   return run_code({
@@ -895,7 +895,7 @@ const get_initial_state = (state, entrypoint_settings) => {
 export const COMMANDS = {
   get_initial_state,
   input, 
-  open_run_window,
+  open_app_window,
   load_dir,
   create_file,
   step_into,

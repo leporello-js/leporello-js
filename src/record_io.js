@@ -10,7 +10,7 @@ export const set_current_context = _cxt => {
   // When we develop leporello.js inside itself, patches may be applied twice,
   // once for host leporello, and another for leporello under development. This
   // module would be loaded twice, once from host window, another time from
-  // run_window. Every module will have its own 'label', so we can apply
+  // app_window. Every module will have its own 'label', so we can apply
   // patches twice
   if(cxt.window.__io_patched_by == null) {
     cxt.window.__io_patched_by = new Set()
@@ -213,7 +213,7 @@ const make_patched_method = (original, name, use_context) => {
           // originate from another window (if window was reopened after record
           // trace) and instanceof would not work
           if(call.value?.[Symbol.toStringTag] == 'Promise') {
-            // Always make promise originate from run_window
+            // Always make promise originate from app_window
             return new cxt.window.Promise(resolve => {
               cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, resolve)
             })

@@ -5,7 +5,7 @@ import {
   exec, 
   get_state, 
   open_directory, 
-  reload_run_window,
+  reload_app_window,
   close_directory,
 } from '../index.js'
 
@@ -28,7 +28,7 @@ export class Files {
   change_html_file(e) {
     const html_file = e.target.value
     exec('change_html_file', html_file)
-    reload_run_window(get_state())
+    reload_app_window(get_state())
   }
 
 

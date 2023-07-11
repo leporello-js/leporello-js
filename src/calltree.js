@@ -45,7 +45,7 @@ export const has_error = n =>
   !n.ok 
   || 
   ( 
-    n.value instanceof globalThis.run_window.Promise 
+    n.value instanceof globalThis.app_window.Promise 
     && 
     n.value.status != null
     &&

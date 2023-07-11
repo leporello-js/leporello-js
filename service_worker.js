@@ -66,10 +66,10 @@ const serve_response_from_dir = async event => {
     }
 
 
-    // client is null for run_window initial page load, and is run_window for
+    // client is null for app_window initial page load, and is app_window for
     // js scripts
     if(client == null) {
-      // User probably reloaded run_window by manually hitting F5 after IDE
+      // User probably reloaded app_window by manually hitting F5 after IDE
       // window was closed
       return new Response("", {status: 404})
     } else {

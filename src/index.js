@@ -47,7 +47,7 @@ const get_html_url = state => {
 const on_window_load = w => {
   init_window_service_worker(w)
   exec(
-    'open_run_window', 
+    'open_app_window', 
     new Set(Object.getOwnPropertyNames(w))
   )
 }
@@ -61,24 +61,24 @@ const open_run_iframe = (state) => {
   iframe.src = get_html_url(state)
   iframe.setAttribute('hidden', '')
   document.body.appendChild(iframe)
-  // for run_window, do not set unhandled rejection, because having rejected
+  // for app_window, do not set unhandled rejection, because having rejected
   // promises in user code is normal condition
   set_error_handler(iframe.contentWindow, false)
-  globalThis.run_window = iframe.contentWindow
-  init_run_window(globalThis.run_window)
+  globalThis.app_window = iframe.contentWindow
+  init_app_window(globalThis.app_window)
 }
 
 // Open another browser window so user can interact with application
 // TODO test in another browsers
-export const open_run_window = state => {
+export const open_app_window = state => {
   // TODO set_error_handler? Or we dont need to set_error_handler for child
   // window because error is always caught by parent window handler?
-  globalThis.run_window.close()
-  globalThis.run_window = open(get_html_url(state))
-  init_run_window(globalThis.run_window)
+  globalThis.app_window.close()
+  globalThis.app_window = open(get_html_url(state))
+  init_app_window(globalThis.app_window)
 }
 
-const init_run_window = w => {
+const init_app_window = w => {
 
   const is_loaded = () => {
     const nav = w.performance.getEntriesByType("navigation")[0]
@@ -119,11 +119,11 @@ const init_run_window = w => {
       // Set timeout to 100ms because it takes some time for page to get closed
       // after triggering 'unload' event
       setTimeout(() => {
-        if(w.closed && w == globalThis.run_window) {
+        if(w.closed && w == globalThis.app_window) {
           // If by that time w.closed was set to true, then page was
           // closed. Get back to using iframe
-          globalThis.run_window = iframe.contentWindow
-          reload_run_window(get_state())
+          globalThis.app_window = iframe.contentWindow
+          reload_app_window(get_state())
         } else {
           add_load_handler()
         }
@@ -134,11 +134,11 @@ const init_run_window = w => {
   add_load_handler()
 }
 
-export const reload_run_window = state => {
-  // TODO after window location reload, open_run_window command will be fired.
-  // Maybe we should have separate commands for open_run_window and
-  // reload_run_window?
-  globalThis.run_window.location = get_html_url(state)
+export const reload_app_window = state => {
+  // TODO after window location reload, open_app_window command will be fired.
+  // Maybe we should have separate commands for open_app_window and
+  // reload_app_window?
+  globalThis.app_window.location = get_html_url(state)
 }
 
 

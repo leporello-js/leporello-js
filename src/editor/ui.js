@@ -1,4 +1,4 @@
-import {exec, get_state, open_run_window} from '../index.js'
+import {exec, get_state, open_app_window} from '../index.js'
 import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
@@ -8,7 +8,7 @@ import {el} from './domutils.js'
 
 export class UI {
   constructor(container, state){
-    this.open_run_window = this.open_run_window.bind(this)
+    this.open_app_window = this.open_app_window.bind(this)
 
     this.files = new Files(this)
 
@@ -90,9 +90,9 @@ export class UI {
           el('a', {
             'class': 'statusbar_action',
             href: 'javascript: void(0)',
-            click: this.open_run_window,
+            click: this.open_app_window,
           },
-            '(Re)open run window (F7)'
+            '(Re)open app window (F7)'
           ),
 
           this.options = el('div', 'options',
@@ -160,7 +160,7 @@ export class UI {
       }
 
       if(e.key == 'F7'){
-        this.open_run_window()
+        this.open_app_window()
       }
 
       if(e.key == 'F8'){
@@ -210,8 +210,8 @@ export class UI {
     }
   }
 
-  open_run_window() {
-    open_run_window(get_state())
+  open_app_window() {
+    open_app_window(get_state())
   }
 
   render_debugger_loading(state) {

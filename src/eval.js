@@ -304,8 +304,8 @@ export const eval_modules = (
   const is_async = has_toplevel_await(parse_result.modules)
 
   const Function = is_async
-    ? globalThis.run_window.eval('(async function(){})').constructor
-    : globalThis.run_window.Function
+    ? globalThis.app_window.eval('(async function(){})').constructor
+    : globalThis.app_window.Function
 
   const module_fns = parse_result.sorted.map(module => (
     {
@@ -347,7 +347,7 @@ export const eval_modules = (
     calltree_changed_token,
     is_toplevel_call: true,
 
-    window: globalThis.run_window,
+    window: globalThis.app_window,
   }
 
   const result = run(module_fns, cxt, io_trace)
@@ -435,8 +435,8 @@ account
 // Workaround with statement forbidden in strict mode (imposed by ES6 modules)
 // Also currently try/catch is not implemented TODO
 export const eval_codestring = (codestring, scope) => 
-  // Note that we eval code in context of run_window
-  (new (globalThis.run_window.Function)('codestring', 'scope', 
+  // Note that we eval code in context of app_window
+  (new (globalThis.app_window.Function)('codestring', 'scope', 
     // Make a copy of `scope` to not mutate it with assignments
     `
       try {
@@ -585,6 +585,10 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       return {ok: false, children, calls}
     } else {
       if(typeof(children[0].result.value) != 'function') {
+        const is_promise_error = (
+          context.calltree_node.ok && 
+          (context.calltree_node.value instanceof globalThis.app_window.Promise)
+        )
         return {
           ok: false,
           error: context.calltree_node.error,
@@ -688,7 +692,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         ok = true
         value = - expr.result.value
       } else if(node.operator == 'await') {
-        if(expr.result.value instanceof globalThis.run_window.Promise) {
+        if(expr.result.value instanceof globalThis.app_window.Promise) {
           const status = expr.result.value.status
           if(status == null) {
             // Promise must be already resolved

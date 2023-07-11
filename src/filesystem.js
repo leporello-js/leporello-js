@@ -65,7 +65,7 @@ const load_persisted_directory_handle = () => {
     .then(() => navigator.serviceWorker.ready)
     /*
       Main window also provides dir_handle to service worker, together with
-      run_window. run_window provides dir_handle to service worker when it
+      app_window. app_window provides dir_handle to service worker when it
       issues fetch event. If clientId is '' then service worker will try to get
       dir_handle from main window
     */

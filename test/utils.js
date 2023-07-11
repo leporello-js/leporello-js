@@ -9,20 +9,20 @@ Object.assign(globalThis,
     // for convenince, to type just `log` instead of `console.log`
     log: console.log,
 
-    // For test env, set globalThis.run_window to just globalThis
-    run_window: globalThis,
+    // For test env, set globalThis.app_window to just globalThis
+    app_window: globalThis,
   }
 )
 
 export const patch_builtin = new Function(`
-  let originals = globalThis.run_window.__builtins_originals
-  let patched = globalThis.run_window.__builtins_patched
+  let originals = globalThis.app_window.__builtins_originals
+  let patched = globalThis.app_window.__builtins_patched
   if(originals == null) {
-    globalThis.run_window.__original_setTimeout = globalThis.setTimeout
+    globalThis.app_window.__original_setTimeout = globalThis.setTimeout
     // This code can execute twice when tests are run in self-hosted mode.
     // Ensure that patches will be applied only once
-    originals = globalThis.run_window.__builtins_originals = {}
-    patched = globalThis.run_window.__builtins_patched = {}
+    originals = globalThis.app_window.__builtins_originals = {}
+    patched = globalThis.app_window.__builtins_patched = {}
 
     const patch = (obj, name) => {
       originals[name] = obj[name]
@@ -35,9 +35,9 @@ export const patch_builtin = new Function(`
 
     // Substitute some builtin functions: fetch, setTimeout, Math.random to be
     // able to patch them in tests
-    patch(globalThis.run_window, 'fetch')
-    patch(globalThis.run_window, 'setTimeout')
-    patch(globalThis.run_window.Math, 'random')
+    patch(globalThis.app_window, 'fetch')
+    patch(globalThis.app_window, 'setTimeout')
+    patch(globalThis.app_window.Math, 'random')
   }
 
   return (name, fn) => {
@@ -45,18 +45,18 @@ export const patch_builtin = new Function(`
   }
 `)()
 
-export const original_setTimeout = globalThis.run_window.__original_setTimeout
+export const original_setTimeout = globalThis.app_window.__original_setTimeout
 
 export const do_parse = code => parse(
   code, 
-  new Set(Object.getOwnPropertyNames(globalThis.run_window))
+  new Set(Object.getOwnPropertyNames(globalThis.app_window))
 )
 
 export const parse_modules = (entry, modules) => 
   load_modules(
     entry, 
     module_name => modules[module_name],
-    new Set(Object.getOwnPropertyNames(globalThis.run_window))
+    new Set(Object.getOwnPropertyNames(globalThis.app_window))
   )
 
 export const eval_tree = code => {
@@ -103,7 +103,7 @@ export const assert_code_error_async = async (codestring, error) => {
 }
 
 export const test_initial_state = (code, entrypoint_settings, other) => {
-  return COMMANDS.open_run_window(
+  return COMMANDS.open_app_window(
     COMMANDS.get_initial_state(
       {
         files: typeof(code) == 'object' ? code : { '' : code},
@@ -115,7 +115,7 @@ export const test_initial_state = (code, entrypoint_settings, other) => {
         ...entrypoint_settings,
       }
     ),
-    new Set(Object.getOwnPropertyNames(globalThis.run_window))
+    new Set(Object.getOwnPropertyNames(globalThis.app_window))
   )
 }
 
