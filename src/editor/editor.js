@@ -268,7 +268,7 @@ export class Editor {
       content.appendChild(el('span', 'eval_error', stringify_for_header(error)))
     }
 
-    this.widget = {
+    const widget = this.widget = {
        row,
        fixedWidth: true,
        el: container,
@@ -276,8 +276,8 @@ export class Editor {
      }
 
 
-    const LineWidgets = require("ace/line_widgets").LineWidgets;
     if (!session.widgetManager) {
+      const LineWidgets = require("ace/line_widgets").LineWidgets;
       session.widgetManager = new LineWidgets(session);
       session.widgetManager.attach(this.ace_editor);
     }
@@ -287,7 +287,7 @@ export class Editor {
     // which is async in ace_editor. Use setTimeout
     setTimeout(() => {
       this.update_value_explorer_margin()
-      session.widgetManager.addLineWidget(this.widget) 
+      session.widgetManager.addLineWidget(widget) 
     }, 0)
   }
 
