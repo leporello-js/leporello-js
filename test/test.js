@@ -601,6 +601,14 @@ export const tests = [
     )
   }),
 
+  /* TODO
+  test('named function scope', () => {
+    const code = 'const x = function y() { y }'
+    const parse_result = do_parse(code)
+    assert_equal(parse_result.ok, true)
+  }),
+  */
+
   test('record call chain', () => {
     const code = ` 
       const x = () => ({
