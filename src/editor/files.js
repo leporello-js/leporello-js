@@ -33,6 +33,7 @@ export class Files {
 
 
   render(state) {
+    this.file_to_el = new Map()
     const file_actions = state.has_file_system_access
       ? el('div', 'file_actions',
           el('a', {
@@ -100,6 +101,13 @@ export class Files {
     }
   }
 
+  render_current_module(current_module) {
+    this.current_file = current_module
+    this.active_el.querySelector('.file_title').classList.remove('active')
+    this.active_el = this.file_to_el.get(current_module)
+    this.active_el.querySelector('.file_title').classList.add('active')
+  }
+
   render_select_entrypoint(file, state) {
     if(!state.has_file_system_access || file.kind == 'directory') {
       return null
@@ -131,7 +139,7 @@ export class Files {
   }
 
   render_file(file, state) {
-    const result =  el('div', 'file',
+    const result = el('div', 'file',
       el('div', {
           'class': 'file_title' + (file.path == state.current_module ? ' active' : ''), 
           click: e => this.on_click(e, file)
@@ -149,9 +157,11 @@ export class Files {
         : file.children.map(c => this.render_file(c, state))
     )
 
+    this.file_to_el.set(file.path, result)
+
     if(file.path == state.current_module) {
       this.active_el = result
-      this.active_file = file
+      this.current_file = file.path
     }
 
     return result
@@ -159,39 +169,34 @@ export class Files {
 
   async create_file(is_dir) {
 
-    if(this.active_file == null) {
-      throw new Error('no active file')
-    }
-
     let name = prompt(`Enter ${is_dir ? 'directory' : 'file'} name`)
     if(name == null) {
       return
     }
 
-    let dir
-
     const root = get_state().project_dir
 
-    if(this.active_file.path == '' /* scratch */) {
+    let dir, file
+
+    if(this.current_file == '' /* scratch */) {
       // Create in root directory
       dir = root
     } else {
-      if(this.active_file.kind == 'directory') {
-        dir = this.active_file
-      } else {
-
-        const find_parent = (dir, parent) => {
-          if(dir.path == this.active_file.path) {
-            return parent
-          }
-          if(dir.children == null) {
-            return null
-          }
-          return map_find(dir.children, c => find_parent(c, dir))
+      const find_file_with_parent = (dir, parent) => {
+        if(dir.path == this.current_file) {
+          return [dir, parent]
         }
+        if(dir.children == null) {
+          return null
+        }
+        return map_find(dir.children, c => find_file_with_parent(c, dir))
+      }
 
-        dir = find_parent(root)
+      ([file, dir] = find_file_with_parent(root))
 
+      if(file.kind == 'directory') {
+        dir = file
+      } else {
         if(dir == null) {
           throw new Error('illegal state')
         }
@@ -214,10 +219,7 @@ export class Files {
 
   on_click(e, file) {
     e.stopPropagation()
-    this.active_el.querySelector('.file_title').classList.remove('active')
-    this.active_el = e.currentTarget.parentElement
-    e.currentTarget.classList.add('active')
-    this.active_file = file
+    this.render_current_module(file.path)
 
     if(file.kind != 'directory') {
       if(get_state().has_file_system_access) {

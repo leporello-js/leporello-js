@@ -133,12 +133,12 @@ export const render_initial_state = (ui, state) => {
 }
 
 export const apply_side_effects = (prev, next, command, ui) => {
-  if(
-    prev.project_dir != next.project_dir 
-    || 
-    prev.current_module != next.current_module
-  ) {
+  if(prev.project_dir != next.project_dir) {
     ui.files.render(next)
+  }
+
+  if(prev.current_module != next.current_module) {
+    ui.files.render_current_module(next.current_module)
   }
 
   if(prev.current_module != next.current_module) {
