@@ -142,23 +142,6 @@ export const reload_app_window = state => {
 }
 
 
-const read_modules = async () => {
-  const default_module = {'': localStorage.code || EXAMPLE}
-  const project_dir = await open_dir(false)
-  if(project_dir == null) {
-    return {
-      project_dir: await examples_promise,
-      files: default_module,
-      has_file_system_access: false,
-    }
-  } else {
-    return {
-      project_dir,
-      files: default_module,
-      has_file_system_access: true,
-    }
-  }
-}
 
 const get_entrypoint_settings = () => {
 
@@ -196,32 +179,46 @@ let COMMANDS
 let ui
 let state
 
-export const init = (container, _COMMANDS) => {
+export const init = async (container, _COMMANDS) => {
   COMMANDS = _COMMANDS
 
   set_error_handler(window)
 
-  read_modules().then(initial_state => {
+  const default_module = {'': localStorage.code || EXAMPLE}
+  let initial_state
+  const project_dir = await open_dir(false)
+  if(project_dir == null) {
+    initial_state = {
+      project_dir: await examples_promise,
+      files: default_module,
+      has_file_system_access: false,
+    }
+  } else {
+    initial_state = {
+      project_dir,
+      files: default_module,
+      has_file_system_access: true,
+    }
+  }
 
-    state = COMMANDS.get_initial_state(
-      {
-        ...initial_state, 
-        on_deferred_call: (...args) => exec('on_deferred_call', ...args)
-      },
+  state = COMMANDS.get_initial_state(
+    {
+      ...initial_state, 
+      on_deferred_call: (...args) => exec('on_deferred_call', ...args)
+    },
 
-      get_entrypoint_settings(),
-    )
+    get_entrypoint_settings(),
+  )
 
-    // Expose state for debugging
-    globalThis.__state = state
-    ui = new UI(container, state)
-    // Expose for debugging
-    globalThis.__ui = ui
+  // Expose state for debugging
+  globalThis.__state = state
+  ui = new UI(container, state)
+  // Expose for debugging
+  globalThis.__ui = ui
 
-    render_initial_state(ui, state)
+  render_initial_state(ui, state)
 
-    open_run_iframe(state)
-  })
+  open_run_iframe(state)
 }
 
 export const get_state = () => state
