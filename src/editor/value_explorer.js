@@ -12,7 +12,7 @@ import {with_code_execution} from '../index.js'
 // come both from app_window and current window (where they are created in
 // metacircular interpreter
 const has_custom_toString = object =>
-  object.toString != null
+  typeof(object.toString) == 'function'
   && object.toString != globalThis.app_window.Object.prototype.toString
   && object.toString != Object.prototype.toString
 
