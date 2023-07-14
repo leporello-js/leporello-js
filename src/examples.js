@@ -6,17 +6,34 @@ const read_example = name => {
   return localStorage['examples_' + name]
 }
 
-const list = [
-  'github_api/index.js',
-  'ethers/block_by_timestamp.js',
-  'ethers/index.js',
-  // TODO for html5 example, open run window or hint that it should be opened
-]
-.map(l => l.split('/'))
+export const examples = [
+  {
+    path: 'github_api',
+    entrypoint: 'github_api/index.js',
+  },
+  {
+    path: 'ethers',
+    entrypoint: 'ethers/block_by_timestamp.js',
+  },
+  {
+    path: 'todos-preact',
+    entrypoint: 'todos-preact/index.js',
+    with_app_window: true,
+    files: [
+      'todos-preact/app.js',
+    ]
+  },
+].map(e => ({...e, entrypoint: e.entrypoint ?? e.path}))
 
+const files_list = examples
+  .map(e => {
+    return (e.files ?? []).concat([e.entrypoint])
+  })
+  .flat()
+  .map(l => l.split('/'))
 
 const get_children = path => {
-  const children = list.filter(l => path.every((elem, i) => elem == l[i] ))
+  const children = files_list.filter(l => path.every((elem, i) => elem == l[i] ))
   const files = children.filter(c => c.length == path.length + 1)
   const dirs = [...new Set(children
     .filter(c => c.length != path.length + 1)
@@ -46,7 +63,7 @@ const get_children = path => {
     })))
 }
 
-export const examples_promise = get_children([]).then(children => {
+export const examples_dir_promise = get_children([]).then(children => {
   return {
     kind: 'directory',
     name: 'examples',
@@ -54,4 +71,3 @@ export const examples_promise = get_children([]).then(children => {
     children,
   }
 })
-

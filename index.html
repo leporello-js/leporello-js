@@ -341,6 +341,37 @@
         margin-left: auto;
       }
 
+      .open_app_window_button {
+        position: relative;
+      }
+      .open_app_window_tooltip {
+        padding: 1em;
+        position: absolute;
+        margin-bottom: 20px;
+        bottom: 100%;
+        border: none;
+        font-size: 1.7em;
+        background-color: rgb(120 206 247);
+        border-radius: 21px;
+        transform: scale(0);
+        transition: transform 0.3s;
+      }
+      .open_app_window_tooltip.on {
+        transform: scale(1);
+      }
+      .open_app_window_tooltip:after {
+        content: '';
+        width: 0;
+        height: 0;
+        border-left: 20px solid transparent;
+        border-right: 20px solid transparent;
+        border-top: 20px solid rgb(120 206 247);
+        position: absolute;
+        bottom: -20px;
+        left: 50%;
+        transform: translate(-50%);
+      }
+
       .options {
         padding: 5px;
       }

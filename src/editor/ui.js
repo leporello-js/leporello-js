@@ -88,11 +88,16 @@ export class UI {
           ),
 
           el('a', {
-            'class': 'statusbar_action',
+            'class': 'statusbar_action open_app_window_button',
             href: 'javascript: void(0)',
             click: this.open_app_window,
           },
-            '(Re)open app window (F7)'
+            '(Re)open app window (F7)',
+            this.open_app_window_tooltip = el('div', {
+              'class': 'open_app_window_tooltip', 
+            },
+              'Click here to open app window'
+            )
           ),
 
           this.options = el('div', 'options',
@@ -211,6 +216,8 @@ export class UI {
   }
 
   open_app_window() {
+    this.toggle_open_app_window_tooltip(false)
+    localStorage.onboarding_open_app_window = true
     open_app_window(get_state())
   }
 
@@ -348,6 +355,10 @@ export class UI {
     if(this.root.classList.contains('fullscreen_editor')) {
       this.editor.focus()
     }
+  }
+
+  toggle_open_app_window_tooltip(on) {
+    this.open_app_window_tooltip.classList.toggle('on', on)
   }
 
 }

@@ -5,7 +5,7 @@ import {
   close_dir, 
   init_window_service_worker
 } from './filesystem.js'
-import {examples_promise} from './examples.js'
+import {examples, examples_dir_promise} from './examples.js'
 
 const EXAMPLE = `function fib(n) {
   if(n == 0 || n == 1) {
@@ -141,20 +141,10 @@ export const reload_app_window = state => {
   globalThis.app_window.location = get_html_url(state)
 }
 
-
-
 const get_entrypoint_settings = () => {
-
-  const params = new URLSearchParams(window.location.search)
-
-  const entrypoint = null 
-    ?? params.get('entrypoint')
-    ?? localStorage.entrypoint
-    ?? ''
-
   return {
-    current_module: params.get('entrypoint') ?? localStorage.current_module ?? '',
-    entrypoint,
+    current_module: localStorage.current_module ?? '',
+    entrypoint: localStorage.entrypoint ?? '',
     html_file: localStorage.html_file ?? '',
   }
 }
@@ -171,7 +161,7 @@ export const open_directory = () => {
 
 export const close_directory = async () => {
   close_dir()
-  exec('load_dir', await examples_promise, false, get_entrypoint_settings())
+  exec('load_dir', await examples_dir_promise, false, get_entrypoint_settings())
 }
 
 
@@ -185,15 +175,37 @@ export const init = async (container, _COMMANDS) => {
   set_error_handler(window)
 
   const default_module = {'': localStorage.code || EXAMPLE}
-  let initial_state
+  let initial_state, entrypoint_settings
   const project_dir = await open_dir(false)
+  let example
   if(project_dir == null) {
+    /*
+      extract example from URL params and delete it
+    */
+    const params = new URLSearchParams(window.location.search)
+    const example_path = params.get('example')
+    params.delete('example')
+    globalThis.history.replaceState(
+      null, 
+      null, 
+      '/' + params.toString() + window.location.hash
+    )
+
+    example = examples.find(e => e.path == example_path)
+    entrypoint_settings = example == null
+      ? get_entrypoint_settings()
+      : {
+        current_module: example.entrypoint,
+        entrypoint: example.entrypoint,
+      }
+
     initial_state = {
-      project_dir: await examples_promise,
+      project_dir: await examples_dir_promise,
       files: default_module,
       has_file_system_access: false,
     }
   } else {
+    entrypoint_settings = get_entrypoint_settings()
     initial_state = {
       project_dir,
       files: default_module,
@@ -206,8 +218,7 @@ export const init = async (container, _COMMANDS) => {
       ...initial_state, 
       on_deferred_call: (...args) => exec('on_deferred_call', ...args)
     },
-
-    get_entrypoint_settings(),
+    entrypoint_settings,
   )
 
   // Expose state for debugging
@@ -216,7 +227,7 @@ export const init = async (container, _COMMANDS) => {
   // Expose for debugging
   globalThis.__ui = ui
 
-  render_initial_state(ui, state)
+  render_initial_state(ui, state, example)
 
   open_run_iframe(state)
 }

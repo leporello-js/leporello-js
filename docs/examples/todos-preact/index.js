@@ -1,6 +1,5 @@
 import {h, render} from 'https://unpkg.com/preact?module';
 
-// external
 import {createApp, handler, connect} from './app.js'
 
 // Components

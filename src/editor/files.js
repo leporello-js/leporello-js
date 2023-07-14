@@ -1,6 +1,7 @@
 import {el} from './domutils.js'
 import {map_find} from '../utils.js'
 import {open_dir, create_file} from '../filesystem.js'
+import {examples} from '../examples.js'
 import {
   exec, 
   get_state, 
@@ -219,16 +220,47 @@ export class Files {
 
   on_click(e, file) {
     e.stopPropagation()
-    this.render_current_module(file.path)
 
-    if(file.kind != 'directory') {
-      if(get_state().has_file_system_access) {
+    if(get_state().has_file_system_access) {
+      if(file.kind != 'directory') {
         exec('change_current_module', file.path)
-      } else {
-        // in examples mode, on click file we also change entrypoint for
-        // simplicity
-        exec('change_entrypoint', file.path)
+      }
+    } else {
+
+      if(file.path == null) {
+        // root of examples dir, do nothing
+        return
+      }
+
+      if(file.path == '') {
+        exec('change_entrypoint', '')
+        return
+      }
+
+      const find_node = n => 
+        n.path == file.path 
+        ||
+        n.children != null && n.children.find(find_node)
+
+      // find example dir
+      const example_dir = get_state().project_dir.children.find(
+        c => find_node(c) != null
+      )
+
+      // in examples mode, on click file we also change entrypoint for
+      // simplicity
+      const example = examples.find(e => e.path == example_dir.path)
+      exec('change_entrypoint', example.entrypoint)
+      if(example.with_app_window && !localStorage.onboarding_open_app_window) {
+        this.ui.toggle_open_app_window_tooltip(true)
       }
     }
+
+    // Note that we call render_current_module AFTER exec('change_entrypoint'),
+    // because in case we clicked to example dir, entrypoint would be set, and
+    // rendered active, so file with entrypoint would be active and not dir we
+    // clicked, which is weird
+    this.render_current_module(file.path)
+
   }
 }

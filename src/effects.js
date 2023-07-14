@@ -127,9 +127,16 @@ const render_parse_result = (ui, state) => {
   }
 }
 
-export const render_initial_state = (ui, state) => {
+export const render_initial_state = (ui, state, example) => {
   ensure_session(ui, state)
   ui.editor.switch_session(state.current_module)
+  if(
+    example != null 
+    && example.with_app_window 
+    && !localStorage.onboarding_open_app_window
+  ) {
+    ui.toggle_open_app_window_tooltip(true)
+  }
 }
 
 export const apply_side_effects = (prev, next, command, ui) => {
