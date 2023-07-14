@@ -226,33 +226,32 @@ export class Files {
         exec('change_current_module', file.path)
       }
     } else {
-
       if(file.path == null) {
         // root of examples dir, do nothing
-        return
-      }
-
-      if(file.path == '') {
+      } else if(file.path == '') {
         exec('change_entrypoint', '')
-        return
-      }
+      } else {
+        const find_node = n => 
+          n.path == file.path 
+          ||
+          n.children != null && n.children.find(find_node)
 
-      const find_node = n => 
-        n.path == file.path 
-        ||
-        n.children != null && n.children.find(find_node)
+        // find example dir
+        const example_dir = get_state().project_dir.children.find(
+          c => find_node(c) != null
+        )
 
-      // find example dir
-      const example_dir = get_state().project_dir.children.find(
-        c => find_node(c) != null
-      )
-
-      // in examples mode, on click file we also change entrypoint for
-      // simplicity
-      const example = examples.find(e => e.path == example_dir.path)
-      exec('change_entrypoint', example.entrypoint)
-      if(example.with_app_window && !localStorage.onboarding_open_app_window) {
-        this.ui.toggle_open_app_window_tooltip(true)
+        // in examples mode, on click file we also change entrypoint for
+        // simplicity
+        const example = examples.find(e => e.path == example_dir.path)
+        exec(
+          'change_entrypoint', 
+          example.entrypoint, 
+          file.kind == 'directory' ? undefined : file.path
+        )
+        if(example.with_app_window && !localStorage.onboarding_open_app_window) {
+          this.ui.toggle_open_app_window_tooltip(true)
+        }
       }
     }
 

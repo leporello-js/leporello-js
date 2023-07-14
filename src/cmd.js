@@ -540,11 +540,11 @@ const change_current_module = (state, current_module) => {
   }
 }
 
-const change_entrypoint = (state, entrypoint) => {
+const change_entrypoint = (state, entrypoint, current_module = entrypoint) => {
   return run_code(
     {...state, 
       entrypoint,
-      current_module: entrypoint,
+      current_module,
     }
   )
 }
