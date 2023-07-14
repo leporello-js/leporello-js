@@ -167,10 +167,6 @@ export class UI {
       if(e.key == 'F7'){
         this.open_app_window()
       }
-
-      if(e.key == 'F8'){
-        this.fullscreen_editor()
-      }
     })
 
     this.editor = new Editor(this, this.editor_container)
@@ -317,7 +313,6 @@ export class UI {
       ['When in call tree view, jump to function arguments', 'a'],
       ['Clear IO trace', 'F6'],
       ['(Re)open run window (F7)', 'F7'],
-      ['Expand/collapse editor to fullscreen', 'F8'],
     ]
     return el('dialog', 'help_dialog',
       el('table', 'help',
@@ -347,14 +342,6 @@ export class UI {
         el('button', null, 'Close'),
       ),
     )
-  }
-
-  fullscreen_editor() {
-    this.root.classList.toggle('fullscreen_editor')
-    this.editor.ace_editor.resize()
-    if(this.root.classList.contains('fullscreen_editor')) {
-      this.editor.focus()
-    }
   }
 
   toggle_open_app_window_tooltip(on) {
