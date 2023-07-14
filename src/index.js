@@ -29,7 +29,11 @@ const set_error_handler = (w, with_unhandled_rejection = true) => {
   }
   if(with_unhandled_rejection) {
     w.addEventListener('unhandledrejection', (event) => {
-      ui.set_status(event.reason)
+      const error = event.reason
+      if(error.__ignore) {
+        return
+      }
+      ui.set_status(error)
     })
   }
 }

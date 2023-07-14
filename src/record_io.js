@@ -44,8 +44,9 @@ const make_patched_method = (original, name, use_context) => {
   const method = function(...args) {
     if(cxt.io_trace_is_replay_aborted) {
       // Try to finish fast
-      // TODO invoke callback to notify that code must be restarted?
-      throw new Error('io replay aborted')
+      const error = new Error('io replay was aborted')
+      error.__ignore = true
+      throw error
     }
 
     const has_new_target = new.target != null
@@ -154,7 +155,10 @@ const make_patched_method = (original, name, use_context) => {
       ){
         cxt.io_trace_is_replay_aborted = true
         // Try to finish fast
-        throw new Error('io replay aborted')
+        // TODO invoke callback to notify that code must be restarted?
+        const error = new Error('io replay aborted')
+        error.__ignore = true
+        throw error
       } else {
 
         const next_resolution = cxt.io_trace.find((e, i) => 
@@ -184,6 +188,7 @@ const make_patched_method = (original, name, use_context) => {
             const next_event = cxt.io_trace[cxt.io_trace_index]
             if(next_event.type == 'call') {
               cxt.io_trace_is_replay_aborted = true
+              // TODO reject? Test for never resolved
             } else {
               while(
                 cxt.io_trace_index < cxt.io_trace.length 
