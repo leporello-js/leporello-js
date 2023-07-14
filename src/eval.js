@@ -585,10 +585,6 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       return {ok: false, children, calls}
     } else {
       if(typeof(children[0].result.value) != 'function') {
-        const is_promise_error = (
-          context.calltree_node.ok && 
-          (context.calltree_node.value instanceof globalThis.app_window.Promise)
-        )
         return {
           ok: false,
           error: context.calltree_node.error,
