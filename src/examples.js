@@ -12,16 +12,16 @@ export const examples = [
     entrypoint: 'github_api/index.js',
   },
   {
-    path: 'ethers',
-    entrypoint: 'ethers/block_by_timestamp.js',
-  },
-  {
     path: 'todos-preact',
     entrypoint: 'todos-preact/index.js',
     with_app_window: true,
     files: [
       'todos-preact/app.js',
     ]
+  },
+  {
+    path: 'ethers',
+    entrypoint: 'ethers/block_by_timestamp.js',
   },
 ].map(e => ({...e, entrypoint: e.entrypoint ?? e.path}))
 
