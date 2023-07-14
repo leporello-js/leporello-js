@@ -68,16 +68,6 @@ export class UI {
         this.statusbar = el('div', 'statusbar',
           this.status = el('div', 'status'),
           this.current_module = el('div', 'current_module'),
-          /*
-          // Fullscreen cancelled on escape, TODO
-          el('a', {
-            "class" : 'request_fullscreen',
-            href: 'javascript:void(0)',
-            click: e => document.body.requestFullscreen(),
-          },
-            'Fullscreen'
-          ),
-          */
 
           el('a', {
             'class': 'statusbar_action first',
