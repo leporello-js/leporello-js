@@ -29,8 +29,17 @@ const gen_to_promise = gen_fn => {
   }
 }
 
+const make_promise_with_rejector = cxt => {
+  let rejector
+  const p = new cxt.window.Promise(r => rejector = r)
+  return [p, rejector]
+}
+
 const do_run = function*(module_fns, cxt, io_trace){
   let calltree
+
+  const [replay_aborted_promise, io_trace_abort_replay] = 
+    make_promise_with_rejector(cxt)
 
   cxt = (io_trace == null || io_trace.length == 0)
     // TODO group all io_trace_ properties to single object?
@@ -46,32 +55,38 @@ const do_run = function*(module_fns, cxt, io_trace){
       // Map of (index in io_trace) -> resolve
       io_trace_resolvers: new Map(),
       io_trace_index: 0,
+      io_trace_abort_replay,
     }
 
   apply_promise_patch(cxt)
   set_current_context(cxt)
 
   for(let {module, fn} of module_fns) {
-     cxt.found_call = null
-     cxt.children = null
-     calltree = {
-       toplevel: true, 
-       module,
-       id: cxt.call_counter++
-     }
+    cxt.found_call = null
+    cxt.children = null
+    calltree = {
+      toplevel: true, 
+      module,
+      id: cxt.call_counter++
+    }
 
-     try {
-       cxt.modules[module] = {}
-       yield fn(cxt, __trace, __trace_call, __do_await)
-       calltree.ok = true
-     } catch(error) {
-       calltree.ok = false
-       calltree.error = error
-     }
-     calltree.children = cxt.children
-     if(!calltree.ok) {
-       break
-     }
+    try {
+      cxt.modules[module] = {}
+      const result = fn(cxt, __trace, __trace_call, __do_await)
+      if(result instanceof cxt.window.Promise) {
+        yield cxt.window.Promise.race([replay_aborted_promise, result])
+      } else {
+        yield result
+      }
+      calltree.ok = true
+    } catch(error) {
+      calltree.ok = false
+      calltree.error = error
+    }
+    calltree.children = cxt.children
+    if(!calltree.ok) {
+      break
+    }
   }
 
   cxt.is_recording_deferred_calls = true

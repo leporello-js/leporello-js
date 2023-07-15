@@ -154,8 +154,10 @@ const make_patched_method = (original, name, use_context) => {
            )
       ){
         cxt.io_trace_is_replay_aborted = true
-        // Try to finish fast
-        // TODO invoke callback to notify that code must be restarted?
+        cxt.io_trace_abort_replay()
+        // throw error to prevent further code execution. It
+        // is not necesseary, becuase execution would not have
+        // any effects anyway
         const error = new Error('io replay aborted')
         error.__ignore = true
         throw error
@@ -188,7 +190,7 @@ const make_patched_method = (original, name, use_context) => {
             const next_event = cxt.io_trace[cxt.io_trace_index]
             if(next_event.type == 'call') {
               cxt.io_trace_is_replay_aborted = true
-              // TODO reject? Test for never resolved
+              cxt.io_trace_abort_replay()
             } else {
               while(
                 cxt.io_trace_index < cxt.io_trace.length 

@@ -3416,4 +3416,28 @@ const y = x()`
       'object',
     )
   }),
+
+  test('record io hangs bug', async () => {
+    patch_builtin(
+      'fetch', 
+      () => new Promise(resolve => original_setTimeout(resolve, 0))
+    )
+
+    const code = `
+      const p = fetch('')
+      Math.random()
+      await p
+    `
+
+    const i = await test_initial_state_async(code)
+
+    assert_equal(i.io_trace.length, 3)
+
+    const next_code = `await fetch('')`
+
+    const state = await command_input_async(i, next_code, 0)
+    assert_equal(state.io_trace.length, 2)
+
+    patch_builtin('fetch', null)
+  }),
 ]
