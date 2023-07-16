@@ -9,7 +9,7 @@ async function getPopularLanguages() {
     .filter(l => l != null)
     .countBy()
     .toPairs()
-    .sortBy(([lang, useCount]) => useCount)
+    .orderBy(([lang, useCount]) => useCount, 'desc')
     .map(([lang]) => lang)
     .value()
 }
