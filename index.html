@@ -266,14 +266,21 @@
 
       /* value_explorer */
 
-      .embed_value_explorer_container {
+      .embed_value_explorer_container.is_not_dom_el {
         height: 0px;
       }
 
+      .embed_value_explorer_container.is_dom_el {
+        padding: 1em;
+      }
+
       .embed_value_explorer_wrapper {
-        margin-left: 1em;
         /* preserve wrapper from getting clicks for code line left to it */
         pointer-events: none; 
+      }
+
+      .embed_value_explorer_container.is_not_dom_el .embed_value_explorer_wrapper {
+        margin-left: 1em;
       }
 
       .embed_value_explorer_content {

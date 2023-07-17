@@ -27,6 +27,10 @@ export const examples = [
     path: 'ethers',
     entrypoint: 'ethers/block_by_timestamp.js',
   },
+  {
+    path: 'plot',
+    entrypoint: 'plot/index.js',
+  },
 ].map(e => ({...e, entrypoint: e.entrypoint ?? e.path}))
 
 const files_list = examples

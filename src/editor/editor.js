@@ -169,10 +169,33 @@ export class Editor {
   }
 
   unembed_value_explorer() {
-    if(this.widget != null) {
-      this.ace_editor.getSession().widgetManager.removeLineWidget(this.widget) 
-      this.widget = null
+    if(this.widget == null) {
+      return
     }
+
+    const session = this.ace_editor.getSession()
+    const widget_bottom = this.widget.el.getBoundingClientRect().bottom
+    session.widgetManager.removeLineWidget(this.widget) 
+
+    if(this.widget.is_dom_el) {
+      /*
+        if cursor moves below widget, then ace editor first adjusts scroll,
+        and then widget gets remove, so scroll jerks. We have to set scroll
+        back
+      */
+      // distance travelled by cursor
+      const distance = session.selection.getCursor().row - this.widget.row
+      if(distance > 0) {
+        const line_height = this.ace_editor.renderer.lineHeight
+        const scroll = widget_bottom - this.editor_container.getBoundingClientRect().bottom
+        if(scroll > 0) {
+          const scrollTop = session.getScrollTop()
+          session.setScrollTop(session.getScrollTop() - scroll - line_height*distance)
+        }
+      }
+    }
+
+    this.widget = null
   }
 
   update_value_explorer_margin() {
@@ -203,10 +226,6 @@ export class Editor {
     this.unembed_value_explorer()
 
     const session = this.ace_editor.getSession()
-    const pos = session.doc.indexToPosition(index)
-    const row = pos.row
-
-    const line_height = this.ace_editor.renderer.lineHeight
 
     let content
     const container = el('div', {'class': 'embed_value_explorer_container'},
@@ -214,7 +233,6 @@ export class Editor {
         content = el('div', {
           // Ace editor cannot render widget before the first line. So we
           // render in on the next line and apply translate
-          'style': `transform: translate(0px, -${line_height}px)`,
           'class': 'embed_value_explorer_content', 
           tabindex: 0
         })
@@ -242,37 +260,49 @@ export class Editor {
       }
     })
 
-    if(ok) {
-      const exp = new ValueExplorer({
-        container: content,
-        event_target: container,
-        on_escape: escape,
-        scroll_to_element: t => {
-          if(initial_scroll_top == null) {
-            initial_scroll_top = session.getScrollTop()
-          }
-          let scroll
-          const out_of_bottom = t.getBoundingClientRect().bottom - this.editor_container.getBoundingClientRect().bottom
-          if(out_of_bottom > 0) {
-            session.setScrollTop(session.getScrollTop() + out_of_bottom)
-          }
-          const out_of_top = this.editor_container.getBoundingClientRect().top - t.getBoundingClientRect().top
-          if(out_of_top > 0) {
-            session.setScrollTop(session.getScrollTop() - out_of_top)
-          }
-        },
-      })
+    let is_dom_el
 
-      exp.render(value)
+    if(ok) {
+      if(value instanceof globalThis.app_window.Element && !value.isConnected) {
+        is_dom_el = true
+        content.appendChild(value)
+      } else {
+        is_dom_el = false
+        const exp = new ValueExplorer({
+          container: content,
+          event_target: container,
+          on_escape: escape,
+          scroll_to_element: t => {
+            if(initial_scroll_top == null) {
+              initial_scroll_top = session.getScrollTop()
+            }
+            let scroll
+            const out_of_bottom = t.getBoundingClientRect().bottom - this.editor_container.getBoundingClientRect().bottom
+            if(out_of_bottom > 0) {
+              session.setScrollTop(session.getScrollTop() + out_of_bottom)
+            }
+            const out_of_top = this.editor_container.getBoundingClientRect().top - t.getBoundingClientRect().top
+            if(out_of_top > 0) {
+              session.setScrollTop(session.getScrollTop() - out_of_top)
+            }
+          },
+        })
+
+        exp.render(value)
+      }
     } else {
+      is_dom_el = false
       content.appendChild(el('span', 'eval_error', stringify_for_header(error)))
     }
 
     const widget = this.widget = {
-       row,
+       row: is_dom_el
+        ? session.doc.indexToPosition(index + length).row
+        : session.doc.indexToPosition(index).row,
        fixedWidth: true,
        el: container,
        content,
+       is_dom_el,
      }
 
 
@@ -282,13 +312,22 @@ export class Editor {
       session.widgetManager.attach(this.ace_editor);
     }
 
-    // update_value_explorer_margin relies on getLastVisibleRow which can be
-    // incorrect because it may be executed right after set_cursor_position
-    // which is async in ace_editor. Use setTimeout
-    setTimeout(() => {
-      this.update_value_explorer_margin()
+    if(is_dom_el) {
+      container.classList.add('is_dom_el')
       session.widgetManager.addLineWidget(widget) 
-    }, 0)
+    } else {
+      container.classList.add('is_not_dom_el')
+      const line_height = this.ace_editor.renderer.lineHeight
+      content.style.transform = `translate(0px, -${line_height}px)`
+      // update_value_explorer_margin relies on getLastVisibleRow which can be
+      // incorrect because it may be executed right after set_cursor_position
+      // which is async in ace_editor. Use setTimeout
+      setTimeout(() => {
+        this.update_value_explorer_margin()
+        session.widgetManager.addLineWidget(widget) 
+      }, 0)
+    }
+
   }
 
   focus_value_explorer(return_to) {
