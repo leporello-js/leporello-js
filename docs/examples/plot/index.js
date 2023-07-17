@@ -9,8 +9,38 @@ const langs = _(repos.items)
   .countBy()
   .toPairs()
   .map(([language, count]) => ({language, count}))
+  .value()
 
 import {barY} from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
 
 barY(langs, {x: "language", y: "count", sort: {x: "y", reverse: true}, fill: 'purple'})
   .plot()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
