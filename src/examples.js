@@ -12,6 +12,10 @@ export const examples = [
     entrypoint: 'github_api/index.js',
   },
   {
+    path: 'fibonacci',
+    entrypoint: 'fibonacci/index.js',
+  },
+  {
     path: 'todos-preact',
     entrypoint: 'todos-preact/index.js',
     with_app_window: true,
