@@ -1,57 +1,29 @@
 # Leporello.js
 
-Leporello.js is live coding IDE for pure functional subset of javascript. It provides novel debugging experience
+Leporello.js is an interactive functional programming environment for JavaScript.
 
-## **[Try online](https://leporello-js.github.io/leporello-js/)**
+## **[Website](https://leporello.tech)**
+## **[Try online](https://app.leporello.tech)**
 
 ## Features
 
-- Mutating values is not allowed
+### Interactive
+Your code is executed instantly as you type, with the results displayed next to it. No need to set breakpoints for debugging. Just move the cursor to any line and see what's happening.
 
-![Mutating](docs/images/mutation.png)
+### Designed for functional programming
+Supercharge your functional code with unprecedented developer tooling.
 
-- All values are immutable. You create new values by applying change to old values
+### Next level debugging capabilities
+Visualise and navigate a dynamic call graph of your program in a time-travel manner.
 
-![Immutable](docs/images/immutable.png)
+### Develop HTML5 apps interactively
+Modify your code and instantly see the updated version without losing the application state. Interact with your app and debug it later, similar to using a time machine.
 
-- Functional programs are trees of expressions that map values to other values,
-  rather than a sequence of imperative statements which update the running
-  state of the program. Because data is never mutated, you can jump to any
-  point in execution of your program 
+### Save time when working on IO-heavy programs
+IO operations are traced and transparently replayed on subsequent program executions.
 
-![Navigation](docs/images/nav.gif)
-
-- and inspect any intermediate values
-
-![Inspect](docs/images/inspect.gif)
-
-- Expressions that were evaluated have blue background. And that were not reached
-have white background.
-
-![Background](docs/images/background.png)
-
-- Expressions that throw errors are red
-
-![Errors](docs/images/error.png)
-
-- When you put cursor inside function, the first call of this function is found
-
-![Follow cursor](docs/images/follow_cursor.gif)
-
-- You can edit this function and immediately see result
-
-![Live coding](docs/images/edit.gif)
-
-- Console logs are collected and displayed in a separate view. When you click
-  the log you get into debugger to the call of `console.log` or
-  `console.error`.  You can go back and forth like in a time machine.
-
-![Logs](docs/images/logs.gif)
-
-- Leporello is (mostly) self-hosted, i.e. built in itself
-
-![Self-hosted](docs/images/self-hosted.png)
-
+### Self-hosted
+Leporello.js source code is developed within Leporello.js itself
 
 ## Supported javascript subset
 
@@ -79,13 +51,13 @@ Classes are not supported. Some sort of immutable classes may be supported in fu
 
 `try`, `catch` and `finally` will be supported in future. `throw` is currently supported.
 
-ES6 modules are suppoted. Default exports are not currently supported, only named exports. Circular module dependencies are not supported (currently they crash IDE (TODO)). Import/export aliases are not supported. Exporting `let` variables is not supported. `import.meta` is not supported.
+ES6 modules are suppoted. Circular module dependencies are not supported (currently they crash IDE (TODO)). Import/export aliases are not supported. Exporting `let` variables is not supported. `import.meta` is not supported.
 
 Async and await are supported.
 
 Generators are not supported.
 
-Destructuring is mostly supported.
+Destructuring is supported.
 
 Some operators are not currently supported:
   - Unary plus
