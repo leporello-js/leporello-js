@@ -1287,8 +1287,8 @@ const export_statement =
     if_ok(
       seq_select(1, [
         literal('export'),
-        // TODO export let statement, export default, etc. Or not allow
-        // let statement because export let cannot be compiled properly?
+        // TODO export let statement, export function, export default, etc. 
+        // Should we allow let statement? (it is difficult to transpile)
         const_statement,
       ]),
       ({value, ...node}) => ({
