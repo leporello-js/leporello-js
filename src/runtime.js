@@ -123,13 +123,10 @@ export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
   }
 })
 
+
 const apply_promise_patch = cxt => {
-
-  cxt.promise_then = cxt.window.Promise.prototype.then
-
-  if(cxt.window.Promise.prototype.__original_then == null) {
-    cxt.window.Promise.prototype.__original_then = cxt.window.Promise.prototype.then
-  }
+  const original_then = cxt.window.Promise.prototype.then
+  cxt.window.Promise.prototype.__original_then = cxt.window.Promise.prototype.then
 
   cxt.window.Promise.prototype.then = function then(on_resolve, on_reject) {
 
@@ -153,7 +150,8 @@ const apply_promise_patch = cxt => {
           }
         }
 
-    return this.__original_then(
+    return original_then.call(
+      this,
       make_callback(on_resolve, true),
       make_callback(on_reject, false),
     )
@@ -161,7 +159,7 @@ const apply_promise_patch = cxt => {
 }
 
 const remove_promise_patch = cxt => {
-  cxt.window.Promise.prototype.then = cxt.promise_then
+  cxt.window.Promise.prototype.then = cxt.window.Promise.prototype.__original_then
 }
 
 export const set_record_call = cxt => {
