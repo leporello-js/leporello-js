@@ -3444,4 +3444,15 @@ const y = x()`
 
     patch_builtin('fetch', null)
   }),
+
+  test('record io logs recorded twice bug', () => {
+    const code = `Math.random()`
+    const i = test_initial_state(code)
+    const second = COMMANDS.input(
+      i, 
+      `console.log(1); Math.random(); Math.random()`, 
+      0
+    )
+    assert_equal(second.state.logs.logs.length, 1)
+  })
 ]

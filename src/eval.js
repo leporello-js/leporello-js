@@ -331,8 +331,6 @@ export const eval_modules = (
     // TODO use native array for stack for perf? stack contains booleans
     stack: new Array(),
 
-    logs: [],
-
     searched_location: location,
     found_call: null,
 

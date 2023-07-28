@@ -44,10 +44,12 @@ const do_run = function*(module_fns, cxt, io_trace){
   cxt = (io_trace == null || io_trace.length == 0)
     // TODO group all io_trace_ properties to single object?
     ? {...cxt,
+      logs: [],
       io_trace_is_recording: true,
       io_trace: [],
     }
     : {...cxt,
+      logs: [],
       io_trace_is_recording: false,
       io_trace,
       io_trace_is_replay_aborted: false,
