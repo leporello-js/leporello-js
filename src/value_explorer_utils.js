@@ -20,13 +20,14 @@ const isDate = object =>
   ||
   object instanceof globalThis.app_window.Date.__original
 
-const toJSON_safe = object => {
+// Workaround try/catch is not implemented currently
+const toJSON_safe = new Function('object', `
   try {
     return object.toJSON() 
   } catch(e) {
     return object
   }
-}
+`)
 
 export const displayed_entries = object => {
   if(object == null || typeof(object) != 'object') {
