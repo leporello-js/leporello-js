@@ -6,7 +6,7 @@
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 import {with_code_execution} from '../index.js'
-import {header, is_expandable} from '../value_explorer_utils.js'
+import {header, is_expandable, displayed_entries} from '../value_explorer_utils.js'
 
 
 const get_path = (o, path) => {
@@ -236,7 +236,13 @@ export class ValueExplorer {
     this.set_active(this.current_path, true)
   }
 
-  render_value_explorer_node(key, value, path, node_data) {
+  render_value_explorer_node(...args) {
+    return with_code_execution(() => {
+      return this.do_render_value_explorer_node(...args)
+    })
+  }
+
+  do_render_value_explorer_node(key, value, path, node_data) {
 
     const is_exp = is_expandable(value)
     const is_expanded = is_exp && node_data.is_expanded

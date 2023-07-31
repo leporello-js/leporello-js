@@ -22,15 +22,13 @@ const isDate = object =>
 
 const toJSON_safe = object => {
   try {
-    return with_code_execution(() => {
-      return object.toJSON() 
-    })
+    return object.toJSON() 
   } catch(e) {
     return object
   }
 }
 
-const displayed_entries = object => {
+export const displayed_entries = object => {
   if(object == null || typeof(object) != 'object') {
     return []
   } else if((object[Symbol.toStringTag]) == 'Module') {
