@@ -1,6 +1,6 @@
 import {exec} from '../index.js'
 import {el, stringify, fn_link, scrollIntoViewIfNeeded} from './domutils.js'
-import {stringify_for_header} from './value_explorer.js'
+import {stringify_for_header} from '../value_explorer_utils.js'
 import {find_node} from '../ast_utils.js'
 import {is_expandable, root_calltree_node, get_deferred_calls, has_error} 
   from '../calltree.js'

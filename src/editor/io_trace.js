@@ -1,4 +1,4 @@
-import {header, stringify_for_header} from './value_explorer.js'
+import {header, stringify_for_header} from '../value_explorer_utils.js'
 import {el} from './domutils.js'
 import {has_error} from '../calltree.js'
 

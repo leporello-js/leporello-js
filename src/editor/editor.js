@@ -1,5 +1,6 @@
 import {exec, get_state} from '../index.js'
-import {ValueExplorer, stringify_for_header} from './value_explorer.js'
+import {ValueExplorer} from './value_explorer.js'
+import {stringify_for_header} from '../value_explorer_utils.js'
 import {el, stringify, fn_link} from './domutils.js'
 
 /*

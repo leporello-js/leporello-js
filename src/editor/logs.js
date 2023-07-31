@@ -1,6 +1,6 @@
 import {el, scrollIntoViewIfNeeded} from './domutils.js'
 import {exec} from '../index.js'
-import {header} from './value_explorer.js'
+import {header} from '../value_explorer_utils.js'
 
 export class Logs {
   constructor(ui, el) {
