@@ -40,6 +40,12 @@ export const displayed_entries = object => {
     )
   } else if(Array.isArray(object)) {
     return object.map((v, i) => [i, v])
+  } else if(object[Symbol.toStringTag] == 'Set') {
+    // TODO display set as list without keys as indexes, because Set in JS are
+    // not ordered and it would be incorrect to imply ordering
+    return [...object.values()].map((entry, i) => [i, entry])
+  } else if(object[Symbol.toStringTag] == 'Map') {
+    return [...object.entries()]
   } else if(typeof(object.toJSON) == 'function') {
     const result = toJSON_safe(object)
     if(result == object) {
@@ -139,7 +145,7 @@ const header_object = object => {
       return `${k}: ${value}`
     })
     .join(', ')
-  return `${prefix} {${inner}}`
+  return `${prefix}{${inner}}`
 }
 
 export const header = (object, no_toJSON = false) => {

@@ -2,6 +2,7 @@ import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {print_debug_node} from '../src/parse_js.js'
 import {eval_frame, eval_modules} from '../src/eval.js'
 import {COMMANDS} from '../src/cmd.js'
+import {header} from '../src/value_explorer_utils.js'
 import {
   root_calltree_node, 
   active_frame, 
@@ -3454,5 +3455,19 @@ const y = x()`
       0
     )
     assert_equal(second.state.logs.logs.length, 1)
-  })
+  }),
+
+  test('value_explorer Set', () => {
+    assert_equal(
+      header(new Set(['foo', 'bar'])),
+      'Set {0: "foo", 1: "bar"}'
+    )
+  }),
+
+  test('value_explorer Map', () => {
+    assert_equal(
+      header(new Map([['foo', 'bar'], ['baz', 'qux']])),
+      'Map {foo: "bar", baz: "qux"}'
+    )
+  }),
 ]

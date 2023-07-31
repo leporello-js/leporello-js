@@ -1,5 +1,4 @@
 // TODO paging for large arrays/objects
-// TODO maps, sets
 // TODO show Errors in red
 // TODO fns as clickable links (jump to definition), both for header and for
 // content
