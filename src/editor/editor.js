@@ -52,6 +52,7 @@ const normalize_events = (ace_editor, {
   })
 
   ace_editor.on('changeSelection', (...args) => {
+    // TODO debounce changeSelection?
     if(is_change_selection_supressed()) {
       return
     }

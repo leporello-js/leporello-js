@@ -246,6 +246,7 @@ export const with_code_execution = (action, state = get_state()) => {
   */
   if(state.eval_cxt != null) {
     state.eval_cxt.is_recording_deferred_calls = false
+    state.eval_cxt.skip_save_ct_node_for_path = true
   }
 
   try {
@@ -253,6 +254,7 @@ export const with_code_execution = (action, state = get_state()) => {
   } finally {
     if(state.eval_cxt != null) {
       state.eval_cxt.is_recording_deferred_calls = true
+      state.eval_cxt.skip_save_ct_node_for_path = false
     }
   }
 }

@@ -11,9 +11,9 @@ import {
   root_calltree_node, root_calltree_module, make_calltree, 
   get_deferred_calls,
   calltree_commands,
-  add_frame, calltree_node_loc, get_calltree_node_by_loc, expand_path,
+  add_frame, calltree_node_loc, expand_path,
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
-  find_call, find_call_node, set_active_calltree_node, 
+  find_call, set_active_calltree_node, 
   set_cursor_position, current_cursor_position, set_location,
 } from './calltree.js'
 
@@ -96,6 +96,7 @@ const run_code = (s, dirty_files) => {
     active_calltree_node: null,
     calltree_node_is_expanded: null,
     frames: null,
+    colored_frames: null,
     calltree_node_by_loc: null,
     selected_calltree_node_by_loc: null,
     selection_state: null,
@@ -223,14 +224,11 @@ const eval_modules_finished = (state, prev_state, result) => {
     const {node, state: next2} = initial_calltree_node(next)
     result_state = set_active_calltree_node(next2, null, node)
   } else {
-    result_state = add_frame(
-      default_expand_path(
-        expand_path(
-          next,
-          next.active_calltree_node
-        )
-      ),
-      next.active_calltree_node,
+    result_state = default_expand_path(
+      expand_path(
+        next,
+        next.active_calltree_node
+      )
     )
   }
 

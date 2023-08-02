@@ -209,8 +209,7 @@ export const color = frame => {
 
 export const color_file = (state, file) =>
   Object
-    .values(state.selected_calltree_node_by_loc?.[file] ?? {})
-    // node_id == null means it is unreachable, so do not color
+    .values(state.colored_frames?.[file] ?? {})
     .filter(node_id => node_id != null)
     .map(node_id => state.frames[node_id].coloring)
     .flat()

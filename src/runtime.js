@@ -38,20 +38,24 @@ const make_promise_with_rejector = cxt => {
 const do_run = function*(module_fns, cxt, io_trace){
   let calltree
 
+  const calltree_node_by_loc = new Map(
+    module_fns.map(({module}) => [module, new Map()])
+  )
+
   const [replay_aborted_promise, io_trace_abort_replay] = 
     make_promise_with_rejector(cxt)
 
   cxt = (io_trace == null || io_trace.length == 0)
     // TODO group all io_trace_ properties to single object?
     ? {...cxt,
+      calltree_node_by_loc,
       logs: [],
-      calltree_node_by_loc: new Map(),
       io_trace_is_recording: true,
       io_trace: [],
     }
     : {...cxt,
+      calltree_node_by_loc,
       logs: [],
-      calltree_node_by_loc: new Map(),
       io_trace_is_recording: false,
       io_trace,
       io_trace_is_replay_aborted: false,
@@ -79,7 +83,14 @@ const do_run = function*(module_fns, cxt, io_trace){
 
     try {
       cxt.modules[module] = {}
-      const result = fn(cxt, __trace, __trace_call, __do_await)
+      const result = fn(
+        cxt, 
+        calltree_node_by_loc.get(module),
+        __trace, 
+        __trace_call, 
+        __do_await, 
+        __save_ct_node_for_path,
+      )
       if(result instanceof cxt.window.Promise) {
         yield cxt.window.Promise.race([replay_aborted_promise, result])
       } else {
@@ -108,6 +119,7 @@ const do_run = function*(module_fns, cxt, io_trace){
     calltree,
     logs: _logs,
     eval_cxt: cxt,
+    calltree_node_by_loc,
   }
 }
 
@@ -244,7 +256,7 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
     const call_id = ++cxt.call_counter
 
     // populate calltree_node_by_loc only for entrypoint module
-    if(cxt.is_entrypoint) {
+    if(cxt.is_entrypoint && !cxt.skip_save_ct_node_for_path) {
       let nodes_of_module = cxt.calltree_node_by_loc.get(__location.module)
       if(nodes_of_module == null) {
         nodes_of_module = new Map()
@@ -392,7 +404,6 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
     }
     
     if(is_log) {
-      // TODO do not collect logs on find_call?
       cxt.logs.push(call)
     }
 
@@ -412,3 +423,17 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
   }
 }
 
+const __save_ct_node_for_path = (cxt, __calltree_node_by_loc, index, __call_id) => {
+  if(!cxt.is_entrypoint) {
+    return
+  }
+
+  if(cxt.skip_save_ct_node_for_path) {
+    return
+  }
+
+  if(__calltree_node_by_loc.get(index) == null) {
+    __calltree_node_by_loc.set(index, __call_id)
+    set_record_call(cxt)
+  }
+}

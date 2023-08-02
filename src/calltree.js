@@ -2,7 +2,7 @@ import {map_accum, map_find, map_object, stringify, findLast} from './utils.js'
 import {is_eq, find_error_origin_node} from './ast_utils.js'
 import {find_node, find_leaf, ancestry_inc} from './ast_utils.js'
 import {color} from './color.js'
-import {eval_frame, eval_expand_calltree_node} from './eval.js'
+import {eval_frame, eval_expand_calltree_node, get_after_if_path} from './eval.js'
 
 export const pp_calltree = tree => ({
   id: tree.id,
@@ -91,27 +91,38 @@ export const get_calltree_node_by_loc = (state, index) => {
   }
 }
 
-const get_selected_calltree_node_by_loc = (state, node) =>
+const get_selected_calltree_node_by_loc = (
+  state, 
+  node, 
+  module = state.current_module
+) =>
   state.selected_calltree_node_by_loc
-    ?.[state.current_module]
+    ?.[module]
     ?.[
-        state.parse_result.modules[state.current_module] == node
+        state.parse_result.modules[module] == node
           // identify toplevel by index `-1`, because function and toplevel can
           // have the same index (in case when module starts with function_expr)
           ? -1
           : node.index
       ]
 
-const add_selected_calltree_node_by_loc = (state, loc, node_id) => {
+const set_node_by_loc = (node_by_loc, loc, node_id) => {
+  return {...node_by_loc,
+    [loc.module]: {
+      ...node_by_loc?.[loc.module],
+      [loc.index ?? -1]: node_id
+    }
+  }
+}
+
+const set_selected_calltree_node_by_loc = (state, loc, node_id) => {
   return {
     ...state,
-    selected_calltree_node_by_loc: 
-      {...state.selected_calltree_node_by_loc,
-        [loc.module]: {
-          ...state.selected_calltree_node_by_loc?.[loc.module],
-          [loc.index ?? -1]: node_id
-        }
-      }
+    selected_calltree_node_by_loc: set_node_by_loc(
+      state.selected_calltree_node_by_loc,
+      loc,
+      node_id,
+    )
   }
 }
 
@@ -133,24 +144,38 @@ export const add_frame = (
   current_calltree_node = active_calltree_node,
 ) => {
   let with_frame
-  if(state.frames?.[active_calltree_node.id] == null) {
-    const frame = eval_frame(active_calltree_node, state.modules)
+  let frame
+  frame = state.frames?.[active_calltree_node.id]
+  if(frame == null) {
+    frame = eval_frame(active_calltree_node, state.modules)
+    const execution_paths = active_calltree_node.toplevel
+      ? null
+      : get_execution_paths(frame)
     const coloring = color(frame)
     with_frame = {...state, 
       frames: {...state.frames, 
-        [active_calltree_node.id]: {...frame, coloring}
+        [active_calltree_node.id]: {...frame, coloring, execution_paths}
       }
     }
   } else {
     with_frame = state
   }
-  // TODO only add if it is not the same
-  const result = add_selected_calltree_node_by_loc(
-    with_frame,
-    calltree_node_loc(active_calltree_node),
-    active_calltree_node.id,
+
+  const loc = calltree_node_loc(active_calltree_node)
+
+  const with_colored_frames = {...with_frame,
+    colored_frames: set_node_by_loc(
+      with_frame.colored_frames,
+      loc,
+      active_calltree_node.id,
+    )
+  }
+
+  return set_active_calltree_node(
+    with_colored_frames, 
+    active_calltree_node, 
+    current_calltree_node
   )
-  return set_active_calltree_node(result, active_calltree_node, current_calltree_node)
 }
 
 const replace_calltree_node = (root, node, replacement) => {
@@ -269,7 +294,13 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
     // of body?
     : set_location(next, loc)
 
-  return {...with_location,
+  const with_selected_calltree_node = set_selected_calltree_node_by_loc(
+    with_location,
+    calltree_node_loc(active_calltree_node),
+    with_location.active_calltree_node.id,
+  )
+
+  return {...with_selected_calltree_node,
     value_explorer: next.current_calltree_node.toplevel
       ? null
       : {
@@ -537,20 +568,88 @@ export const initial_calltree_node = state => {
 
 export const default_expand_path = state => initial_calltree_node(state).state
 
+export const get_execution_paths = frame => {
+  /*
+   - depth-first search tree. if 'result == null', then stop. Do not descend
+     into function_expr
+   - look for 'if' and ternary
+   - Get executed branch (branch.result.ok != null). There may be no executed
+     branch if cond executed with error
+   - for 'if' statement we also add 'get_after_if_path(if_node.index)'
+  */
+  const do_get = (node, next_node) => {
+    if(node.type == 'function_expr' || node.result == null) {
+      return []
+    }
+    let after_if, branch
+    if(node.type == 'if' || node.type == 'ternary') {
+      const [cond, ...branches] = node.children
+      branch = branches.find(b => b.result != null)
+    }
+    if(node.type == 'if' && next_node != null && next_node.result != null) {
+      after_if = get_after_if_path(node)
+    }
+    const paths = [branch?.index, after_if].filter(i => i != null)
+    const children = node.children ?? []
+    const child_paths = children
+      .map((c, i) => do_get(c, children[i + 1]))
+      .flat()
+    return [...paths, ...child_paths]
+  }
+
+  const [args, body] = frame.children
+
+  return new Set(do_get(body))
+}
+
+const find_execution_path = (node, index) => {
+  if(node.children == null) {
+    return []
+  }
+
+  const child = node.children.find(c => 
+    c.index <= index && c.index + c.length > index
+  )
+
+  if(child == null) {
+    return []
+  }
+
+  const prev_ifs = node
+    .children
+    .filter(c => 
+      c.index < child.index && c.type == 'if'
+    )
+    .map(c => get_after_if_path(c))
+
+  const child_path = find_execution_path(child, index)
+
+  // TODO other conditionals, like &&, ||, ??, ?., ?.[]
+  if(node.type == 'if' || node.type == 'ternary') {
+    const [cond, left, right] = node.children
+    if(child == left || child == right) {
+      return [...prev_ifs, child.index, ...child_path]
+    }
+  }
+
+  return [...prev_ifs, ...child_path]
+}
+
 export const find_call_node = (state, index) => {
   const module = state.parse_result.modules[state.current_module]
 
   if(module == null) {
     // Module is not executed
-    return null
+    return {node: null, path: null}
   }
 
-  let node
+  let node, path
 
   if(index < module.index || index >= module.index + module.length) {
     // index is outside of module, it can happen because of whitespace and
     // comments in the beginning and the end
     node = module
+    path = null
   } else {
     const leaf = find_leaf(module, index)
     const anc = ancestry_inc(leaf, module)
@@ -558,43 +657,18 @@ export const find_call_node = (state, index) => {
     node = fn == null
       ? module
       : fn
+    path = find_execution_path(node, index)
   }
 
-  return node
+  return {node, path}
 }
 
 export const find_call = (state, index) => {
-  const node = find_call_node(state, index)
+  const {node, path} = find_call_node(state, index)
 
   if(node == null) {
     return state
   }
-
-  if(state.active_calltree_node != null && is_eq(node, state.active_calltree_node.code)) {
-    return state
-  }
-
-  const selected_ct_node_id = get_selected_calltree_node_by_loc(state, node)
-
-  /*
-  TODO remove because it interferes with find_call deferred calls
-  if(selected_ct_node_id === null) {
-    // strict compare (===) with null, to check if we put null earlier to
-    // designate that fn is not reachable
-    return set_active_calltree_node(state, null)
-  }
-  */
-
-  if(selected_ct_node_id != null) {
-    const ct_node = find_node(
-      state.calltree,
-      n => n.id == selected_ct_node_id
-    )
-    if(ct_node == null) {
-      throw new Error('illegal state')
-    }
-    return set_active_calltree_node(state, ct_node, ct_node)
-  } 
 
   if(node == state.parse_result.modules[root_calltree_module(state)]) {
     const toplevel = root_calltree_node(state)
@@ -610,19 +684,42 @@ export const find_call = (state, index) => {
     return state
   }
 
+  const selected_ct_node_id = get_selected_calltree_node_by_loc(state, node)
+  const execution_paths = selected_ct_node_id == null
+    ? null
+    : state.frames[selected_ct_node_id].execution_paths
+
   const ct_node_id = get_calltree_node_by_loc(state, node.index)
 
   if(ct_node_id == null) {
     return set_active_calltree_node(state, null)
   }
 
+  const path_ct_node_id = [node.index, ...path]
+    .map(path_elem => {
+      const is_selected_node_hits_path = 
+        selected_ct_node_id != null 
+        && 
+        (execution_paths.has(path_elem) || node.index == path_elem)
+
+      if(is_selected_node_hits_path) {
+        return selected_ct_node_id
+      }
+
+      // If there is no node selected for this fn, or it did not hit the path
+      // when executed, try to find node calltree_node_by_loc
+      return get_calltree_node_by_loc(state, path_elem) 
+    })
+    .findLast(node_id => node_id != null)
+
   const ct_node = find_node(
     state.calltree,
-    n => n.id == ct_node_id
+    n => n.id == path_ct_node_id
   )
   if(ct_node == null) {
     throw new Error('illegal state')
   }
+
   return add_frame(
     expand_path(state, ct_node),
     ct_node,

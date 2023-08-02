@@ -9,6 +9,7 @@ import {
   pp_calltree, 
   get_deferred_calls,
   current_cursor_position,
+  get_execution_paths,
 } from '../src/calltree.js'
 import {color_file} from '../src/color.js'
 import {
@@ -1802,14 +1803,10 @@ const y = x()`
       countdown(10)
     `)
     const first = root_calltree_node(s).children[0]
-    assert_equal(first.children[0].children, undefined)
-    assert_equal(first.children[0].has_more_children, true)
     assert_equal(first.value, 10)
     const s2 = COMMANDS.calltree.click(s, first.id)
     const first2 = root_calltree_node(s2).children[0]
     assert_equal(first2.children[0].value, 9)
-    assert_equal(first2.children[0].children, undefined)
-    assert_equal(first2.children[0].has_more_children, true)
     assert_equal(first2.code, first2.children[0].code)
   }),
 
@@ -2544,6 +2541,279 @@ const y = x()`
     assert_equal(root_calltree_node(s2).module, '')
   }),
 
+  test('find branch initial', () => {
+    const code = `
+      function x(cond) {
+        if(cond) {
+          return true
+        } else {
+          return false
+        }
+      }
+
+      x(true)
+      x(false)
+    `
+    const i = test_initial_state(code, code.indexOf('return false'))
+    assert_equal(i.value_explorer.result.value, false)
+  }),
+
+  test('find branch empty branch', () => {
+    const code = `
+      function x(cond) {
+        if(cond) {
+          /* label */
+        }
+      }
+
+      x(false)
+      x(true)
+    `
+    const i = test_initial_state(code, code.indexOf('label'))
+    assert_equal(i.active_calltree_node.args[0], true)
+  }),
+
+  test('find branch move_cursor', () => {
+    const code = `
+      function x(cond) {
+        if(cond) {
+          return true
+        } else {
+          return false
+        }
+      }
+
+      x(true)
+      x(false)
+    `
+    const i = test_initial_state(code)
+    const moved = COMMANDS.move_cursor(i, code.indexOf('return false'))
+    assert_equal(moved.value_explorer.result.value, false)
+    assert_equal(
+      i.colored_frames != moved.colored_frames,
+      true
+    )
+  }),
+
+  test('find branch ternary', () => {
+    const code = `
+      function x(cond) {
+        return cond ? true : false
+      }
+
+      x(true)
+      x(false)
+    `
+    const i = test_initial_state(code, code.indexOf('false'))
+    assert_equal(i.value_explorer.result.value, false)
+  }),
+
+  test('find branch move cursor within fn', () => {
+    const code = `
+      function x(cond) {
+        if(cond) {
+          return true
+        } else {
+          return false
+        }
+      }
+
+      x(true)
+      x(false)
+    `
+    const i = test_initial_state(code)
+    const s1 = COMMANDS.move_cursor(i, code.indexOf('return false'))
+    const s2 = COMMANDS.move_cursor(s1, code.indexOf('return true'))
+    assert_equal(s2.value_explorer.result.value, true)
+    assert_equal(
+      s1.colored_frames != s2.colored_frames,
+      true
+    )
+  }),
+
+  test('find branch fibonacci', () => {
+    const code = `
+      function fib(n) {
+        if(n == 0 || n == 1) {
+          return n
+        } else {
+          return fib(n - 1) + fib(n - 2)
+        }
+      }
+
+      fib(6)
+    `
+    const i = test_initial_state(code)
+    const moved = COMMANDS.move_cursor(i, code.indexOf('return n'))
+    assert_equal(moved.value_explorer.result.value, 1)
+  }),
+
+  test('find branch after if with return', () => {
+    const code = `
+      function x(cond) {
+        if(cond) {
+          return true
+        }
+        1
+      }
+      x(true)
+      x(false)
+    `
+    const i = test_initial_state(code, code.indexOf('1'))
+    assert_equal(i.value_explorer.result.value, 1)
+  }),
+
+  test('find branch after if with return complex', () => {
+    const code = `
+      function x(a, b) {
+        if(a) {
+          return true
+        }
+        if(a) {
+          return true
+        }
+        if(b) {
+          return true
+        } else {
+          if(false) {
+            return null
+          }
+          1
+        }
+
+      }
+      x(true)
+      x(false, true)
+      x(false, false)
+    `
+    const i = test_initial_state(code, code.indexOf('1'))
+    assert_equal(i.value_explorer.result.value, 1)
+    assert_equal(i.active_calltree_node.args, [false, false])
+  }),
+
+  test('find branch get_execution_paths', () => {
+    const code = `
+      function x() {
+        if(true) {/*1*/
+        }
+        if(false) {
+        } else {/*2*/
+          if(true) {/*3*/
+            true ? 4 : 5
+          }
+          return null
+        }
+        // not executed
+        if(true) {
+        }
+        // not executed
+        true ? 6 : 7
+      }
+      x()
+    `
+    const i = test_initial_state(code, code.indexOf('if'))
+    assert_equal(
+      [...get_execution_paths(active_frame(i))].toSorted((a,b) => a - b),
+      [
+        code.indexOf('if(true)') + 1,
+        code.indexOf('/*1*/') - 1,
+        code.indexOf('/*2*/') - 1,
+        code.indexOf('if(true) {/*3*/') + 1,
+        code.indexOf('/*3*/') - 1,
+        code.indexOf('4'),
+      ]
+    )
+  }),
+
+  test('find branch get_execution_paths consice body', () => {
+    const code = `
+      const x = () => true ? 1 : 2
+      x()
+    `
+    const i = test_initial_state(code, code.indexOf('true'))
+    assert_equal(
+      get_execution_paths(active_frame(i)),
+      [code.indexOf('1')],
+    )
+  }),
+
+  test('find branch get_execution_paths nested fn', () => {
+    const code = `
+      function x() {
+        function y() {
+          true ? 1 : 2
+        }
+      }
+      x()
+    `
+    const i = test_initial_state(code, code.indexOf('{'))
+    assert_equal(
+      get_execution_paths(active_frame(i)),
+      [],
+    )
+  }),
+
+  test('find branch jump_calltree_node', () => {
+    const code = `
+      function test(x) {
+        if(x > 0) {
+          'label'
+        }
+      }
+      test(1)
+      test(2)
+    `
+    const i = test_initial_state(code, code.indexOf('label'))
+    assert_equal(i.active_calltree_node.args[0], 1)
+    // select second call
+    const second = COMMANDS.calltree.click(i, root_calltree_node(i).children[1].id)
+    assert_equal(second.active_calltree_node.args[0], 2)
+  }),
+
+  test('find branch preserve selected calltree node when moving inside fn', () => {
+    const code = `
+      function x(cond) {
+        if(cond) {
+          true
+        } else {
+          false
+        }
+        'finish'
+      }
+      x(true)
+      x(false)
+    `
+    const i = test_initial_state(code)
+    const first_call_id = root_calltree_node(i).children[0].id
+    // explicitly select first call
+    const selected = COMMANDS.calltree.click(i, first_call_id)
+    // implicitly select second call by moving cursor
+    const moved = COMMANDS.move_cursor(selected, code.indexOf('false'))
+    const finish = COMMANDS.move_cursor(moved, code.indexOf('finish'))
+    assert_equal(finish.active_calltree_node.id, first_call_id)
+  }),
+
+  test('find branch select calltree node from logs', () => {
+    const code = `
+      function f(x) {
+        if(x > 1) {
+          console.log(x)
+        } else {
+          console.log(x)
+        }
+      }
+      f(5)
+      f(10)
+    `
+    const i = test_initial_state(code)
+    const log_selected = COMMANDS.calltree.navigate_logs_position(i, 1)
+    const moved = COMMANDS.move_cursor(
+      log_selected, 
+      code.indexOf('console.log')
+    )
+    assert_equal(moved.active_calltree_node.args, [10])
+  }),
+
   test('stale id in frame function_call.result.calls bug', () => {
     const code = `
       const x = () => {/*x*/
@@ -2844,6 +3114,25 @@ const y = x()`
     const expanded = COMMANDS.calltree.click(state, call.id)
     // Make deferred call again. There was a runtime error
     expanded.modules[''].fn(10)
+  }),
+
+  test('deferred_calls find call bug', () => {
+    const code = `
+      export const fn = () => 1
+    `
+
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
+
+    const moved = COMMANDS.move_cursor(i, code.indexOf('1'))
+    assert_equal(moved.active_calltree_node, null)
+
+    // Make deferred call
+    moved.modules[''].fn(10)
+
+    const after_call = on_deferred_call(moved)
+    const moved2 = COMMANDS.move_cursor(after_call, code.indexOf('1'))
+
+    assert_equal(moved2.active_calltree_node.value, 1)
   }),
 
   test('async/await await non promise', async () => {

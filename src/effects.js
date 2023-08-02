@@ -249,7 +249,7 @@ export const apply_side_effects = (prev, next, command, ui) => {
         ui.calltree.render_select_node(prev, next)
       } 
 
-      if(prev.selected_calltree_node_by_loc != next.selected_calltree_node_by_loc) {
+      if(prev.colored_frames != next.colored_frames) {
         render_coloring(ui, next)
       }
 

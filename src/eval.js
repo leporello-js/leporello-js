@@ -72,11 +72,13 @@ const codegen_function_expr = (node, node_cxt) => {
     ? `(${args}) => `
     : `function(${args})`
 
+  // TODO gensym __obj, __fn, __call_id
+  const prolog = '{const __call_id = __cxt.call_counter;'
+
   const call = (node.is_async ? 'async ' : '') + decl + (
-    // TODO gensym __obj, __fn
     (node.body.type == 'do')
-    ? '{ let __obj, __fn;        ' + do_codegen(node.body) + '}'
-    : '{ let __obj, __fn; return ' + do_codegen(node.body) + '}'
+    ? prolog +             do_codegen(node.body) + '}'
+    : prolog + 'return ' + do_codegen(node.body) + '}'
   )
 
   const argscount = node
@@ -135,6 +137,11 @@ ${JSON.stringify(errormessage)})`
 
 }
 
+// Note that we use 'node.index + 1' as index, which
+// does not correspond to any ast node, we just use it as a convenient
+// marker
+export const get_after_if_path = node => node.index + 1
+
 const codegen = (node, node_cxt, parent) => {
 
   const do_codegen = (n, parent) => codegen(n, node_cxt, parent)
@@ -161,11 +168,20 @@ const codegen = (node, node_cxt, parent) => {
   } else if(node.type == 'throw') {
     return 'throw ' + do_codegen(node.expr) + ';'
   } else if(node.type == 'if') {
-    const left = 'if(' + do_codegen(node.cond) + '){' +
-      do_codegen(node.branches[0]) + ' } ' 
-    return node.branches[1] == null
+    const codegen_branch = branch => 
+      `{ __save_ct_node_for_path(__cxt, __calltree_node_by_loc, ${branch.index}, __call_id);`
+      + do_codegen(branch) 
+      + '}' 
+    const left = 'if(' + do_codegen(node.cond) + ')'
+      + codegen_branch(node.branches[0])
+    const result = node.branches[1] == null
       ? left
-      : left + ' else { ' + do_codegen(node.branches[1]) + ' }'
+      : left + ' else ' + codegen_branch(node.branches[1])
+    // add path also for point after if statement, in case there was a return
+    // inside if statement. 
+    return result + 
+      `__save_ct_node_for_path(__cxt, __calltree_node_by_loc, `
+        + `${get_after_if_path(node)}, __call_id);`
   } else if(node.type == 'array_literal'){
     return '[' + node.elements.map(c => do_codegen(c)).join(', ') + ']'
   } else if(node.type == 'object_literal'){
@@ -189,13 +205,18 @@ const codegen = (node, node_cxt, parent) => {
   } else if(node.type == 'function_expr'){
     return codegen_function_expr(node, node_cxt)
   } else if(node.type == 'ternary'){
+    const branches = node.branches.map(branch => 
+      `(__save_ct_node_for_path(__cxt, __calltree_node_by_loc, ${branch.index}, __call_id), `
+      + do_codegen(branch)
+      + ')'
+    )
     return ''
     + '(' 
     + do_codegen(node.cond)
     + ')\n? '
-    + do_codegen(node.branches[0])
+    + branches[0]
     +'\n: '
-    + do_codegen(node.branches[1])
+    + branches[1]
   } else if(node.type == 'const'){
     const res = 'const ' + do_codegen(node.name_node) + ' = ' + do_codegen(node.expr, node) + ';'
     if(node.name_node.type == 'identifier' && node.expr.type == 'function_call') {
@@ -297,7 +318,7 @@ export const eval_modules = (
   io_trace,
   location
 ) => {
-  // TODO gensym __cxt, __trace, __trace_call
+  // TODO gensym __cxt, __trace, __trace_call, __calltree_node_by_loc, __do_await
 
   // TODO bug if module imported twice, once as external and as regular
 
@@ -310,11 +331,21 @@ export const eval_modules = (
   const module_fns = parse_result.sorted.map(module => (
     {
       module,
+      // TODO refactor, instead of multiple args prefixed with '__', pass
+      // single arg called `runtime`
       fn: new Function(
         '__cxt',
+        '__calltree_node_by_loc',
         '__trace',
         '__trace_call',
         '__do_await',
+        '__save_ct_node_for_path',
+
+        /* Add dummy __call_id for toplevel. It does not make any sence
+         * (toplevel is executed only once unlike function), we only add it
+         * because we dont want to codegen differently for if statements in
+         * toplevel and if statements within functions*/
+        'const __call_id = "SOMETHING_WRONG_HAPPENED";' + 
         codegen(parse_result.modules[module], {module})
       )
     }
@@ -354,7 +385,7 @@ export const eval_modules = (
       logs: result.logs,
       eval_cxt: result.eval_cxt,
       calltree,
-      calltree_node_by_loc: result.eval_cxt.calltree_node_by_loc,
+      calltree_node_by_loc: result.calltree_node_by_loc,
       io_trace: result.eval_cxt.io_trace,
     }
   }
