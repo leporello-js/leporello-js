@@ -1426,7 +1426,8 @@ export const tests = [
       ]
     )
 
-    const step_into = COMMANDS.calltree.click(initial, 1)
+    const x_call = root_calltree_node(initial).children[0]
+    const step_into = COMMANDS.calltree.click(initial, x_call.id)
     assert_equal(
       color_file(step_into, '').sort((a,b) => a.index - b.index),
       [
@@ -1479,7 +1480,8 @@ export const tests = [
 
       x()`
     const initial = test_initial_state(code)
-    const step_into = COMMANDS.calltree.click(initial, 1)
+    const x_call = root_calltree_node(initial).children[0]
+    const step_into = COMMANDS.calltree.click(initial, x_call.id)
 
     assert_equal(
       color_file(step_into, '').sort((c1, c2) => c1.index - c2.index),
@@ -1563,6 +1565,20 @@ const y = x()`
     )
   }),
 
+  test('coloring function body after move inside', () => {
+    const code = `
+      const x = () => {
+        1
+      }
+      x()
+    `
+    const i = test_initial_state(code)
+    const moved = COMMANDS.move_cursor(i, code.indexOf('1'))
+    const coloring = color_file(moved, '')
+    const color_body = coloring.find(c => c.index == code.indexOf('('))
+    assert_equal(color_body.result.ok, true)
+  }),
+
   test('better parse errors', () => {
     const code = `
       const x = z => {
@@ -1634,7 +1650,7 @@ const y = x()`
 
     assert_equal(res.result.value, 6)
     assert_equal(
-      n.calltree_node_by_loc[''][edited.indexOf('foo =>')] == null,
+      n.calltree_node_by_loc.get('').get(edited.indexOf('foo =>')) == null,
       false
     )
   }),
@@ -1786,8 +1802,8 @@ const y = x()`
       countdown(10)
     `)
     const first = root_calltree_node(s).children[0]
-    assert_equal(first.children, undefined)
-    assert_equal(first.has_more_children, true)
+    assert_equal(first.children[0].children, undefined)
+    assert_equal(first.children[0].has_more_children, true)
     assert_equal(first.value, 10)
     const s2 = COMMANDS.calltree.click(s, first.id)
     const first2 = root_calltree_node(s2).children[0]
@@ -1816,7 +1832,6 @@ const y = x()`
   test('expand_calltree_node native', () => {
     const s = test_initial_state(`[1,2,3].map(x => x + 1)`)
     const map = root_calltree_node(s).children[0]
-    assert_equal(map.children, null)
     const s2 = COMMANDS.calltree.click(s, map.id)
     const map_expanded = root_calltree_node(s2).children[0]
     assert_equal(map_expanded.children.length, 3)
@@ -1854,18 +1869,11 @@ const y = x()`
       y([1,2,3])
     `
 
-    const assert_loc = (s, substring, is_assert_node_by_loc) => {
+    const assert_loc = (s, substring) => {
       const state = COMMANDS.calltree.arrow_right(s)
       const index = code.indexOf(substring)
       assert_equal(current_cursor_position(state), index)
-      if(is_assert_node_by_loc) {
-        assert_equal(
-          state.calltree_node_by_loc[''][index] == null,
-          false
-        )
-      }
       assert_equal(active_frame(state) != null, true)
-
       return state
     }
 
@@ -1876,7 +1884,7 @@ const y = x()`
     const s2 = assert_loc(s1, 'y([')
 
     // Expand call of `y()`
-    const s3 = assert_loc(s2, 'arr =>', true)
+    const s3 = assert_loc(s2, 'arr =>')
 
     // Select call of arr.map
     const s4 = assert_loc(s3, 'arr.map')
@@ -1886,8 +1894,7 @@ const y = x()`
     const s5 = assert_loc(s4, 'arr.map')
 
     // Select call of x
-    const s6 = assert_loc(s5, 'foo =>', true)
-
+    const s6 = assert_loc(s5, 'foo =>')
   }),
 
   test('jump_calltree select callsite', () => {
@@ -1918,6 +1925,14 @@ const y = x()`
     assert_equal(good.code.index, code.indexOf('() => {/*good'))
   }),
 
+  test('jump_calltree select another call of the same fn', () => {
+    const code = '[1,2].map(x => x*10)'
+    const i = test_initial_state(code, code.indexOf('10'))
+    assert_equal(i.value_explorer.result.value, 10)
+    const second_iter = COMMANDS.calltree.arrow_down(i)
+    const moved = COMMANDS.move_cursor(second_iter, code.indexOf('x*10'))
+    assert_equal(moved.value_explorer.result.value, 20)
+  }),
 
   test('unwind_stack', () => {
     const s = test_initial_state(`
@@ -2079,10 +2094,6 @@ const y = x()`
       assert_equal(node.children.length, 3)
       assert_equal(node.code != null, true)
 
-      // Siblings are not expanded
-      assert_equal(node.children[0].has_more_children, true)
-      assert_equal(node.children[2].has_more_children, true)
-
       return find_target(node.children[1], i + 1)
     }
 
@@ -2091,8 +2102,6 @@ const y = x()`
     assert_equal(target.args, [10])
 
     const target2 = target.children[0]
-    // Target is expanded, but only one level deep
-    assert_equal(target2.has_more_children, true)
   }),
 
   test('find_call error', () => {
@@ -2567,6 +2576,8 @@ const y = x()`
         ''  : `import {x} from 'x'; x()`,
         'x' : `export const x = () => 1; x()`,
       },
+      undefined,
+      undefined,
       {
         entrypoint: '',
         current_module: 'x',

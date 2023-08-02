@@ -17,7 +17,7 @@ import {has_toplevel_await} from './find_definitions.js'
 
 // import runtime as external because it has non-functional code
 // external
-import {run, do_eval_expand_calltree_node, do_eval_find_call} from './runtime.js'
+import {run, do_eval_expand_calltree_node} from './runtime.js'
 
 // TODO: fix error messages. For example, "__fn is not a function"
 
@@ -331,9 +331,6 @@ export const eval_modules = (
     // TODO use native array for stack for perf? stack contains booleans
     stack: new Array(),
 
-    searched_location: location,
-    found_call: null,
-
     is_recording_deferred_calls: false,
     on_deferred_call: (call, calltree_changed_token, logs) => {
       return on_deferred_call(
@@ -352,15 +349,12 @@ export const eval_modules = (
 
   const make_result = result => {
     const calltree = assign_code(parse_result.modules, result.calltree)
-    const call = result.call == null
-      ? null
-      : find_node(calltree, node => node.id == result.call.id)
     return {
       modules: result.modules,
       logs: result.logs,
       eval_cxt: result.eval_cxt,
       calltree,
-      call,
+      calltree_node_by_loc: result.eval_cxt.calltree_node_by_loc,
       io_trace: result.eval_cxt.io_trace,
     }
   }
@@ -372,19 +366,6 @@ export const eval_modules = (
   }
 }
 
-export const eval_find_call = (cxt, parse_result, calltree, location) => {
-  const result = do_eval_find_call(cxt, calltree, location)
-  if(result == null) {
-    return null
-  }
-  const {node, call} = result
-  const node_with_code = assign_code(parse_result.modules, node)
-  const call_with_code = find_node(node_with_code, n => n.id == call.id)
-  return {
-    node: node_with_code,
-    call: call_with_code,
-  }
-}
 
 export const eval_expand_calltree_node = (cxt, parse_result, node) => {
   return assign_code(

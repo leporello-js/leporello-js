@@ -185,8 +185,6 @@ export const apply_side_effects = (prev, next, command, ui) => {
       exec('eval_modules_finished', 
         next, /* becomes prev_state */
         result, 
-        s.node, 
-        s.toplevel
       )
     })
   }
@@ -251,7 +249,7 @@ export const apply_side_effects = (prev, next, command, ui) => {
         ui.calltree.render_select_node(prev, next)
       } 
 
-      if(prev.calltree_node_by_loc != next.calltree_node_by_loc) {
+      if(prev.selected_calltree_node_by_loc != next.selected_calltree_node_by_loc) {
         render_coloring(ui, next)
       }
 

@@ -102,7 +102,7 @@ export const assert_code_error_async = async (codestring, error) => {
   assert_equal(result.error, error)
 }
 
-export const test_initial_state = (code, entrypoint_settings, other) => {
+export const test_initial_state = (code, cursor_pos, other, entrypoint_settings) => {
   return COMMANDS.open_app_window(
     COMMANDS.get_initial_state(
       {
@@ -113,7 +113,8 @@ export const test_initial_state = (code, entrypoint_settings, other) => {
         entrypoint: '',
         current_module: '',
         ...entrypoint_settings,
-      }
+      },
+      cursor_pos
     ),
     new Set(Object.getOwnPropertyNames(globalThis.app_window))
   )
@@ -127,8 +128,6 @@ export const test_initial_state_async = async code => {
     s, 
     s,
     result, 
-    s.eval_modules_state.node, 
-    s.eval_modules_state.toplevel
   )
 }
 
@@ -139,8 +138,6 @@ export const command_input_async = async (...args) => {
     after_input, 
     after_input,
     result, 
-    after_input.eval_modules_state.node, 
-    after_input.eval_modules_state.toplevel
   )
 }
 

@@ -45,11 +45,13 @@ const do_run = function*(module_fns, cxt, io_trace){
     // TODO group all io_trace_ properties to single object?
     ? {...cxt,
       logs: [],
+      calltree_node_by_loc: new Map(),
       io_trace_is_recording: true,
       io_trace: [],
     }
     : {...cxt,
       logs: [],
+      calltree_node_by_loc: new Map(),
       io_trace_is_recording: false,
       io_trace,
       io_trace_is_replay_aborted: false,
@@ -63,13 +65,16 @@ const do_run = function*(module_fns, cxt, io_trace){
   apply_promise_patch(cxt)
   set_current_context(cxt)
 
-  for(let {module, fn} of module_fns) {
-    cxt.found_call = null
+  for(let i = 0; i < module_fns.length; i++) {
+    const {module, fn} = module_fns[i]
+
+    cxt.is_entrypoint = i == module_fns.length - 1
+
     cxt.children = null
     calltree = {
       toplevel: true, 
       module,
-      id: cxt.call_counter++
+      id: ++cxt.call_counter,
     }
 
     try {
@@ -98,14 +103,9 @@ const do_run = function*(module_fns, cxt, io_trace){
 
   remove_promise_patch(cxt)
 
-  cxt.searched_location = null
-  const call = cxt.found_call
-  cxt.found_call = null
-
   return {
     modules: cxt.modules,
     calltree,
-    call,
     logs: _logs,
     eval_cxt: cxt,
   }
@@ -170,23 +170,6 @@ export const set_record_call = cxt => {
   }
 }
 
-const do_expand_calltree_node = (cxt, node) => {
-  if(node.fn.__location != null) {
-    // fn is hosted, it created call, this time with children
-    const result = cxt.children[0]
-    result.id = node.id
-    result.children = cxt.prev_children
-    result.has_more_children = false
-    return result
-  } else {
-    // fn is native, it did not created call, only its child did
-    return {...node, 
-      children: cxt.children,
-      has_more_children: false,
-    }
-  }
-}
-
 export const do_eval_expand_calltree_node = (cxt, node) => {
   cxt.is_recording_deferred_calls = false
   cxt.children = null
@@ -199,79 +182,28 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
   } catch(e) {
     // do nothing. Exception was caught and recorded inside '__trace'
   }
+
   cxt.is_recording_deferred_calls = true
-  const result = do_expand_calltree_node(cxt, node)
-  cxt.children = null
-  return result
-}
-
-
-/*
-  Try to find call of function with given 'location'
-
-  Function is synchronous, because we recorded calltree nodes for all async
-  function calls. Here we walk over calltree, find leaves that have
-  'has_more_children' set to true, and rerunning fns in these leaves with
-  'searched_location' being set, until we find find call or no children
-  left.
-
-  We dont rerun entire execution because we want find_call to be
-  synchronous for simplicity
-*/
-export const do_eval_find_call = (cxt, calltree, location) => {
-  // TODO always cleanup children when work finished, not before it started
+  const children = cxt.children
   cxt.children = null
 
-  const do_find = node => {
-    if(node.children != null) {
-      for(let c of node.children) {
-        const result = do_find(c)
-        if(result != null) {
-          return result
-        }
-      }
-      // call was not find in children, return null
-      return null
+  if(node.fn.__location != null) {
+    // fn is hosted, it created call, this time with children
+    const result = children[0]
+    result.id = node.id
+    result.children = cxt.prev_children
+    result.has_more_children = false
+    return result
+  } else {
+    // fn is native, it did not created call, only its child did
+    return {...node, 
+      children: children,
+      has_more_children: false,
     }
-
-
-    if(node.has_more_children) {
-      try {
-        if(node.is_new) {
-          new node.fn(...node.args)
-        } else {
-          node.fn.apply(node.context, node.args)
-        }
-      } catch(e) {
-        // do nothing. Exception was caught and recorded inside '__trace'
-      }
-
-      if(cxt.found_call != null) {
-        return {
-          node: do_expand_calltree_node(cxt, node),
-          call: cxt.found_call,
-        }
-      } else {
-        cxt.children = null
-      }
-    }
-
-    // node has no children, return null
-    return null
   }
-
-  cxt.is_recording_deferred_calls = false
-  cxt.searched_location = location
-
-  const result = do_find(calltree)
-
-  cxt.children = null
-  cxt.searched_location = null
-  cxt.found_call = null
-  cxt.is_recording_deferred_calls = true
-
-  return result
 }
+
+
 
 const __do_await = async (cxt, value) => {
   // children is an array of child calls for current function call. But it
@@ -309,19 +241,19 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
     cxt.children = null
     cxt.stack.push(false)
 
-    const is_found_call =
-      (cxt.searched_location != null && cxt.found_call == null)
-      &&
-      (
-        __location.index == cxt.searched_location.index
-        &&
-        __location.module == cxt.searched_location.module
-      )
+    const call_id = ++cxt.call_counter
 
-    if(is_found_call) {
-      // Assign temporary value to prevent nested calls from populating
-      // found_call
-      cxt.found_call = {}
+    // populate calltree_node_by_loc only for entrypoint module
+    if(cxt.is_entrypoint) {
+      let nodes_of_module = cxt.calltree_node_by_loc.get(__location.module)
+      if(nodes_of_module == null) {
+        nodes_of_module = new Map()
+        cxt.calltree_node_by_loc.set(__location.module, nodes_of_module)
+      }
+      if(nodes_of_module.get(__location.index) == null) {
+        set_record_call(cxt)
+        nodes_of_module.set(__location.index, call_id)
+      }
     }
 
     let ok, value, error
@@ -351,7 +283,7 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
       cxt.prev_children = cxt.children
 
       const call = {
-        id: cxt.call_counter++,
+        id: call_id,
         ok,
         value,
         error,
@@ -360,11 +292,6 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
           ? args
           // Do not capture unused args
           : args.slice(0, argscount),
-      }
-
-      if(is_found_call) {
-        cxt.found_call = call
-        set_record_call(cxt)
       }
 
       const should_record_call = cxt.stack.pop()
@@ -453,7 +380,7 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
     cxt.prev_children = cxt.children
 
     const call = {
-      id: cxt.call_counter++,
+      id: ++cxt.call_counter,
       ok,
       value,
       error,

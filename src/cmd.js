@@ -11,10 +11,10 @@ import {
   root_calltree_node, root_calltree_module, make_calltree, 
   get_deferred_calls,
   calltree_commands,
-  add_frame, calltree_node_loc, expand_path,
+  add_frame, calltree_node_loc, get_calltree_node_by_loc, expand_path,
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
   find_call, find_call_node, set_active_calltree_node, 
-  set_cursor_position, current_cursor_position, set_location
+  set_cursor_position, current_cursor_position, set_location,
 } from './calltree.js'
 
 const collect_logs = (logs, call) => {
@@ -45,6 +45,8 @@ const apply_eval_result = (state, eval_result) => {
   return {
     ...state,
     calltree: make_calltree(eval_result.calltree, null),
+    calltree_node_by_loc: eval_result.calltree_node_by_loc,
+    // TODO copy eval_cxt?
     eval_cxt: eval_result.eval_cxt,
     logs: {
       logs: collect_logs(eval_result.logs, eval_result.calltree), 
@@ -95,6 +97,7 @@ const run_code = (s, dirty_files) => {
     calltree_node_is_expanded: null,
     frames: null,
     calltree_node_by_loc: null,
+    selected_calltree_node_by_loc: null,
     selection_state: null,
     loading_external_imports_state: null,
     value_explorer: null,
@@ -185,75 +188,38 @@ const external_imports_loaded = (
     }
   }
 
-  const node = find_call_node(state, current_cursor_position(state))
-
-  let toplevel, result
-
-  if(
-    // edit module that is not imported (maybe recursively by state.entrypoint)
-    // TODO if module not imported, then do not run code on edit at all
-    node == null
-    ||
-    node.type == 'do' /* toplevel AST node */
-  ) {
-    result = eval_modules(
-      state.parse_result,
-      external_imports,
-      state.on_deferred_call,
-      state.calltree_changed_token,
-      state.io_trace,
-    )
-    toplevel = true
-  } else {
-    result = eval_modules(
-      state.parse_result,
-      external_imports,
-      state.on_deferred_call,
-      state.calltree_changed_token,
-      state.io_trace,
-      {index: node.index, module: state.current_module},
-    )
-    toplevel = false
-  }
+  // TODO if module not imported, then do not run code on edit at all
+  const result = eval_modules(
+    state.parse_result,
+    external_imports,
+    state.on_deferred_call,
+    state.calltree_changed_token,
+    state.io_trace,
+  )
 
   if(result.then != null) {
     return {...state, 
-      eval_modules_state: {
-        promise: result, node, toplevel,
-      }
+      eval_modules_state: { promise: result }
     }
   } else {
-    return eval_modules_finished(state, state, result, node, toplevel)
+    return eval_modules_finished(state, state, result)
   }
 }
 
-const eval_modules_finished = (state, prev_state, result, node, toplevel) => {
+const eval_modules_finished = (state, prev_state, result) => {
   if(state.calltree_changed_token != prev_state.calltree_changed_token) {
     // code was modified after prev vesion of code was executed, discard
     return state
   }
-  const next = apply_eval_result(state, result)
 
-  let active_calltree_node
-
-  if(toplevel) {
-    if(node == state.parse_result.modules[root_calltree_module(next)]) {
-      active_calltree_node = root_calltree_node(next)
-    } else {
-      active_calltree_node = null
-    }
-  } else {
-    if(result.call == null) {
-      // Unreachable call
-      active_calltree_node = null
-    } else {
-      active_calltree_node = result.call
-    }
-  }
+  const next = find_call(
+    apply_eval_result(state, result),
+    current_cursor_position(state)
+  )
 
   let result_state
 
-  if(active_calltree_node == null) {
+  if(next.active_calltree_node == null) {
     const {node, state: next2} = initial_calltree_node(next)
     result_state = set_active_calltree_node(next2, null, node)
   } else {
@@ -261,10 +227,10 @@ const eval_modules_finished = (state, prev_state, result, node, toplevel) => {
       default_expand_path(
         expand_path(
           next,
-          active_calltree_node
+          next.active_calltree_node
         )
       ),
-      active_calltree_node,
+      next.active_calltree_node,
     )
   }
 
@@ -883,7 +849,7 @@ const open_app_window = (state, globals) => {
   })
 }
 
-const get_initial_state = (state, entrypoint_settings) => {
+const get_initial_state = (state, entrypoint_settings, cursor_pos = 0) => {
   const with_files = state.project_dir == null
     ? state
     : load_files(state, state.project_dir)
@@ -892,7 +858,7 @@ const get_initial_state = (state, entrypoint_settings) => {
 
   return {
     ...with_settings,
-    cursor_position_by_file: {[with_settings.current_module]: 0},
+    cursor_position_by_file: {[with_settings.current_module]: cursor_pos},
   }
 }
 

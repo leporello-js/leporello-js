@@ -2,7 +2,7 @@ import {map_accum, map_find, map_object, stringify, findLast} from './utils.js'
 import {is_eq, find_error_origin_node} from './ast_utils.js'
 import {find_node, find_leaf, ancestry_inc} from './ast_utils.js'
 import {color} from './color.js'
-import {eval_frame, eval_expand_calltree_node, eval_find_call} from './eval.js'
+import {eval_frame, eval_expand_calltree_node} from './eval.js'
 
 export const pp_calltree = tree => ({
   id: tree.id,
@@ -82,8 +82,17 @@ export const is_native_fn = calltree_node =>
 export const active_frame = state => 
   state.frames[state.active_calltree_node.id]
 
-const get_calltree_node_by_loc = (state, node) =>
-  state.calltree_node_by_loc
+export const get_calltree_node_by_loc = (state, index) => {
+  const nodes_of_module = state.calltree_node_by_loc.get(state.current_module)
+  if(nodes_of_module == null) {
+    return null
+  } else {
+    return nodes_of_module.get(index)
+  }
+}
+
+const get_selected_calltree_node_by_loc = (state, node) =>
+  state.selected_calltree_node_by_loc
     ?.[state.current_module]
     ?.[
         state.parse_result.modules[state.current_module] == node
@@ -93,13 +102,13 @@ const get_calltree_node_by_loc = (state, node) =>
           : node.index
       ]
 
-const add_calltree_node_by_loc = (state, loc, node_id) => {
+const add_selected_calltree_node_by_loc = (state, loc, node_id) => {
   return {
     ...state,
-    calltree_node_by_loc: 
-      {...state.calltree_node_by_loc,
+    selected_calltree_node_by_loc: 
+      {...state.selected_calltree_node_by_loc,
         [loc.module]: {
-          ...state.calltree_node_by_loc?.[loc.module],
+          ...state.selected_calltree_node_by_loc?.[loc.module],
           [loc.index ?? -1]: node_id
         }
       }
@@ -111,18 +120,11 @@ export const set_active_calltree_node = (
   active_calltree_node, 
   current_calltree_node = state.current_calltree_node,
 ) => {
-  const result = {
+  return {
     ...state, 
     active_calltree_node,
     current_calltree_node,
   }
-  // TODO currently commented, required to implement livecoding second and
-  // subsequent fn calls
-  /*
-  // Record last_good_state every time active_calltree_node changes
-  return {...result, last_good_state: result}
-  */
-  return result
 }
 
 export const add_frame = (
@@ -142,7 +144,8 @@ export const add_frame = (
   } else {
     with_frame = state
   }
-  const result = add_calltree_node_by_loc(
+  // TODO only add if it is not the same
+  const result = add_selected_calltree_node_by_loc(
     with_frame,
     calltree_node_loc(active_calltree_node),
     active_calltree_node.id,
@@ -571,18 +574,21 @@ export const find_call = (state, index) => {
     return state
   }
 
-  const ct_node_id = get_calltree_node_by_loc(state, node)
+  const selected_ct_node_id = get_selected_calltree_node_by_loc(state, node)
 
-  if(ct_node_id === null) {
+  /*
+  TODO remove because it interferes with find_call deferred calls
+  if(selected_ct_node_id === null) {
     // strict compare (===) with null, to check if we put null earlier to
     // designate that fn is not reachable
     return set_active_calltree_node(state, null)
   }
+  */
 
-  if(ct_node_id != null) {
+  if(selected_ct_node_id != null) {
     const ct_node = find_node(
       state.calltree,
-      n => n.id == ct_node_id
+      n => n.id == selected_ct_node_id
     )
     if(ct_node == null) {
       throw new Error('illegal state')
@@ -604,69 +610,22 @@ export const find_call = (state, index) => {
     return state
   }
 
-  const loc = {index: node.index, module: state.current_module}
-  
-  // First try to find node among existing calltree nodes
-  const call = find_node(state.calltree, node => 
-    true
-    && node.fn != null
-    && node.fn.__location != null
-    && node.fn.__location.index == loc.index
-    && node.fn.__location.module == loc.module
-  )
+  const ct_node_id = get_calltree_node_by_loc(state, node.index)
 
-  let next_calltree, active_calltree_node
-
-  if(call != null) {
-    if(call.has_more_children) {
-      active_calltree_node = eval_expand_calltree_node(
-        // TODO copy eval_cxt?
-        state.eval_cxt,
-        state.parse_result, 
-        call
-      )
-      next_calltree = replace_calltree_node(
-        state.calltree, 
-        call, 
-        active_calltree_node
-      )
-    } else {
-      active_calltree_node = call
-      next_calltree = state.calltree
-    }
-  } else {
-    const find_result = eval_find_call(
-      // TODO copy eval_cxt?
-      state.eval_cxt, 
-      state.parse_result, 
-      state.calltree, 
-      loc
-    )
-    if(find_result == null) {
-      return add_calltree_node_by_loc(
-        // Remove active_calltree_node
-        // current_calltree_node may stay not null, because it is calltree node
-        // explicitly selected by user in calltree view
-        set_active_calltree_node(state, null),
-        loc,
-        null
-      )
-    }
-
-    active_calltree_node = find_result.call
-    next_calltree = replace_calltree_node(
-      state.calltree, 
-      find_node(state.calltree, n => n.id == find_result.node.id),
-      find_result.node,
-    )
+  if(ct_node_id == null) {
+    return set_active_calltree_node(state, null)
   }
 
+  const ct_node = find_node(
+    state.calltree,
+    n => n.id == ct_node_id
+  )
+  if(ct_node == null) {
+    throw new Error('illegal state')
+  }
   return add_frame(
-    expand_path(
-      {...state, calltree: next_calltree},
-      active_calltree_node
-    ),
-    active_calltree_node,
+    expand_path(state, ct_node),
+    ct_node,
   )
 }
 
