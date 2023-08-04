@@ -250,8 +250,10 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
   if(show_body) {
     loc = calltree_node_loc(next.active_calltree_node)
   } else {
-    const frame = eval_frame(active_calltree_node, next.modules)
-    callsite_node = find_node(frame, n => n.result?.call == current_calltree_node)
+    const frame = next.frames[active_calltree_node.id]
+    callsite_node = find_node(frame, n => 
+      n.result?.call?.id == current_calltree_node.id
+    )
     loc = {
       module: calltree_node_loc(active_calltree_node).module, 
       index: callsite_node.index
