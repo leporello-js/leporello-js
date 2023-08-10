@@ -23,6 +23,6 @@ async function getBlockNumberByTimestamp(timestamp, low = 0, high = latest.numbe
   }
 }
 
-const timestamp = new Date('2010-08-03').getTime()/1000
+const timestamp = new Date('2019-06-01').getTime()/1000
 const blockNumber = await getBlockNumberByTimestamp(timestamp)
 const block = await provider.getBlock(blockNumber)
