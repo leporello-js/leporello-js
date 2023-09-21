@@ -7,6 +7,10 @@ Leporello.js is an interactive functional programming environment for JavaScript
 ## **[Website](https://leporello.tech)**
 ## **[Try online](https://app.leporello.tech)**
 
+## Leporello.js is funded solely by your donations
+
+Support us on [Github Sponsors](https://github.com/sponsors/leporello-js) and be the first to gain access to the Leporello.js Visual Studio Code plugin with TypeScript support.
+
 ## Features
 
 ### Interactive
