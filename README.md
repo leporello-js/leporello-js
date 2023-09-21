@@ -2,6 +2,8 @@
 
 Leporello.js is an interactive functional programming environment for JavaScript.
 
+[<img src="docs/images/video_cover.png" width="600px">](https://vimeo.com/845773267)
+
 ## **[Website](https://leporello.tech)**
 ## **[Try online](https://app.leporello.tech)**
 
