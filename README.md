@@ -33,7 +33,7 @@ Leporello.js source code is developed within Leporello.js itself
 
 ## Supported javascript subset
 
-Variables are declared by `const` declaration. `var` is not supported. `let` variables can be declared to be assigned later, for cases when value depends on condition. Example:
+Variables are declared using the `const` declaration. The use of `var` is not supported. `let` variables can be declared without an initial assignment, which is useful in cases where the value depends on a condition. Here's an example:
 ```
 let result
 if (n == 0 || n == 1) {
@@ -43,37 +43,37 @@ if (n == 0 || n == 1) {
 }
 ```
 
-Currenlty only one declaration for single `const` statement is supported (TODO).
+Currently, only a single declaration for a single `const` statement is supported (TODO).
 
-Any kind of loops are not supported. Use recursion or array functions instead.
+Loops of any kind are not supported. Instead, consider using recursion or array functions as alternatives.
 
-`if` / `else` can only contain blocks, not single statements (TODO).
+The `if` / `else` statements can only contain blocks of code and not single statements (TODO).
 
-Both traditional functions and arrow functions with block bodies and concise bodies are supported. Method definitions are not supported.
+Both traditional functions and arrow functions, with block bodies and concise bodies, are supported. Method definitions, however, are not currently supported.
 
-Classes are not supported. Some sort of immutable classes may be supported in future. `this` keyword is not currently supported. `new` operator is supported for instantiating builtin classes.
+Classes are not supported at the moment. There is a possibility of supporting some form of immutable classes in the future. The `this` keyword is not currently supported, but the `new` operator can be used for instantiating built-in classes.
 
-`switch` statements will be supported in future.
+`switch` statements will be supported in future updates.
 
-`try`, `catch` and `finally` will be supported in future. `throw` is currently supported.
+Support for `try`, `catch`, and `finally` blocks is planned for future updates. However, the `throw` statement is currently supported.
 
-ES6 modules are suppoted. Circular module dependencies are not supported (currently they crash IDE (TODO)). Import/export aliases are not supported. Exporting `let` variables is not supported. `import.meta` is not supported.
+ES6 modules are fully supported. Note that circular module dependencies are not currently supported and may lead to IDE crashes (with a TODO for improvement). Import/export aliases are not supported, and exporting `let` variables is also not supported. Additionally, `import.meta` is not currently supported.
 
-Async and await are supported.
+`async` functions and `await` are fully supported.
 
 Generators are not supported.
 
 Destructuring is supported.
 
-Some operators are not currently supported:
+Some operators are not supported at the moment, including:
   - Unary plus
   - Bitwise operators
-  - `in`, `instanceof`
+  - `in`
   - `void`
-  - comma operator
+  - Comma operator
 
-Operators that are not supported by design (not pure functional):
-  - increment, decrement
+Certain operators that are not supported are by design, as they are not purely functional. These include:
+  - Increment and decrement
   - `delete`
 
 ## Importing third-party libs
@@ -97,11 +97,9 @@ served from service workers).
 
 ## IO
 
-To provide interactive experience, Leporello.js traces calls to IO functions
-made by your app and can later replay them from trace, allowing to program by
-making small iterations on your code and instantly getting feedback.
+To enhance the interactive experience, Leporello.js traces the calls made to IO functions within your application. This trace can be replayed later, enabling you to program iteratively by making incremental changes to your code and promptly receiving feedback.
 
-Current list of builtin functions which calls are traced is:
+The current list of built-in functions for which calls are traced includes:
 - `Date`
 - `Math.random()`
 - `fetch`
@@ -114,18 +112,14 @@ Current list of builtin functions which calls are traced is:
 - `setTimeout`
 - `clearTimeout`
 
-Leporello.js traces all IO calls when the code is run for the first time. Then,
-every time you edit your code, Leporello.js tries to execute it, taking results
-of IO calls from the trace (it is called replay). Traced calls are stored in array.
-While replay, when IO call is made, Leporello.js takes next call from the
-array, and checks if function and arguments are the same for current call and
-traced call. If they are the same, then Leporello.js returns result from the trace. To
-compare arguments for equality, Leporello.js uses deep equality comparison with
-`JSON.stringify`. Otherwise, the trace gets discarded, and Leporello.js
-executes code again, this time without the trace, so the new trace array is
-populated.
+Leporello.js follows this process to manage IO calls:
+- Initially, when the code is run, Leporello.js traces all IO calls, storing arguments and return values in an array as a trace.
+- Whenever you edit your code, Leporello.js attempts to execute it, using the results of IO calls from the trace (replay).
+- During replay, when an IO call is made, Leporello.js compares the current call to the traced call in the array. It checks if the function and arguments are the same. If they match, Leporello.js returns the result from the trace.
+- To compare arguments for equality, Leporello.js uses deep equality comparison with `JSON.stringify`.
+- If they do not match, the trace is discarded, and Leporello.js executes the code again, this time without the trace. This process populates a new trace array.
 
-If you want to discard trace manually, there is a button and a hotkey for this.
+Additionally, there are options to manually discard the trace, including a button and a hotkey for this purpose.
 
 ## Hotkeys
 
@@ -237,6 +231,6 @@ run tests in leporello itself:
 
 ## Roadmap
 
-* Use production level JS parser, probably typescript parser (so it will be
-  possible to program in pure functional subset of typescript)
+* Use production level JS parser, probably TypeScript parser (so it will be
+  possible to program in pure functional subset of TypeScript)
 * Implement VSCode plugin
