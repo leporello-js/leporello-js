@@ -445,6 +445,23 @@ export class Editor {
       cm.ace.execCommand("edit", input)
     })
 
+    this.ace_editor.commands.addCommand({
+      name: 'buffer',
+      exec: (editor, input) => {
+        const search_query = input.args == null ? '' : input.args[0]
+        // TODO move to cmd.js
+        const module = search_query == '' 
+          ? ''
+          : Object.keys(get_state().files).find(name => name.includes(search_query))
+        if(module != null) {
+          exec('change_current_module', module)
+        }
+      }
+    })
+    VimApi.defineEx("buffer", "b", function(cm, input) {
+      cm.ace.execCommand("buffer", input)
+    })
+
     // TODO remove my custom binding
     VimApi.map('jj', '<Esc>', 'insert')
   }
