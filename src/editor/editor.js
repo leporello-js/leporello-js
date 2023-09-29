@@ -321,12 +321,15 @@ export class Editor {
       container.classList.add('is_not_dom_el')
       const line_height = this.ace_editor.renderer.lineHeight
       content.style.transform = `translate(0px, -${line_height}px)`
+      // hide element before margin applied to avoid jitter
+      container.style.display = 'none'
+      session.widgetManager.addLineWidget(widget) 
       // update_value_explorer_margin relies on getLastVisibleRow which can be
       // incorrect because it may be executed right after set_cursor_position
       // which is async in ace_editor. Use setTimeout
       setTimeout(() => {
         this.update_value_explorer_margin()
-        session.widgetManager.addLineWidget(widget) 
+        container.style.display = ''
       }, 0)
     }
 
