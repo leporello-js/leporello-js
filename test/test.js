@@ -1244,7 +1244,100 @@ export const tests = [
       1
     )
   }),
-
+  
+  test('await only inside async fns', () => {
+    const parse_result = do_parse('function x() { await 1 }')
+    assert_equal(parse_result.ok, false)
+  }),
+  
+  test('identifier has already been declared', () => {
+    const code = `
+      const x = 1
+      const x = 2
+    `
+    const i = test_initial_state(code)
+    assert_equal(i.parse_result.ok, false)
+    assert_equal(
+      i.parse_result.problems, 
+      [
+        {
+          index: code.indexOf('x = 2'),
+          length: 1,
+          message: "Identifier 'x' has already been declared",
+          module: '',
+        }
+      ]
+    )
+  }),
+  
+  test('identifier has already been declared fn decl', () => {
+    const code = `
+      const x = 1
+      function x() {
+      }
+    `
+    const i = test_initial_state(code)
+    assert_equal(i.parse_result.ok, false)
+    assert_equal(
+      i.parse_result.problems, 
+      [
+        {
+          index: code.indexOf('function x()'),
+          length: 1,
+          message: "Identifier 'x' has already been declared",
+          module: '',
+        }
+      ]
+    )
+  }),
+  
+  test('identifier has already been declared export', () => {
+    const code = `
+      export const x = 1
+      function x() {
+      }
+    `
+    const i = test_initial_state(code)
+    assert_equal(i.parse_result.ok, false)
+    assert_equal(
+      i.parse_result.problems, 
+      [
+        {
+          index: code.indexOf('function x()'),
+          length: 1,
+          message: "Identifier 'x' has already been declared",
+          module: '',
+        }
+      ]
+    )
+  }),
+  
+  test('identifier has already been declared import', () => {
+    const code = {
+      '': `
+        import {x} from 'x.js'
+        function x() {
+        }
+      `,
+      'x.js': `
+        export const x = 1
+      `
+    }
+    const i = test_initial_state(code)
+    assert_equal(i.parse_result.ok, false)
+    assert_equal(
+      i.parse_result.problems, 
+      [
+        {
+          index: code[''].indexOf('function x()'),
+          length: 1,
+          message: "Identifier 'x' has already been declared",
+          module: '',
+        }
+      ]
+    )
+  }),
+  
   test('function decl', () => {
     const code = `
       function fib(n) {
@@ -1265,17 +1358,6 @@ export const tests = [
     assert_equal(s2.active_calltree_node.value, 5)
   }),
 
-  /*
-  test('await only in async', () => {
-    const code = `
-      () => {
-        await 1
-      }
-    `
-    console.log(do_parse(code).problems[0])
-    //return assert_equal(do_parse(code).problems[0].message, 'undeclared identifier: x')
-  }),
-  */
 
   /*
   TODO use before assignment

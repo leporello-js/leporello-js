@@ -71,7 +71,6 @@ const add_trivial_definition = node => {
  * will be assigned by the time the closures would be called
  */
 
-// TODO in same pass find already declared
 export const find_definitions = (ast, globals, scope = {}, closure_scope = {}, module_name) => {
   
 
@@ -246,63 +245,100 @@ export const check_imports = modules => {
       .reduce((all, current) => [...all, ...current], [])
 
     return {imports, exports}
-    // TODO check for each import, there is export. For default import there is
-    // default export
   })
-  // Topological sort
-  // For each module
-  // Depth-traverse deps and detect cycles
 }
 
 /*
-TODO: relax, only disallow code that leads to broken target code
-
 code analysis:
-- function must have one and only one return statement in every branch
-- return must be the last statement in block
-
 - name is declared once and only once (including function args). Name can be imported once
-- let must be assigned once and only once (in each branch)
-- every assignment can only be to if identifier is earlier declared by let
-- assignment can only be inside if statement (after let) (relax it?)
-- cannot import names that are not exported from modules
+- every assignment can only be to identifier is earlier declared by let
+- cannot import names that are not exported from modules.If there is default import from module, there should be default export
 - module can be imported either as external or regular
-- cannot return from modules (even inside toplevel if statements)
+- cannot return from modules toplevel
 - await only in async fns
+- import only from toplevel
 */
 export const analyze = (node, is_toplevel = true) => {
-  // TODO remove
-  return []
+  return [
+      ...analyze_await(node, true),
+      ...named_declared_once(node),
+  ]
+}
 
-  /*
-  // TODO sort by location?
-  if(node.type == 'do') {
-    let illegal_returns
-    if(is_toplevel) {
-      illegal_returns = node.stmts.filter(s => s.type == 'return')
-    } else {
-      const last = node.stmts[node.stmts.length - 1];
-      illegal_returns = node.stmts.filter(s => s.type == 'return' && s != last);
-
-      returns.map(node => ({
-        node,
-        message: 'illegal return statement',
-      }));
-
-      const last_return = last.type == 'return'
-      ? null
-      : {node: last, message: 'block must end with return statement'}
-      
-
-      // TODO recur to childs
-    }
-  } else if(node.children != null){
-    return node.children
-      .map(n => analyze(n, node.type == 'function_expr' ? false : is_toplevel))
-      .reduce((ps, p) => ps.concat(p), [])
-  } else {
-    // TODO
-    1
+const collect_problems = (node, context, collector) => {
+  const {context: next_context, problems: node_problems} = collector(node, context)
+  if(node.children == null) {
+    return node_problems
   }
-  */
+  return node.children.reduce(
+    (problems, c) =>  {
+      const ps = collect_problems(c, next_context, collector)
+      if(ps == null) {
+        return problems
+      } 
+      if(problems == null) {
+        return ps
+      }
+      return problems.concat(ps)
+    },
+    node_problems
+  )
+}
+
+const analyze_await = (node, is_async_context = true) => {
+  const result = collect_problems(node, is_async_context, (node, is_async_context) => {
+    if(node.type == 'function_expr') {
+      return {problems: null, context: node.is_async}
+    }
+    if(node.type == 'unary' && node.operator == 'await' && !is_async_context) {
+      const _await = node.children[0]
+      const problem = {
+        index: _await.index, 
+        length: _await.length, 
+        message: 'await is only valid in async functions and the top level bodies of modules',
+      }
+      return {problems: [problem], context: is_async_context}
+    }
+    return {problems: null, context: is_async_context}
+  })
+  
+  return result ?? []
+}
+
+const named_declared_once = node => {
+  return collect_problems(node, null, (node, cxt) => {
+    if(node.type == 'do') {
+      const names = node
+        .children
+        .map(c => {
+          if(c.type == 'function_decl') {
+            const function_expr = c.children[0]
+            return {
+              value: function_expr.name, 
+              index: function_expr.index, 
+              length: function_expr.name.length
+            }
+          } else {
+            const scope = scope_from_node(c)
+            return scope == null
+              ? null
+              : Object.values(scope)
+          }
+        })
+        .flat()
+        .filter(n => n != null)
+      const duplicates = names.filter((n, i) => 
+        names.find((name, j) => name.value == n.value && j < i) != null
+      )
+      const problems = duplicates.map(d => ({
+        index: d.index,
+        length: d.length,
+        message: `Identifier '${d.value}' has already been declared`,
+      }))
+      return {context: null, problems}
+    } else {
+      return {context: null, problems: null}
+    }
+  })
+  
 }
