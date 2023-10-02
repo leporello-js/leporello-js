@@ -139,7 +139,7 @@ export const render_initial_state = (ui, state, example) => {
   }
 }
 
-export const apply_side_effects = (prev, next, command, ui) => {
+export const apply_side_effects = (prev, next, ui) => {
   if(prev.project_dir != next.project_dir) {
     ui.files.render(next)
   }

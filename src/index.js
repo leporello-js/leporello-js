@@ -307,7 +307,7 @@ export const exec = (cmd, ...args) => {
   // Wrap with_code_execution, because rendering values can trigger execution
   // of code by toString() and toJSON() methods
   with_code_execution(() => {
-    apply_side_effects(state, nextstate, cmd, ui);
+    apply_side_effects(state, nextstate, ui)
 
     if(effects != null) {
       (Array.isArray(effects) ? effects : [effects]).forEach(e => {
