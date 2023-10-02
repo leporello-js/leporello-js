@@ -1,3 +1,7 @@
+/*
+  Example of TODO HTML5 app built using preact library
+*/
+
 import {h, render} from 'https://unpkg.com/preact?module';
 
 import {createApp, handler, connect} from './app.js'

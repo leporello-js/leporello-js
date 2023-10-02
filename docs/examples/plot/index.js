@@ -13,6 +13,10 @@ const langs = _(repos.items)
 
 import {barY} from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
 
+/*
+  Move the cursor to the following line and see the plot displayed alongside the code
+*/
+
 barY(langs, {x: "language", y: "count", sort: {x: "y", reverse: true}, fill: 'purple'})
   .plot()
 
