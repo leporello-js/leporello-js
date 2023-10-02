@@ -4,6 +4,7 @@ import {Files} from './files.js'
 import {CallTree} from './calltree.js'
 import {Logs} from './logs.js'
 import {IO_Trace} from './io_trace.js'
+import {ShareDialog} from './share_dialog.js'
 import {el} from './domutils.js'
 
 export class UI {
@@ -129,7 +130,12 @@ export class UI {
               href: 'https://github.com/leporello-js/leporello-js',
               target: '__blank',
             }, 'Github'),
+          el('button', {
+              'class': 'share_button',
+              'click': () => this.share_dialog.showModal(),
+            }, 'Share'),
           this.help_dialog = this.render_help(),
+          this.share_dialog = new ShareDialog().el,
         )
       ))
     )

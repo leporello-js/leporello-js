@@ -299,8 +299,32 @@ export const EFFECTS = {
     localStorage[key] = value
   },
 
-  write: (state, [name, contents], ui) => {
-    if(state.has_file_system_access) {
+  write: (state, [name, contents], ui, prev_state) => {
+    if(name == '') {
+      const share_id = new URL(window.location).searchParams.get('share_id')
+      if(share_id == null) {
+        localStorage['code'] = contents
+      } else {
+        const key = 'share_' + share_id
+        if(localStorage['code'] == prev_state.files['']) {
+          /*
+            If scratch code is the same with share code, then update both
+
+            Imagine the following scenario:
+
+            - User shares code. URL is replaced with ?share_id=XXX
+            - He keeps working on code
+            - He closes browser tab and on the next day he opens app.leporello.tech
+            - His work is lost (actually, he can still access it with
+              ?share_id=XXX, but that not obvious
+
+            To prevent that, we keep updating scratch code after sharing
+          */
+          localStorage['code'] = contents
+        }
+        localStorage[key] = contents
+      }
+    } else if(state.has_file_system_access) {
       write_file(name, contents)
     } else {
       write_example(name, contents)

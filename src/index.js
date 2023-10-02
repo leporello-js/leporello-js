@@ -6,6 +6,7 @@ import {
   init_window_service_worker
 } from './filesystem.js'
 import {examples, examples_dir_promise} from './examples.js'
+import {get_share} from './share.js'
 
 const EXAMPLE = `function fib(n) {
   if(n == 0 || n == 1) {
@@ -178,41 +179,51 @@ export const init = async (container, _COMMANDS) => {
 
   set_error_handler(window)
 
-  const default_module = {'': localStorage.code || EXAMPLE}
+  let files = {'': localStorage.code || EXAMPLE}
   let initial_state, entrypoint_settings
   const project_dir = await open_dir(false)
   let example
   if(project_dir == null) {
     /*
-      extract example from URL params and delete it
+      extract example_id from URL params and delete it (because we dont want to
+      persist in on refresh)
     */
     const params = new URLSearchParams(window.location.search)
     const example_path = params.get('example')
-    params.delete('example')
-    globalThis.history.replaceState(
-      null, 
-      null, 
-      '/' + params.toString() + window.location.hash
-    )
+    const nextURL = new URL(window.location)
+    nextURL.searchParams.delete('example')
+    history.replaceState(null, null, nextURL.href)
 
     example = examples.find(e => e.path == example_path)
-    entrypoint_settings = example == null
-      ? get_entrypoint_settings()
-      : {
+
+    if(example == null) {
+      const shared_code = await get_share()
+      if(shared_code == null) {
+        entrypoint_settings = get_entrypoint_settings()
+      } else {
+        files = {'': shared_code}
+        entrypoint_settings = {
+          current_module: '',
+          entrypoint: '',
+        }
+      }
+    } else {
+      entrypoint_settings = {
         current_module: example.entrypoint,
         entrypoint: example.entrypoint,
       }
+    }
 
     initial_state = {
       project_dir: await examples_dir_promise,
-      files: default_module,
+      files,
       has_file_system_access: false,
     }
   } else {
     entrypoint_settings = get_entrypoint_settings()
     initial_state = {
       project_dir,
-      files: default_module,
+      files,
       has_file_system_access: true,
     }
   }
@@ -306,7 +317,7 @@ export const exec = (cmd, ...args) => {
         } else {
           console.log('apply effect', e.type, ...(e.args ?? []))
         }
-        EFFECTS[e.type](nextstate, e.args, ui)
+        EFFECTS[e.type](nextstate, e.args, ui, state)
       })
     }
   }, nextstate)

@@ -56,7 +56,7 @@
       .editor_container:focus-within, 
       .bottom:focus-within,
       .files_container:focus-within,
-      .help_dialog {
+      dialog {
         outline: none;
         box-shadow: 1px 1px 6px 3px var(--shadow_color);
       }
@@ -314,13 +314,8 @@
 
       /* status */
 
-      /*
-      .request_fullscreen {
-        margin-left: auto;
-      }
-      */
-
       .statusbar {
+        margin-bottom: 0px;
         grid-area: statusbar;
         display: flex;
         flex-direction: row;
@@ -384,8 +379,41 @@
         margin: 0em 0.5em;
       }
 
-      .help_dialog[open] {
+      .share_button, .upload_button {
         border: none;
+        color: white;
+        background: rgb(23 166 236);
+      }
+
+      .share_button {
+        font-size: 1.2em;
+        margin-left: 1em;
+        margin-right: 0.5em;
+      }
+      
+      .share_button[disabled] {
+        background: grey;
+      }
+
+
+      .share_dialog input, .share_dialog button {
+        font-size: 1.2em;
+      }
+
+      .share_dialog button {
+        padding: 5px;
+        height: 2em;
+      }
+
+      dialog {
+        border: none;
+      }
+
+      dialog::backdrop {
+        background-color: rgb(225 244 253 / 80%);
+      }
+
+      .help_dialog[open] {
         display: flex;
         flex-direction: column;
         justify-content: center;
@@ -394,10 +422,6 @@
         min-width: 70%;
         min-height: 70%;
         background-color: white;
-      }
-
-      .help_dialog::backdrop {
-        background-color: rgb(225 244 253 / 80%);
       }
 
       .help {

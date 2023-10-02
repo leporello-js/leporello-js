@@ -248,12 +248,13 @@ const input = (state, code, index) => {
     set_cursor_position({...state, files}, index),
     [state.current_module]
   )
-  const effect_save = next.current_module == ''
-    ? {type: 'save_to_localstorage', args: ['code', code]}
-    : {type: 'write', args: [
+  const effect_save = {
+    type: 'write', 
+    args: [
       next.current_module,
       next.files[next.current_module],
-    ]}
+    ]
+  }
   return {state: next, effects: [effect_save]}
 }
 
