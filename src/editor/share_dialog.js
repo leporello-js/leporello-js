@@ -66,10 +66,10 @@ export class ShareDialog {
     this.uploading.style.display = ''
     this.upload_begin.style.display = 'none'
     try {
-      const id = await save_share(get_state().files[''])
-      this.url = new URL(window.location)
-      this.url.searchParams.append('share_id', id)
-      this.url_share.value = this.url
+      await save_share(get_state().files[''])
+      // window location was changed inside save_share, now it points out to a
+      // new share
+      this.url_share.value = window.location.toString()
       this.upload_finish.style.display = ''
     } catch(e) {
       alert(e.message)
