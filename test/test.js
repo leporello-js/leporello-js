@@ -1012,7 +1012,7 @@ export const tests = [
     )
     // embed_value_explorer suspended until external imports resolved
     assert_equal(effects.length, 1)
-    assert_equal(effects[0].type, 'save_to_localstorage')
+    assert_equal(effects[0].type, 'write')
     assert_equal(
       state.loading_external_imports_state.external_imports,
       ['foo.js'],
