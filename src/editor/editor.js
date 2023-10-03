@@ -267,7 +267,14 @@ export class Editor {
     if(ok) {
       if(value instanceof globalThis.app_window.Element && !value.isConnected) {
         is_dom_el = true
-        content.appendChild(value)
+        if(value instanceof globalThis.app_window.SVGElement) {
+          // Create svg context
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+          svg.appendChild(value)
+          content.appendChild(svg)
+        } else {
+          content.appendChild(value)
+        }
       } else {
         is_dom_el = false
         const exp = new ValueExplorer({
