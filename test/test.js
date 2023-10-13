@@ -2130,6 +2130,17 @@ const y = x()`
       }
     )
   }),
+  
+  test('eval_selection bug', () => {
+    const code = `{foo: 1}`
+    const i = test_initial_state(code)
+    const index = code.indexOf('1')
+    const moved = COMMANDS.move_cursor(i, index)
+    const selection = COMMANDS.eval_selection(moved, index, true).state
+    const selection2 = COMMANDS.eval_selection(selection, index, true).state
+    const selection3 = COMMANDS.eval_selection(selection2, index, false).state
+    assert_equal(selection3.selection_state.node.value, '1')
+  }),
 
   test('find_call', () => {
     const code = `

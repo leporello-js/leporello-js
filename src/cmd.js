@@ -374,16 +374,11 @@ const get_next_selection_state = (selection_state, frame, is_expand, index) => {
         }
       }
     } else {
-      // TODO when collapsing, also check that node is evaluatable
       // collapse
       if(selection_state.node.children != null){
-        next_node = 
-            selection_state.node.children.find(n => 
-              n.index <= index && n.index + n.length > index 
-            )
-          ??
-            // cursor not inside child but in whitespace
-            selection_state.node
+        const leaf = find_leaf(selection_state.node, index)
+        next_node = ancestry_inc(leaf, selection_state.node)
+          .findLast(n => !n.not_evaluatable && n != selection_state.node)
       } else {
         // no children, cannot collapse
         next_node = selection_state.node
