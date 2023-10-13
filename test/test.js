@@ -1662,6 +1662,30 @@ const y = x()`
     assert_equal(color_body.result.ok, true)
   }),
 
+  test('coloring error with nested fns', () => {
+    const code = `[1].map(_ => {throw new Error()}).map(x => x + 1)`
+    const i = test_initial_state(code)
+    const coloring = color_file(i, '')
+
+    const result = {ok: false, error_origin: true}
+    assert_equal(
+      coloring,
+      [
+        {
+          index: 0, 
+          length: code.indexOf('_ =>'),
+          result
+        },
+        {
+          index: code.indexOf(').map(x =>'), 
+          length: 1,
+          result
+        },
+      ]
+      
+    )
+  }),
+
   test('better parse errors', () => {
     const code = `
       const x = z => {

@@ -1,3 +1,21 @@
+const collect_function_exprs = new Function('root', `
+  const result = []
+  function do_collect(n) {
+    if(n.type == 'function_expr') {
+      result.push(n)
+      return
+    }
+    if(n.children == null) {
+      return
+    }
+    for(let c of n.children) {
+      do_collect(c)
+    }
+  }
+  do_collect(root)
+  return result
+`)
+
 const is_result_eq = (a,b) => a.result == null
   ? b.result == null
   : b.result != null 
@@ -158,7 +176,33 @@ const do_color = (node, is_root = false) => {
   } 
 
   if(node.result?.error != null) {
-    return [node_to_color(node)]
+    const color = node_to_color(node)
+    const exprs = collect_function_exprs(node)
+    if(exprs.length == 0) {
+      return [color]
+    }
+    // Color node in red, but make holes for function exprs
+    return exprs
+      .map((e, i) => {
+        let prev_index
+        if(i == 0) {
+          prev_index = node.index
+        } else {
+          const prev_expr = exprs[i - 1]
+          prev_index = prev_expr.index + prev_expr.length
+        }
+        return {
+          index: prev_index, 
+          length: e.index - prev_index, 
+          result: color.result
+        }
+      })
+      .concat([{
+        index: exprs.at(-1).index + exprs.at(-1).length, 
+        length: node.index + node.length 
+          - (exprs.at(-1).index + exprs.at(-1).length), 
+        result: color.result,
+      }])
   } 
 
   const result = color_children(node, is_root)
