@@ -452,7 +452,7 @@ export const eval_codestring = (codestring, scope) =>
       try {
         return {ok: true, value: eval('with({...scope}){' + codestring + '}')}
       } catch(error) {
-        return {ok: false, error}
+        return {ok: false, error, is_error_origin: true}
       }
     `
   ))(codestring, scope)
@@ -481,7 +481,7 @@ const get_args_scope = (fn_node, args, closure) => {
 
   if(!ok) {
     // TODO show exact destructuring error
-    return {ok, error}
+    return {ok, error, is_error_origin: true}
   } else {
     return {
       ok, 
@@ -534,6 +534,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         children: result.children,
         calls: result.calls,
         error: new TypeError(child.string + ' is not iterable'),
+        is_error_origin: true,
       }
     }
   } else if([
@@ -598,6 +599,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         return {
           ok: false,
           error: context.calltree_node.error,
+          is_error_origin: true,
           children,
           calls,
         }
@@ -611,6 +613,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         call: c,
         value: c.value, 
         error: c.error, 
+        is_error_origin: !c.ok,
         children,
         calls: calls.slice(1)
       }
@@ -687,7 +690,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       return {ok: false, children, calls}
     } else {
       const expr = children[0]
-      let ok, value, error
+      let ok, value, error, is_error_origin
       if(node.operator == '!') {
         ok = true
         value = !expr.result.value
@@ -707,6 +710,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
             ok = status.ok
             error = status.error
             value = status.value
+            is_error_origin = !ok
           }
         } else {
           ok = true
@@ -715,7 +719,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       } else {
         throw new Error('unknown op')
       }
-      return {ok, children, calls, value, error}
+      return {ok, children, calls, value, error, is_error_origin}
     }
   } else if(node.type == 'binary' && !['&&', '||', '??'].includes(node.operator)){
 
@@ -783,7 +787,7 @@ const eval_children = (node, scope, calls, context) => {
 }
 
 const eval_frame_expr = (node, scope, callsleft, context) => {
-  const {ok, error, value, call, children, calls} 
+  const {ok, error, is_error_origin, value, call, children, calls} 
     = do_eval_frame_expr(node, scope, callsleft, context)
   if(callsleft != null && calls == null) {
     // TODO remove it, just for debug
@@ -795,7 +799,7 @@ const eval_frame_expr = (node, scope, callsleft, context) => {
       ...node, 
       children, 
       // Add `call` for step_into
-      result: {ok, error, value, call}
+      result: {ok, error, value, call, is_error_origin}
     },
     calls,
   }
@@ -974,7 +978,7 @@ const eval_statement = (s, scope, calls, context) => {
       return {
         ok: false,
         // TODO assign error to node where destructuring failed, not to every node
-        node: {...s_evaled, result: {ok, error}},
+        node: {...s_evaled, result: {ok, error, is_error_origin: true}},
         scope,
         calls,
       }
@@ -1135,6 +1139,7 @@ const eval_statement = (s, scope, calls, context) => {
         children: [node], 
         result: {
           ok: false, 
+          is_error_origin: node.result.ok,
           error: node.result.ok ? node.result.value : null,
         }
       },
@@ -1188,7 +1193,8 @@ export const eval_frame = (calltree_node, modules) => {
             a => ({...a, 
               result: {
                 ok: args_scope_result.ok,
-                error:  args_scope_result.ok ? null : args_scope_result.error,
+                error: args_scope_result.ok ? null : args_scope_result.error,
+                is_error_origin: !args_scope_result.ok,
                 value: !args_scope_result.ok ? null : args_scope_result.value[a.value],
               }
             })

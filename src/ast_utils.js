@@ -145,33 +145,27 @@ export const find_node = (node, pred) => {
     )
 }
 
-// TODO refactor, at eval.js we have explicit information if node is error
-// origin, without guessing. See also color.js
 // TODO result is ok, but value is rejected promise
-// TODO check if return result is null and throw early
-export const find_error_origin_node = node =>
-  find_node(
-    // TODO do not go inside function_expr
-    node, 
-    n => n.result != null && !n.result.ok && (
-      n.result.error != null
-      ||
-      // node has no error, but its children also have no error, so this node
-      // is error origin
-      n.children.find(c => find_error_origin_node(c) != null) == null
-      &&
-      (
-        // In case if throw null or throw undefined
-        n.type == 'throw'
-        ||
-        // await can also throw null
-        n.type == 'unary' && n.operator == 'await'
-        // or function call throwing null or undefined
-        || 
-        n.type == 'function_call'
-      )
+export const find_error_origin_node = (node, is_root = true) => {
+  if(node.result == null) {
+    return null
+  }
+  if(node.type == 'function_expr' && !is_root) {
+    return null
+  }
+  if(node.result.is_error_origin) {
+    return node
+  }
+  if(node.children == null) {
+    return null
+  }
+  return node
+    .children
+    .reduce(
+      (result, c) => result ?? find_error_origin_node(c, false),
+      null
     )
-  )
+}
 
 /* Maps tree nodes, discarding mapped children, so maps only node contents, not
  * allowing to modify structure */

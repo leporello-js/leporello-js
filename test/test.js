@@ -1504,7 +1504,7 @@ export const tests = [
         {
           index: code.indexOf('x()'), 
           length: 'x()'.length, 
-          result: { ok: false, error_origin: true } 
+          result: { ok: false, is_error_origin: true } 
         }
       ]
     )
@@ -1527,12 +1527,12 @@ export const tests = [
         { 
           index: code.indexOf('throw'), 
           length: 'throw new Error()'.length, 
-          result: { ok: false, error_origin: true } 
+          result: { ok: false, is_error_origin: true } 
         },
         { 
           index: code.indexOf('x()'), 
           length: "x()".length, 
-          result: { ok: false, error_origin: true } 
+          result: { ok: false, is_error_origin: true } 
         }
       ]
     )
@@ -1544,7 +1544,7 @@ export const tests = [
     // Color only index access, not grouping braces
     assert_equal(
       color_file(initial, ''),
-      [ { index: 1, length: 7, result: { ok: false, error_origin: true } } ],
+      [ { index: 1, length: 7, result: { ok: false, is_error_origin: true } } ],
     )
   }),
 
@@ -1603,7 +1603,7 @@ export const tests = [
         { 
           index: 0, 
           length: code.length, 
-          result: { ok: false, error_origin: true } 
+          result: { ok: false, is_error_origin: true } 
         } 
       ]
     )
@@ -1667,7 +1667,7 @@ const y = x()`
     const i = test_initial_state(code)
     const coloring = color_file(i, '')
 
-    const result = {ok: false, error_origin: true}
+    const result = {ok: false, is_error_origin: true}
     assert_equal(
       coloring,
       [

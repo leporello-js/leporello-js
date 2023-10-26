@@ -20,7 +20,7 @@ const is_result_eq = (a,b) => a.result == null
   ? b.result == null
   : b.result != null 
       && a.result.ok == b.result.ok 
-      && a.result.error_origin == b.result.error_origin
+      && !!a.result.is_error_origin == !!b.result.is_error_origin
 
 const node_to_color = node => ({
   index: node.index, 
@@ -31,11 +31,7 @@ const node_to_color = node => ({
       ? null
       : node.result.ok
         ? {ok: true}
-        // node.result.error may be null, for example if throw null
-        // See find_error_origin_node
-        : node.result.error == null
-          ? {ok: false, error_origin: false}
-          : {ok: false, error_origin: true}
+        : {ok: false, is_error_origin: !!node.result.is_error_origin}
 })
 
 const is_short_circuit = node =>
@@ -175,7 +171,7 @@ const do_color = (node, is_root = false) => {
     return [node_to_color(node)]
   } 
 
-  if(node.result?.error != null) {
+  if(node.result?.is_error_origin) {
     const color = node_to_color(node)
     const exprs = collect_function_exprs(node)
     if(exprs.length == 0) {
@@ -208,7 +204,7 @@ const do_color = (node, is_root = false) => {
   const result = color_children(node, is_root)
   return node.result != null && !node.result.ok
     ? result.map(c => c.result == null
-        ? {...c, result: {ok: false, error_origin: false}}
+        ? {...c, result: {ok: false, is_error_origin: false}}
         : c
       )
     : result
@@ -222,7 +218,7 @@ export const color = frame => {
       c.result != null
       &&
       // Parts that were not error origins
-      (c.result.ok || c.result.error_origin)
+      (c.result.ok || c.result.is_error_origin)
     )
 
   // Sanity-check result
