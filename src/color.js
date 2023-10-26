@@ -20,7 +20,7 @@ const is_result_eq = (a,b) => a.result == null
   ? b.result == null
   : b.result != null 
       && a.result.ok == b.result.ok 
-      && !!a.result.is_error_origin == !!b.result.is_error_origin
+      && !(!a.result.is_error_origin) == !(!b.result.is_error_origin)
 
 const node_to_color = node => ({
   index: node.index, 
@@ -31,7 +31,7 @@ const node_to_color = node => ({
       ? null
       : node.result.ok
         ? {ok: true}
-        : {ok: false, is_error_origin: !!node.result.is_error_origin}
+        : {ok: false, is_error_origin: !(!node.result.is_error_origin)}
 })
 
 const is_short_circuit = node =>
