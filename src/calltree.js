@@ -836,6 +836,42 @@ const select_arguments = (state, with_focus = true) => {
   }
 }
 
+const select_error = state => {
+  const node = [
+    state.current_calltree_node,
+    state.active_calltree_node,
+    root_calltree_node(state),
+    // TODO deferred calls???
+  ].find(n => n != null && !n.ok)
+  
+  if(node == null) {
+    return {state, effects: [{type: 'set_status', args: ['no error found']}]}
+  }
+
+  const error_origin = find_node(node, n =>
+    !n.ok 
+    && (
+      n.children == null || n.children.every(c => c.ok)
+    )
+  )
+
+  if(error_origin == null) {
+    throw new Error('illegal state: error origin not found')
+  }
+
+  const next = expand_path(add_frame(state, error_origin), error_origin)
+  const frame = active_frame(next)
+  const error_node = find_error_origin_node(frame)
+
+  return {
+    state: set_location(next, {
+      module: calltree_node_loc(error_origin).module, 
+      index: error_node.index
+    }),
+    effects: {type: 'set_focus'}
+  }
+}
+
 const navigate_logs_increment = (state, increment) => {
   if(state.logs.logs.length == 0) {
     return {state}
@@ -875,6 +911,7 @@ export const calltree_commands = {
   click,
   select_return_value,
   select_arguments,
+  select_error,
   navigate_logs_position,
   navigate_logs_increment,
 }

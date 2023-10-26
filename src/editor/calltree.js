@@ -39,6 +39,10 @@ export class CallTree {
         exec('calltree.select_arguments')
       }
 
+      if(e.key == 'e') {
+        exec('calltree.select_error')
+      }
+
       if(e.key == 'r' || e.key == 'Enter') {
         exec('calltree.select_return_value')
       }

@@ -145,8 +145,9 @@ export const find_node = (node, pred) => {
     )
 }
 
-// TODO refactor, have explicit information if node is error origin, without
-// guessing. See also color.js
+// TODO refactor, at eval.js we have explicit information if node is error
+// origin, without guessing. See also color.js
+// TODO result is ok, but value is rejected promise
 // TODO check if return result is null and throw early
 export const find_error_origin_node = node =>
   find_node(

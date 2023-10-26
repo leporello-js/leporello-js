@@ -2375,6 +2375,24 @@ const y = x()`
     assert_equal(s3.value_explorer.result, {ok: true, value: ["1"]})
   }),
 
+  test('select_error', () => {
+    const code = `
+      const deep = x => {
+        if(x == 10) {
+          throw new Error()
+        } else {
+          deep(x + 1)
+        }
+      }
+
+      deep(0)
+    `
+    const i = test_initial_state(code, code.indexOf('deep(x + 1)'))
+    const {state: found_err_state, effects} = COMMANDS.calltree.select_error(i)
+    assert_equal(found_err_state.active_calltree_node.args, [10])
+    assert_equal(current_cursor_position(found_err_state), code.indexOf('throw'))
+  }),
+
   test('move_cursor arguments', () => {
     const code = `
       const x = (a, b) => { }

@@ -307,6 +307,7 @@ export class UI {
       ['Step out of call', 'Ctrl-o', '\\o'],
       ['When in call tree view, jump to return statement', 'Enter'],
       ['When in call tree view, jump to function arguments', 'a'],
+      ['When in call tree view, jump to error origin', 'e'],
       ['Clear IO trace', 'F6'],
       ['(Re)open run window (F7)', 'F7'],
     ]
