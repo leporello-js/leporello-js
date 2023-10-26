@@ -36,7 +36,9 @@ export const reserved = [
 'var',
 'void',
 'while',
-'with',
+// TODO: fix parser to allow 'with' be an Object key, as other reserved words.
+// Currently we make exception for Array.with
+// 'with',
 'yield',
 'enum',
 'implements',
