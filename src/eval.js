@@ -157,8 +157,8 @@ const codegen = (node, node_cxt, parent) => {
   } else if(node.type == 'do'){
     return [
         // hoist function decls to the top
-        ...node.stmts.filter(s => s.type == 'function_decl'),
-        ...node.stmts.filter(s => s.type != 'function_decl'),
+        ...node.children.filter(s => s.type == 'function_decl'),
+        ...node.children.filter(s => s.type != 'function_decl'),
       ].reduce(
         (result, stmt) => result + (do_codegen(stmt)) + ';\n',
         ''
@@ -850,7 +850,7 @@ const eval_statement = (s, scope, calls, context) => {
   if(s.type == 'do') {
     const node = s
     // hoist function decls to the top
-    const function_decls = node.stmts
+    const function_decls = node.children
       .filter(s => s.type == 'function_decl')
       .map(s => {
         const {ok, children, calls: next_calls} = eval_children(s, scope, calls, context)
@@ -872,10 +872,10 @@ const eval_statement = (s, scope, calls, context) => {
 
     const initial_scope = {...scope, ...hoisted_functions_scope}
 
-    const {ok, assignments, returned, stmts, calls: next_calls} = node.stmts.reduce(
-      ({ok, returned, stmts, scope, calls, assignments}, s) => {
+    const {ok, assignments, returned, children, calls: next_calls} = node.children.reduce(
+      ({ok, returned, children, scope, calls, assignments}, s) => {
         if(returned || !ok) {
-          return {ok, returned, scope, calls, stmts: [...stmts, s], assignments}
+          return {ok, returned, scope, calls, children: [...children, s], assignments}
         } else if(s.type == 'function_decl') {
           const node = function_decls.find(decl => decl.index == s.index)
           return {
@@ -885,7 +885,7 @@ const eval_statement = (s, scope, calls, context) => {
             assignments,
             scope,
             calls,
-            stmts: [...stmts, node],
+            children: [...children, node],
           }
         } else {
           const {
@@ -902,14 +902,14 @@ const eval_statement = (s, scope, calls, context) => {
             assignments: {...assignments, ...next_assignments},
             scope: nextscope,
             calls: next_calls,
-            stmts: [...stmts, node],
+            children: [...children, node],
           }
         }
       },
-      {ok: true, returned: false, stmts: [], scope: initial_scope, calls, assignments: {}}
+      {ok: true, returned: false, children: [], scope: initial_scope, calls, assignments: {}}
     )
     const {node: next_node, scope: next_scope} = 
-      apply_assignments({...node, children: stmts, result: {ok}}, assignments)
+      apply_assignments({...node, children: children, result: {ok}}, assignments)
     return {
       ok,
       node: next_node,

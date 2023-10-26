@@ -42,7 +42,7 @@ export const map_destructuring_identifiers = (node, mapper) => {
 
 export const collect_imports = module => {
   return uniq(
-    module.stmts
+    module.children
       .filter(n => n.type == 'import')
       .filter(n => !n.is_external)
       .map(n => n.full_import_path)

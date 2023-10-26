@@ -228,7 +228,7 @@ const node_has_toplevel_await = node => {
 export const check_imports = modules => {
   // TODO allow circular imports
   return map_object(modules, (module, node) => {
-    const imports = node.stmts
+    const imports = node.children
       .filter(n => n.type == 'import')
       .reduce(
         (imports, n) => [

@@ -1438,10 +1438,7 @@ const update_children_not_rec = (node, children = node.children) => {
       is_statement: true,
     }
   } else if(node.type == 'do'){
-    return {...node,
-      stmts: children,
-      is_statement: true,
-    }
+    return {...node, is_statement: true}
   } else if(node.type == 'function_decl'){
     return {...node,
       is_statement: true,

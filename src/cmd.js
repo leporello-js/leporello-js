@@ -532,7 +532,7 @@ const goto_definition = (state, index) => {
       } else {
         let loc
         if(d.module != null) {
-          const exp = map_find(state.parse_result.modules[d.module].stmts, n => {
+          const exp = map_find(state.parse_result.modules[d.module].children, n => {
             if(n.type != 'export') {
               return null
             }
