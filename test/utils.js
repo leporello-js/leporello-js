@@ -72,6 +72,10 @@ export const eval_tree = code => {
 
 export const assert_code_evals_to = (codestring, expected) => {
   const s = test_initial_state(codestring)
+  if(!s.parse_result.ok) {
+    console.error('parse problems', s.parse_result.problems)
+    throw new Error('parse failed')
+  }
   const frame = active_frame(s)
   const result = frame.children.at(-1).result
   assert_equal(result.ok, true)
