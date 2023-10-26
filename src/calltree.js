@@ -842,16 +842,16 @@ const select_error = state => {
     state.active_calltree_node,
     root_calltree_node(state),
     // TODO deferred calls???
-  ].find(n => n != null && !n.ok)
+  ].find(n => has_error(n))
   
   if(node == null) {
     return {state, effects: [{type: 'set_status', args: ['no error found']}]}
   }
 
   const error_origin = find_node(node, n =>
-    !n.ok 
+    has_error(n)
     && (
-      n.children == null || n.children.every(c => c.ok)
+      n.children == null || n.children.every(c => !has_error(c))
     )
   )
 
