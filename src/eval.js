@@ -813,10 +813,6 @@ const apply_assignments = (do_node, assignments) => {
     .flat()
     .map(c => c.index)
 
-  const unused_assignments = filter_object(assignments, (index, val) => 
-    let_ids.find(i => i.toString() == index) == null
-  )
-
   // Scope we return to parent block
   const scope = Object.fromEntries(
     Object
