@@ -53,6 +53,13 @@ export const zip = (x,y) => {
 
 export const uniq = arr => [...new Set(arr)]
 
+export const uniq_by = (arr, mapper) => [
+  ...new Map(
+    arr.map(e => [mapper(e), e])
+  )
+    .values()
+]
+
 export const collect_nodes_with_parents = new Function('node', 'pred', `
   const result = []
 

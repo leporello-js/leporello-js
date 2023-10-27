@@ -1269,6 +1269,49 @@ export const tests = [
       ]
     )
   }),
+
+  test('identifier has already been declared in fn arg', () => {
+    const code = `
+      function foo(x) {
+        const x = 1
+      }
+
+    `
+    const i = test_initial_state(code)
+    assert_equal(i.parse_result.ok, false)
+    assert_equal(
+      i.parse_result.problems, 
+      [
+        {
+          index: code.indexOf('x = 1'),
+          length: 1,
+          message: "Identifier 'x' has already been declared",
+          module: '',
+        }
+      ]
+    )
+  }),
+
+  test('identifier has been declared twice in args', () => {
+    const code = `
+      function foo({x,x}) {
+      }
+
+    `
+    const i = test_initial_state(code)
+    assert_equal(i.parse_result.ok, false)
+    assert_equal(
+      i.parse_result.problems, 
+      [
+        {
+          index: code.indexOf('x}'),
+          length: 1,
+          message: "Identifier 'x' has already been declared",
+          module: '',
+        }
+      ]
+    )
+  }),
   
   test('identifier has already been declared fn decl', () => {
     const code = `

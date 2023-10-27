@@ -1,7 +1,9 @@
 // TODO rename to analyze.js
 
-import {set_push, set_diff, set_union, map_object, map_find, uniq} from './utils.js'
-import {collect_destructuring_identifiers, collect_imports, ancestry, find_leaf} from './ast_utils.js'
+import {set_push, set_diff, set_union, map_object, map_find, uniq, uniq_by} 
+  from './utils.js'
+import {collect_destructuring_identifiers, collect_imports, ancestry, find_leaf} 
+  from './ast_utils.js'
 
 const map_find_definitions = (nodes, mapper) => {
   const result = nodes.map(mapper)
@@ -305,9 +307,27 @@ const analyze_await = (node, is_async_context = true) => {
   return result ?? []
 }
 
+const find_duplicates = names => {
+  const duplicates = names.filter((n, i) => 
+    names.find((name, j) => name.value == n.value && j < i) != null
+  )
+  const problems = duplicates.map(d => ({
+    index: d.index,
+    length: d.length,
+    message: `Identifier '${d.value}' has already been declared`,
+  }))
+  return problems
+}
+
 const named_declared_once = node => {
   return collect_problems(node, null, (node, cxt) => {
-    if(node.type == 'do') {
+    if(node.type == 'function_expr') {
+      const names = collect_destructuring_identifiers(node.function_args)
+      return {
+        context: uniq_by(names, n => n.value),
+        problems: find_duplicates(names),
+      }
+    } else if(node.type == 'do') {
       const names = node
         .children
         .map(c => {
@@ -327,14 +347,9 @@ const named_declared_once = node => {
         })
         .flat()
         .filter(n => n != null)
-      const duplicates = names.filter((n, i) => 
-        names.find((name, j) => name.value == n.value && j < i) != null
+      const problems = find_duplicates(
+        [...(cxt ?? []), ...names]
       )
-      const problems = duplicates.map(d => ({
-        index: d.index,
-        length: d.length,
-        message: `Identifier '${d.value}' has already been declared`,
-      }))
       return {context: null, problems}
     } else {
       return {context: null, problems: null}
