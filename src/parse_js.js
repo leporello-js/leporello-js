@@ -1091,55 +1091,47 @@ const function_decl = if_ok(
   node => ({...node, type: 'function_decl', children: [node]})
 )
 
-// TODO multiple decls, like `const x = 1, y = 2`
-const const_statement =
-  if_ok(
-    seq([
-      literal('const'),
-      destructuring,
-      literal('='),
-      expr,
-    ]),
-    ({value, ...node}) => {
-      const [_const, identifier, _eq, expr] = value
-      return {
-        ...node,
-        type: 'const',
-        name: identifier.value,
-        children: [identifier, expr],
-      }
+const decl_pair = if_ok(
+  seq([destructuring, literal('='), expr]),
+  ({value, ...node}) => {
+    const [lefthand, _eq, expr] = value
+    return {
+      ...node,
+      type: 'decl_pair',
+      not_evaluatable: true,
+      children: [lefthand, expr],
     }
-  )
+  }
+)
 
-const let_declaration = if_ok(
+const const_or_let = is_const => if_ok(
   seq_select(1, [
-    literal('let'),
-    comma_separated_1(identifier),
+    literal(is_const ? 'const' : 'let'),
+    comma_separated_1(
+      is_const
+        ? decl_pair
+        : either(decl_pair, identifier)
+    )
   ]),
   ({value, ...node}) => ({
     ...node,
-    type: 'let',
+    type: is_const ? 'const' : 'let',
     children: value.value,
-    names: value.value.map(n => n.value),
   })
 )
 
+const const_statement = const_or_let(true)
+
+const let_declaration = const_or_let(false)
+
+// TODO object assignment required braces, like ({foo} = {foo: 1})
 const assignment = if_ok(
-  seq([
-    // TODO object assignment required braces, like ({foo} = {foo: 1})
-    destructuring,
-    literal('='),
-    expr,
-  ]),
-  ({value, ...node}) => {
-    const [identifier, _eq, expr] = value
-    return {
-      ...node,
-      type: 'assignment',
-      name: identifier.value,
-      children: [identifier, expr],
-    }
-  },
+  comma_separated_1(decl_pair),
+  ({value, ...node}) => ({
+    ...node,
+    type: 'assignment',
+    children: value,
+  })
 )
 
 const return_statement =
@@ -1422,21 +1414,14 @@ const update_children_not_rec = (node, children = node.children) => {
     }
   } else if(node.type == 'const'){
     return {...node,
-      name_node: children[0],
-      expr: children[1],
       is_statement: true,
     }
   } else if(node.type == 'let'){
-    return {...node,
-      name_node: children,
-      is_statement: true,
-    }
+    return {...node, is_statement: true }
+  } else if(node.type == 'decl_pair') {
+    return {...node, expr: node.children[1], name_node: node.children[0]}
   } else if(node.type == 'assignment'){
-    return {...node,
-      name_node: children[0],
-      expr: children[1],
-      is_statement: true,
-    }
+    return {...node, is_statement: true}
   } else if(node.type == 'do'){
     return {...node, is_statement: true}
   } else if(node.type == 'function_decl'){
@@ -1568,8 +1553,10 @@ const do_deduce_fn_names = (node, parent) => {
     node_result.name == null
   ) {
     let name
-    if(parent?.type == 'const') {
-      name = parent.name
+    if(parent?.type == 'decl_pair') {
+      if(parent.name_node.type == 'identifier') {
+        name = parent.name_node.value
+      }
     } else if(parent?.type == 'key_value_pair') {
       // unwrap quotes with JSON.parse
       name = JSON.parse(parent.key.value)

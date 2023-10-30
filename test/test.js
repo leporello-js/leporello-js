@@ -320,6 +320,15 @@ export const tests = [
     )
   }),
 
+  test('let variable', () => {
+    const code = `
+      let x, y = 2, unused, [z,q] = [3,4]
+      x = 1
+    `
+    const i = test_initial_state(code, code.indexOf('x'))
+    assert_equal(i.value_explorer.result.value, {y: 2, z: 3, q: 4})
+  }),
+
   test('else if', () => {
     const code = `
       let x
@@ -764,7 +773,10 @@ export const tests = [
     const {calltree, modules} = eval_modules(parsed);
     const frame = eval_frame(calltree, modules)
     assert_equal(frame.children[1].result, {ok: true})
-    assert_equal(frame.children[1].children[0].children[1].result, {ok: true, value: 2})
+    assert_equal(
+      find_node(frame, n => n.string == 'b').result.value,
+      2
+    )
   }),
 
   test('eval_frame error', () => {
@@ -971,7 +983,6 @@ export const tests = [
     `)
     assert_equal(result.ok, true)
   }),
-
 
   test('module external', () => {
     const code = `
@@ -1193,6 +1204,12 @@ export const tests = [
       }
     })
     assert_equal(active_frame(next).children.at(-1).result.value, 'foo_value')
+  }),
+
+  test('export value explorer', () => {
+    const code = 'export const x = 1'
+    const i = test_initial_state(code)
+    assert_equal(i.value_explorer.result.value, 1)
   }),
 
   // Static analysis
@@ -1446,8 +1463,53 @@ export const tests = [
     )
     // assert let has result
     assert_equal(frame.children[0].result, {ok: true})
-    // assert x value
-    assert_equal(frame.children[0].children[0].result, {ok: true, value: 1})
+  }),
+
+  test('multiple assignments', () => {
+    assert_code_evals_to(
+      `
+        let x, y
+        x = 1, {y} = {y: 2}
+        {x,y}
+      `,
+      {x: 1, y: 2}
+    )
+  }),
+
+  test('assigments value explorer', () => {
+    const code = `
+      let x
+      x = 1
+    `
+    const i = test_initial_state(code, code.indexOf('x = 1'))
+    assert_equal(i.value_explorer.result.value, 1)
+  }),
+
+  test('multiple assigments value explorer', () => {
+    const code = `
+      let x, y
+      x = 1, y = 2
+    `
+    const i = test_initial_state(code, code.indexOf('x = 1'))
+    assert_equal(i.value_explorer.result.value, {x: 1, y: 2})
+  }),
+
+  test('assigments destructuring value explorer', () => {
+    const code = `
+      let x, y
+      x = 1, {y} = {y:2}
+    `
+    const i = test_initial_state(code, code.indexOf('x = 1'))
+    assert_equal(i.value_explorer.result.value, {x: 1, y: 2})
+  }),
+
+  test('assigments error', () => {
+    const code = `
+      let x, y
+      x = 1, y = null.foo
+    `
+    const i = test_initial_state(code, code.indexOf('x = 1'))
+    assert_equal(i.value_explorer.result.ok, false)
   }),
 
   test('block scoping', () => {
@@ -2471,15 +2533,15 @@ const y = x()`
 
   test('move_cursor let', () => {
     const code = `
-      let x
-      x = 1
+      let x = 1
     `
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('x'))
+    const lettext = 'let x = 1'
     assert_equal(s2.value_explorer, {
-      index: code.indexOf('let x'),
-      length: 5,
-      result: {ok: true, value: {x: 1}},
+      index: code.indexOf(lettext),
+      length: lettext.length,
+      result: {ok: true, value: 1},
     })
   }),
 

@@ -539,7 +539,9 @@ const goto_definition = (state, index) => {
             if(n.is_default && d.is_default) {
               return n.children[0]
             } else if(!n.is_default && !d.is_default) {
-              const ids = collect_destructuring_identifiers(n.binding.name_node)
+              const ids = n.binding.children.flatMap(c => 
+                collect_destructuring_identifiers(c.name_node)
+              )
               return ids.find(i => i.value == node.value)
             }
           })
@@ -591,6 +593,71 @@ const filter_calltree = (calltree, pred) => {
   }
 }
 */
+
+const get_stmt_value_explorer = (state, stmt) => {
+  if(stmt.result == null) {
+    // statement was not evaluated
+    return null
+  }
+
+  let result
+
+  if(stmt.result.ok) {
+    if(stmt.type == 'return') {
+      result = stmt.children[0].result
+    } else if(['let', 'const', 'assignment'].includes(stmt.type)) {
+      const identifiers = stmt
+        .children
+        .flatMap(
+          collect_destructuring_identifiers
+        )
+        .filter(id => id.result != null)
+        .map(id => [id.value, id.result.value])
+      let value
+      if(
+        stmt.children.length == 1 
+        && 
+        (
+          stmt.children[0].type == 'identifier' 
+          || 
+          stmt.children[0].type == 'decl_pair' 
+          && 
+          stmt.children[0].name_node.type == 'identifier'
+        )
+      ) {
+        // Just a single declaration
+        if(identifiers.length != 1) {
+          throw new Error('illegal state')
+        }
+        value = identifiers[0][1]
+      } else {
+        value = Object.fromEntries(identifiers)
+      }
+
+      return {
+        index: stmt.index,
+        length: stmt.length,
+        result: {ok: true, value},
+      }
+    } else if(stmt.type == 'if'){
+      return null
+    } else if(stmt.type == 'import'){
+      result = {
+        ok: true,
+        value: state.modules[stmt.full_import_path],
+      }
+    } else if (stmt.type == 'export') {
+      return get_stmt_value_explorer(state, stmt.children[0])
+    } else {
+      result = stmt.result
+    }
+  } else {
+    result = find_error_origin_node(stmt).result
+  }
+
+  return {index: stmt.index, length: stmt.length, result}
+}
+
 
 const get_value_explorer = (state, index) => {
   if(
@@ -677,49 +744,8 @@ const get_value_explorer = (state, index) => {
   const do_node = anc[do_index]
   const stmt = anc[do_index - 1]
 
-  if(stmt.result == null) {
-    // statement was not evaluated
-    return null
-  }
+  return get_stmt_value_explorer(state, stmt)
 
-  let result
-
-  if(stmt.result.ok) {
-    if(['const', 'assignment'].includes(stmt.type)) {
-      result = stmt.children[1].result
-    } else if(stmt.type == 'return') {
-      result = stmt.children[0].result
-    } else if(stmt.type == 'let') {
-      return {
-        index: stmt.index,
-        length: stmt.length,
-        result: 
-          {
-            ok: true, 
-            value: Object.fromEntries(
-              stmt.children.map(c => 
-                [c.value, c.result.value]
-              )
-            )
-          }
-      }
-    } else if(stmt.type == 'if'){
-      return null
-    } else if(stmt.type == 'import'){
-      result = {
-        ok: true,
-        value: state.modules[stmt.full_import_path],
-      }
-    } else if (stmt.type == 'export') {
-      result = stmt.children[0].children[1].result
-    } else {
-      result = stmt.result
-    }
-  } else {
-    result = find_error_origin_node(stmt).result
-  }
-
-  return {index: stmt.index, length: stmt.length, result}
 }
 
 const do_move_cursor = (state, index) => {

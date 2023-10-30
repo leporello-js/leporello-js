@@ -217,32 +217,49 @@ const codegen = (node, node_cxt, parent) => {
     + branches[0]
     +'\n: '
     + branches[1]
-  } else if(node.type == 'const'){
-    const res = 'const ' + do_codegen(node.name_node) + ' = ' + do_codegen(node.expr, node) + ';'
-    if(node.name_node.type == 'identifier' && node.expr.type == 'function_call') {
-      // deduce function name from variable it was assigned to if anonymous
-      // works for point-free programming, like
-      // const parse_statement = either(parse_import, parse_assignment, ...)
-      return res + `
+  } else if(['const', 'let', 'assignment'].includes(node.type)) {
+    const prefix = node.type == 'assignment'
+      ? ''
+      : node.type + ' '
+    return prefix + node
+      .children
+      .map(c => c.type == 'identifier'
+        ? c.value
+        : do_codegen(c.children[0]) + ' = ' + do_codegen(c.children[1])
+      )
+      .join(',') 
+    + ';'
+    + node.children.map(decl => {
         if(
-          typeof(${node.name_node.value}) == 'function' 
+          node.type != 'assignment'
+          &&
+          decl.type != 'identifier' 
           && 
-          ${node.name_node.value}.name == 'anonymous'
+          decl.name_node.type == 'identifier' 
+          && 
+          decl.expr.type == 'function_call'
         ) {
-          Object.defineProperty(
-            ${node.name_node.value}, 
-            "name", 
-            {value: "${node.name_node.value}"}
-          );
+          // deduce function name from variable it was assigned to if anonymous
+          // works for point-free programming, like
+          // const parse_statement = either(parse_import, parse_assignment, ...)
+          return `
+            if(
+              typeof(${decl.name_node.value}) == 'function' 
+              && 
+              ${decl.name_node.value}.name == 'anonymous'
+            ) {
+              Object.defineProperty(
+                ${decl.name_node.value}, 
+                "name", 
+                {value: "${decl.name_node.value}"}
+              );
+            }
+          `
+        } else {
+          return ''
         }
-      `
-    } else {
-      return res
-    }
-  } else if(node.type == 'let') {
-    return 'let ' + node.names.join(',') + ';';
-  } else if(node.type == 'assignment') {
-    return node.name + ' = ' + do_codegen(node.expr, node) + ';';
+      })
+      .join('')
   } else if(node.type == 'member_access'){
     return '(' 
       + do_codegen(node.object) 
@@ -295,7 +312,10 @@ ${JSON.stringify(errormessage)}, true)`
     if(node.is_default) {
       return `__cxt.modules['${node_cxt.module}'].default = ${do_codegen(node.children[0])};`
     } else {
-      const identifiers = collect_destructuring_identifiers(node.binding.name_node)
+      const identifiers = node
+        .binding
+        .children
+        .flatMap(n => collect_destructuring_identifiers(n.name_node))
         .map(i => i.value)
       return do_codegen(node.binding)
         +
@@ -805,8 +825,8 @@ const eval_frame_expr = (node, scope, callsleft, context) => {
   }
 }
 
-const apply_assignments = (do_node, assignments) => {
-  const let_ids = do_node
+const apply_assignments = (node, assignments) => {
+  const let_ids = node
     .children
     .filter(c => c.type == 'let')
     .map(l => l.children)
@@ -823,34 +843,99 @@ const apply_assignments = (do_node, assignments) => {
     .map(([k, {name, value}]) => [name, value])
   )
 
-  const node = {...do_node, 
-    children: do_node.children.map(_let => {
-      if(_let.type != 'let') {
-        return _let
-      }
-      const children = _let.children.map(id => {
-        const a = assignments[id.index]
-        if(a == null) {
-          return id
-        } else {
-          return {...id, result: {ok: true, value: a.value}}
-        }
-      })
-      return {..._let, 
-        result: children.every(c => c.result != null) ? {ok: true} : null,
-        children
-      }
-    })
-  }
-
   return {node, scope}
 }
 
+const eval_decl_pair = (s, scope, calls, context, is_assignment) => {
+  if(s.type != 'decl_pair') {
+    throw new Error('illegal state')
+  }
+  // TODO default values for destructuring can be function calls
+
+  const {node, calls: next_calls} 
+    = eval_frame_expr(s.expr, scope, calls, context)
+  const s_expr_evaled = {...s, children: [s.name_node, node]}
+  if(!node.result.ok) {
+    return {
+      ok: false,
+      node: {...s_expr_evaled, result: {ok: false}},
+      scope,
+      calls: next_calls,
+    }
+  }
+
+  const name_nodes = collect_destructuring_identifiers(s.name_node)
+  const names = name_nodes.map(n => n.value)
+  const destructuring = codegen(s.name_node)
+
+  // TODO unique name for __value (gensym)
+  const codestring = `
+    const ${destructuring} = __value; 
+    ({${names.join(',')}});
+  `
+  const {ok, value: next_scope, error} = eval_codestring(
+    codestring, 
+    {...scope, __value: node.result.value}
+  )
+
+  // TODO fine-grained destructuring error, only for identifiers that failed
+  // destructuring
+  const name_node_with_result = map_tree(
+    map_destructuring_identifiers(
+      s.name_node,
+      node => ({...node, 
+        result: {
+          ok, 
+          error: ok  ? null : error,
+          value: !ok ? null : next_scope[node.value],
+        }
+      })
+    ),
+    n => n.result == null
+      ? {...n, result: {ok}}
+      : n
+  )
+
+  const s_evaled = {...s_expr_evaled, children: [
+    name_node_with_result,
+    s_expr_evaled.children[1],
+  ]}
+
+  if(!ok) {
+    return {
+      ok: false,
+      // TODO assign error to node where destructuring failed, not to every node
+      node: {...s_evaled, result: {ok, error, is_error_origin: true}},
+      scope,
+      calls,
+    }
+  }
+
+  return {
+    ok: true,
+    node: {...s_evaled, result: {ok: true}},
+    scope: {...scope, ...next_scope},
+    calls: next_calls,
+    assignments: is_assignment
+      ? Object.fromEntries(
+          name_nodes.map(n => [
+            n.definition.index, 
+            {
+              value: next_scope[n.value],
+              name: n.value,
+            }
+          ])
+        )
+      : null
+  }
+}
+
+
 const eval_statement = (s, scope, calls, context) => {
   if(s.type == 'do') {
-    const node = s
+    const stmt = s
     // hoist function decls to the top
-    const function_decls = node.children
+    const function_decls = s.children
       .filter(s => s.type == 'function_decl')
       .map(s => {
         const {ok, children, calls: next_calls} = eval_children(s, scope, calls, context)
@@ -872,7 +957,7 @@ const eval_statement = (s, scope, calls, context) => {
 
     const initial_scope = {...scope, ...hoisted_functions_scope}
 
-    const {ok, assignments, returned, children, calls: next_calls} = node.children.reduce(
+    const {ok, assignments, returned, children, calls: next_calls} = s.children.reduce(
       ({ok, returned, children, scope, calls, assignments}, s) => {
         if(returned || !ok) {
           return {ok, returned, scope, calls, children: [...children, s], assignments}
@@ -909,7 +994,7 @@ const eval_statement = (s, scope, calls, context) => {
       {ok: true, returned: false, children: [], scope: initial_scope, calls, assignments: {}}
     )
     const {node: next_node, scope: next_scope} = 
-      apply_assignments({...node, children: children, result: {ok}}, assignments)
+      apply_assignments({...s, children: children, result: {ok}}, assignments)
     return {
       ok,
       node: next_node,
@@ -918,86 +1003,46 @@ const eval_statement = (s, scope, calls, context) => {
       assignments,
       calls: next_calls,
     }
-  } else if(s.type == 'const' || s.type == 'assignment') {
-    // TODO default values for destructuring can be function calls
+  } else if(['let', 'const', 'assignment'].includes(s.type)) {
+    const stmt = s
 
-    const {node, calls: next_calls} 
-      = eval_frame_expr(s.expr, scope, calls, context)
-    const s_expr_evaled = {...s, children: [s.name_node, node]}
-    if(!node.result.ok) {
-      return {
-        ok: false,
-        node: {...s_expr_evaled, result: {ok: false}},
-        scope,
-        calls: next_calls,
-      }
-    }
+    const initial = {ok: true, children: [], scope, calls, assignments: null}
 
-    const name_nodes = collect_destructuring_identifiers(s.name_node)
-    const names = name_nodes.map(n => n.value)
-    const destructuring = codegen(s.name_node)
-
-    // TODO unique name for __value (gensym)
-    const codestring = `
-      const ${destructuring} = __value; 
-      ({${names.join(',')}});
-    `
-    const {ok, value: next_scope, error} = eval_codestring(
-      codestring, 
-      {...scope, __value: node.result.value}
+    const {ok, children, calls: next_calls, scope: next_scope, assignments} = s.children.reduce(
+      ({ok, children, scope, calls, assignments}, s) => {
+        if(!ok) {
+          return {ok, scope, calls, children: [...children, s]}
+        } 
+        if(stmt.type == 'let' && s.type == 'identifier') {
+          const node = {...s, result: {ok: true}}
+          return {ok, children: [...children, node], scope, calls}
+        }
+        const {
+          ok: next_ok, 
+          node,
+          scope: nextscope, 
+          calls: next_calls, 
+          assignments: next_assignments,
+        } = eval_decl_pair(s, scope, calls, context, stmt.type == 'assignment')
+        return {
+          ok: next_ok,
+          scope: nextscope,
+          calls: next_calls,
+          children: [...children, node],
+          assignments: stmt.type == 'assignment' 
+            ? {...assignments, ...next_assignments}
+            : null
+        }
+      },
+      initial
     )
-
-    // TODO fine-grained destructuring error, only for identifiers that failed
-    // destructuring
-    const name_node_with_result = map_tree(
-      map_destructuring_identifiers(
-        s.name_node,
-        node => ({...node, 
-          result: {
-            ok, 
-            error: ok  ? null : error,
-            value: !ok ? null : next_scope[node.value],
-          }
-        })
-      ),
-      n => n.result == null
-        ? {...n, result: {ok}}
-        : n
-    )
-
-    const s_evaled = {...s_expr_evaled, children: [
-      name_node_with_result,
-      s_expr_evaled.children[1],
-    ]}
-
-    if(!ok) {
-      return {
-        ok: false,
-        // TODO assign error to node where destructuring failed, not to every node
-        node: {...s_evaled, result: {ok, error, is_error_origin: true}},
-        scope,
-        calls,
-      }
-    }
-
     return {
-      ok: true,
-      node: {...s_evaled, result: {ok: true}},
+      ok,
+      node: {...s, children, result: {ok}},
       scope: {...scope, ...next_scope},
       calls: next_calls,
-      assignments: s.type == 'assignment'
-        ? Object.fromEntries(
-            name_nodes.map(n => [
-              n.definition.index, 
-              {
-                value: next_scope[n.value],
-                name: n.value,
-              }
-            ])
-          )
-        : null
+      assignments,
     }
-
   } else if(s.type == 'return') {
 
     const {node, calls: next_calls} = 
@@ -1120,10 +1165,6 @@ const eval_statement = (s, scope, calls, context) => {
         calls: next_calls2,
       }
     }
-
-  } else if(s.type == 'let') {
-
-    return { ok: true, node: s, scope, calls }
 
   } else if(s.type == 'throw') {
 

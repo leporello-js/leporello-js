@@ -26,11 +26,13 @@ const scope_from_node = n => {
     )
   } else if(n.type == 'export'){
     return scope_from_node(n.binding)
-  } else if(n.type == 'const' || n.type == 'let'){
+  } else if(n.type == 'let' || n.type == 'const') {
     return Object.fromEntries(
-      collect_destructuring_identifiers(n.name_node).map(node => [
-        node.value, node
-      ])
+      n.children
+        .flatMap(collect_destructuring_identifiers)
+        .map(node => [
+          node.value, node
+        ])
     )
   } else if(n.type == 'function_decl') {
     // Return null because of hoisting. We take function decls into account
@@ -55,6 +57,11 @@ const add_trivial_definition = node => {
     ]}
   } else if(['array_destructuring', 'object_destructuring'].includes(node.type)) {
     return {...node, children: node.children.map(add_trivial_definition)}
+  } else if (node.type == 'decl_pair') {
+    return {
+      ...node, 
+      children: node.children.with(0, add_trivial_definition(node.children[0]))
+    }
   } else {
     console.error(node)
     throw new Error('not implemented')
@@ -150,10 +157,8 @@ export const find_definitions = (ast, globals, scope = {}, closure_scope = {}, m
           is_default: i == 0 && ast.default_import != null,
         }
       }))
-    } else if(ast.type == 'const') {
-      children = [add_trivial_definition(ast.name_node), ...ast.children.slice(1)]
-    } else if(ast.type == 'let') {
-      children = ast.name_node.map(add_trivial_definition)
+    } else if(ast.type == 'const' || ast.type == 'let') {
+      children = ast.children.map(add_trivial_definition)
     } else {
       children = ast.children
     }

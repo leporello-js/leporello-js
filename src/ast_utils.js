@@ -13,9 +13,11 @@ export const collect_destructuring_identifiers = node => {
     ['array_destructuring', 'object_destructuring', 'function_args']
       .includes(node.type)
   ) {
-    return node.elements
+    return node.children
         .map(collect_destructuring_identifiers)
         .flat()
+  } else if (node.type == 'decl_pair') {
+    return collect_destructuring_identifiers(node.children[0])
   } else {
     console.error(node)
     throw new Error('not implemented')
