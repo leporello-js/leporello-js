@@ -1015,7 +1015,12 @@ const eval_statement = (s, scope, calls, context) => {
         } 
         if(stmt.type == 'let' && s.type == 'identifier') {
           const node = {...s, result: {ok: true}}
-          return {ok, children: [...children, node], scope, calls}
+          return {
+            ok, 
+            children: [...children, node], 
+            scope: {...scope, [s.value]: undefined},
+            calls
+          }
         }
         const {
           ok: next_ok, 

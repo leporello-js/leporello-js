@@ -329,6 +329,16 @@ export const tests = [
     assert_equal(i.value_explorer.result.value, {y: 2, z: 3, q: 4})
   }),
 
+  test('let variable not initialized bug', () => {
+    const code = `
+      let x
+      x /*label*/
+    `
+    const i = test_initial_state(code, code.indexOf('x /*label'))
+    assert_equal(i.value_explorer.result.ok, true)
+    assert_equal(i.value_explorer.result.value === undefined, true)
+  }),
+
   test('else if', () => {
     const code = `
       let x
