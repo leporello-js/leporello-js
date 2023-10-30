@@ -1419,7 +1419,7 @@ const update_children_not_rec = (node, children = node.children) => {
   } else if(node.type == 'let'){
     return {...node, is_statement: true }
   } else if(node.type == 'decl_pair') {
-    return {...node, expr: node.children[1], name_node: node.children[0]}
+    return {...node, expr: children[1], name_node: children[0]}
   } else if(node.type == 'assignment'){
     return {...node, is_statement: true}
   } else if(node.type == 'do'){
