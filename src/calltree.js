@@ -851,7 +851,14 @@ const select_error = state => {
   const error_origin = find_node(node, n =>
     has_error(n)
     && (
-      n.children == null || n.children.every(c => !has_error(c))
+      n.children == null 
+      || 
+      n.children.every(c => 
+        !has_error(c)
+        ||
+        // Error in native fn
+        is_native_fn(c) && c.children == null
+      )
     )
   )
 

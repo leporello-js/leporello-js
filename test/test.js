@@ -2508,6 +2508,23 @@ const y = x()`
     assert_equal(current_cursor_position(found_err_state), code.indexOf('throw'))
   }),
 
+  test('select_error in native fn', () => {
+    const code = `
+      function x() {
+        Object.entries(null)
+      }
+      
+      x()
+    `
+    const i = test_initial_state(code)
+    const {state: found_err_state} = COMMANDS.calltree.select_error(i)
+    assert_equal(found_err_state.active_calltree_node.fn.name, 'x')
+    assert_equal(
+      current_cursor_position(found_err_state), 
+      code.indexOf('Object.entries')
+    )
+  }),
+
   test('move_cursor arguments', () => {
     const code = `
       const x = (a, b) => { }
