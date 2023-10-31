@@ -81,16 +81,12 @@ export const scrollIntoViewIfNeeded = (container, target) => {
   if(target.offsetTop - container.scrollTop - container.offsetTop < 0){
     // The top of the target will be aligned to the top of the visible area of the scrollable ancestor
     target.scrollIntoView(true);
-    // Do not scroll horizontally
-    container.scrollLeft = 0
   }
 
   // Target is outside the view from the bottom
   if(target.offsetTop - container.scrollTop - container.offsetTop - container.clientHeight + target.clientHeight > 0) {
     //  The bottom of the target will be aligned to the bottom of the visible area of the scrollable ancestor.
     target.scrollIntoView(false);
-    // Do not scroll horizontally
-    container.scrollLeft = 0
   }
 
   /*
