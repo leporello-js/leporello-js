@@ -1555,6 +1555,25 @@ export const tests = [
     )
   }),
 
+  test('block scoping shadow bug', () => {
+    assert_code_evals_to(
+      `
+        let y = 3
+        if(true) {
+          let y
+          y = 1
+          if(true) {
+            let y
+            y = 2
+          }
+          y
+        }
+        y
+      `,
+      3
+    )
+  }),
+
   test('step_into', () => {
     const code = `
       const x = () => 1;

@@ -833,17 +833,14 @@ const apply_assignments = (node, assignments) => {
     .flat()
     .map(c => c.index)
 
+  const parent_assignments = Object.entries(assignments).filter(([index, v]) => 
+    let_ids.find(i => i.toString() == index) == null
+  )
   // Scope we return to parent block
   const scope = Object.fromEntries(
-    Object
-    .entries(assignments)
-    .filter(([index, v]) => 
-      let_ids.find(i => i.toString() == index) == null
-    )
-    .map(([k, {name, value}]) => [name, value])
+    parent_assignments.map(([k, {name, value}]) => [name, value])
   )
-
-  return {node, scope}
+  return {node, scope, assignments: Object.fromEntries(parent_assignments)}
 }
 
 const eval_decl_pair = (s, scope, calls, context, is_assignment) => {
@@ -993,14 +990,14 @@ const eval_statement = (s, scope, calls, context) => {
       },
       {ok: true, returned: false, children: [], scope: initial_scope, calls, assignments: {}}
     )
-    const {node: next_node, scope: next_scope} = 
+    const {node: next_node, scope: next_scope, assignments: parent_assignments} = 
       apply_assignments({...s, children: children, result: {ok}}, assignments)
     return {
       ok,
       node: next_node,
       scope: {...scope, ...next_scope},
       returned,
-      assignments,
+      parent_assignments,
       calls: next_calls,
     }
   } else if(['let', 'const', 'assignment'].includes(s.type)) {
