@@ -866,7 +866,7 @@ const select_error = state => {
     throw new Error('illegal state: error origin not found')
   }
 
-  const next = expand_path(add_frame(state, error_origin), error_origin)
+  const next = expand_path(jump_calltree_node(state, error_origin), error_origin)
   const frame = active_frame(next)
   const error_node = find_error_origin_node(frame)
 
