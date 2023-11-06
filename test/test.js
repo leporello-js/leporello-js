@@ -3100,6 +3100,29 @@ const y = x()`
     assert_equal(moved.active_calltree_node.args, [10])
   }),
 
+  test('find branch deferred calls', () => {
+    const code = `
+      export const foo = arg => {
+        return arg
+      }
+      foo(1)
+    `
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
+
+    // Make deferred call
+    i.modules[''].foo(2)
+
+    const state = on_deferred_call(i)
+    const call = get_deferred_calls(state)[0]
+    assert_equal(call.value, 2)
+
+    // Expand call
+    const expanded = COMMANDS.calltree.click(state, call.id)
+    const moved = COMMANDS.move_cursor(expanded, code.indexOf('return arg'))
+    assert_equal(moved.active_calltree_node.value, 2)
+  }),
+
+
   test('stale id in frame function_call.result.calls bug', () => {
     const code = `
       const x = () => {/*x*/
