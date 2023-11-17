@@ -651,15 +651,17 @@ const symbol_for_identifier = (node, context) => {
   
 const do_eval_frame_expr = (node, scope, callsleft, context) => {
   if(node.type == 'identifier') {
+    let value
     if(node.definition == 'global') {
-      return {...eval_codestring(node.value, scope), calls: callsleft, scope}
+      value = globalThis.app_window[node.value]
     } else {
-      return {
-        ok: true,
-        value: scope[symbol_for_identifier(node, context)],
-        calls: callsleft, 
-        scope
-      }
+      value = scope[symbol_for_identifier(node, context)]
+    }
+    return {
+      ok: true,
+      value,
+      calls: callsleft, 
+      scope,
     }
   } else if([
     'builtin_identifier',
@@ -668,7 +670,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
     'backtick_string',
   ].includes(node.type)){
     // TODO exprs inside backtick string
-    // Pass scope for backtick string
+    // TODO for string literal and number, do not use eval
     return {...eval_codestring(node.value, scope), calls: callsleft, scope}
   } else if(node.type == 'array_spread') {
     const result = eval_children(node, scope, callsleft, context)
@@ -1024,6 +1026,8 @@ const eval_decl_pair = (s, scope, calls, context) => {
   const name_nodes = collect_destructuring_identifiers(s.name_node)
   const names = name_nodes.map(n => n.value)
   const destructuring = codegen(s.name_node, {literal_identifiers: true})
+
+  // TODO if destructuring is just one id, then do not use eval_codestring
 
   // TODO unique name for __value (gensym)
   const codestring = `
