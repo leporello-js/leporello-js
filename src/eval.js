@@ -18,7 +18,7 @@ import {has_toplevel_await} from './find_definitions.js'
 
 // import runtime as external because it has non-functional code
 // external
-import {run, do_eval_expand_calltree_node, Multiversion} from './runtime.js'
+import {run, do_eval_expand_calltree_node, Multiversion} from './runtime/runtime.js'
 
 // TODO: fix error messages. For example, "__fn is not a function"
 
