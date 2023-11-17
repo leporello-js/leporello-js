@@ -74,6 +74,11 @@ const i = test_initial_state(
   {entrypoint: 'test/run.js'},
 )
 
+if(!i.parse_result.ok) {
+  console.error('Parse errors:', i.parse_result.problems)
+  throw new Error('parse error')
+}
+
 assert_equal(i.loading_external_imports_state != null, true)
 const external_imports = await load_external_modules(i)
 const loaded = COMMANDS.external_imports_loaded(i, i, external_imports)

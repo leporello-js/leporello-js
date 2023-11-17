@@ -107,6 +107,9 @@ export const assert_code_error_async = async (codestring, error) => {
 }
 
 export const test_initial_state = (code, cursor_pos, other, entrypoint_settings) => {
+  if(cursor_pos < 0) {
+    throw new Error('illegal cursor_pos')
+  }
   return COMMANDS.open_app_window(
     COMMANDS.get_initial_state(
       {
@@ -124,8 +127,8 @@ export const test_initial_state = (code, cursor_pos, other, entrypoint_settings)
   )
 }
 
-export const test_initial_state_async = async code => {
-  const s = test_initial_state(code)
+export const test_initial_state_async = async (code, ...args) => {
+  const s = test_initial_state(code, ...args)
   assert_equal(s.eval_modules_state != null, true)
   const result = await s.eval_modules_state.promise
   return COMMANDS.eval_modules_finished(

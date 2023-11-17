@@ -33,17 +33,7 @@ Leporello.js source code is developed within Leporello.js itself
 
 ## Supported javascript subset
 
-Variables are declared using the `const` declaration. The use of `var` is not supported. `let` variables can be declared without an initial assignment, which is useful in cases where the value depends on a condition. Here's an example:
-```
-let result
-if (n == 0 || n == 1) {
-  result = n
-} else {
-  result = fib(n - 1) + fib(n - 2)
-}
-```
-
-Currently, only a single declaration for a single `const` statement is supported (TODO).
+Variables are declared using the `const` or 'let' declaration. The use of `var` is not supported.
 
 Loops of any kind are not supported. Instead, consider using recursion or array functions as alternatives.
 

@@ -7,7 +7,8 @@ import {
 
 import {
   find_fn_by_location, 
-  find_node,
+  find_declaration,
+  find_leaf,
   collect_destructuring_identifiers,
   map_destructuring_identifiers,
   map_tree,
@@ -17,7 +18,7 @@ import {has_toplevel_await} from './find_definitions.js'
 
 // import runtime as external because it has non-functional code
 // external
-import {run, do_eval_expand_calltree_node} from './runtime.js'
+import {run, do_eval_expand_calltree_node, Multiversion} from './runtime.js'
 
 // TODO: fix error messages. For example, "__fn is not a function"
 
@@ -72,8 +73,14 @@ const codegen_function_expr = (node, node_cxt) => {
     ? `(${args}) => `
     : `function(${args})`
 
-  // TODO gensym __obj, __fn, __call_id
-  const prolog = '{const __call_id = __cxt.call_counter;'
+  // TODO gensym __obj, __fn, __call_id, __let_vars
+  const prolog = 
+    '{const __call_id = __cxt.call_counter;' 
+    + (
+        node.has_versioned_let_vars
+        ? 'const __let_vars = __cxt.let_vars;'
+        : ''
+      )
 
   const call = (node.is_async ? 'async ' : '') + decl + (
     (node.body.type == 'do')
@@ -96,7 +103,7 @@ const codegen_function_expr = (node, node_cxt) => {
   const get_closure = `() => ({${[...node.closed].join(',')}})`
 
   return `__trace(__cxt, ${call}, "${node.name}", ${argscount}, ${location}, \
-${get_closure})`
+${get_closure}, ${node.has_versioned_let_vars})`
 }
 
 /*
@@ -142,12 +149,28 @@ ${JSON.stringify(errormessage)})`
 // marker
 export const get_after_if_path = node => node.index + 1
 
-const codegen = (node, node_cxt, parent) => {
+const codegen = (node, node_cxt) => {
 
-  const do_codegen = (n, parent) => codegen(n, node_cxt, parent)
+  const do_codegen = n => codegen(n, node_cxt)
 
-  if([
-    'identifier',
+  if(node.type == 'identifier') {
+
+    if(node.definition == 'self' || node.definition == 'global') {
+      return node.value
+    }
+
+    if(node.definition.index == null) {
+      throw new Error('illegal state')
+    }
+    if(
+      !node_cxt.literal_identifiers && 
+      find_leaf(node_cxt.toplevel, node.definition.index).is_versioned_let_var
+    ) {
+      return node.value + '.get()'
+    }
+
+    return node.value
+  } else if([
     'number',
     'string_literal',
     'builtin_identifier',
@@ -190,7 +213,8 @@ const codegen = (node, node_cxt, parent) => {
         if(el.type == 'object_spread'){
           return do_codegen(el)
         } else if(el.type == 'identifier') {
-          return el.value
+          const value = do_codegen(el)
+          return el.value + ': ' + value
         } else if(el.type == 'key_value_pair') {
           return '[' + do_codegen(el.key.type == 'computed_property' ? el.key.expr : el.key) + ']' 
             + ': (' + do_codegen(el.value, el) + ')'
@@ -223,10 +247,53 @@ const codegen = (node, node_cxt, parent) => {
       : node.type + ' '
     return prefix + node
       .children
-      .map(c => c.type == 'identifier'
-        ? c.value
-        : do_codegen(c.children[0]) + ' = ' + do_codegen(c.children[1])
-      )
+      .map(c => {
+        if(node.type == 'let') {
+          let lefthand, righthand
+          if(c.type == 'identifier') {
+            // let decl without assignment, like 'let x'
+            lefthand = c
+            if(!lefthand.is_versioned_let_var) {
+              return lefthand.value
+            }
+          } else if(c.type == 'decl_pair') {
+            lefthand = c.children[0], righthand = c.children[1]
+            if(lefthand.type != 'identifier') {
+              // TODO
+              // See comment for 'simple_decl_pair' in 'src/parse_js.js'
+              // Currently it is unreachable
+              throw new Error('illegal state')
+            }
+          } else {
+            throw new Error('illegal state')
+          }
+          if(lefthand.is_versioned_let_var) {
+            const name = lefthand.value
+            const symbol = symbol_for_let_var(lefthand)
+            return  name + (
+              righthand == null
+                ?  ` = __let_vars['${symbol}'] = new __Multiversion(__cxt)`
+                :  ` = __let_vars['${symbol}'] = new __Multiversion(__cxt, ${do_codegen(righthand)})`
+            )
+          } // Otherwise goes to the end of the func
+        }
+        
+        if(node.type == 'assignment') {
+          const [lefthand, righthand] = c.children
+          if(lefthand.type != 'identifier') {
+            // TODO
+            // See comment for 'simple_decl_pair' in 'src/parse_js.js'
+            // Currently it is unreachable
+            throw new Error('TODO: illegal state')
+          }
+          const let_var = find_leaf(node_cxt.toplevel, lefthand.definition.index)
+          if(let_var.is_versioned_let_var){
+            return lefthand.value + '.set(' + do_codegen(righthand, node) + ')'
+          }
+        }
+
+        return do_codegen(c.children[0]) + ' = ' + do_codegen(c.children[1])
+      })
       .join(',') 
     + ';'
     + node.children.map(decl => {
@@ -338,7 +405,8 @@ export const eval_modules = (
   io_trace,
   location
 ) => {
-  // TODO gensym __cxt, __trace, __trace_call, __calltree_node_by_loc, __do_await
+  // TODO gensym __cxt, __trace, __trace_call, __calltree_node_by_loc,
+  // __do_await, __Multiversion
 
   // TODO bug if module imported twice, once as external and as regular
 
@@ -348,28 +416,37 @@ export const eval_modules = (
     ? globalThis.app_window.eval('(async function(){})').constructor
     : globalThis.app_window.Function
 
-  const module_fns = parse_result.sorted.map(module => (
-    {
+  const module_fns = parse_result.sorted.map(module => {
+    const code = codegen(
+      parse_result.modules[module], 
+      {
+        module,
+        toplevel: parse_result.modules[module], 
+      }
+    )
+    return {
       module,
       // TODO refactor, instead of multiple args prefixed with '__', pass
       // single arg called `runtime`
       fn: new Function(
         '__cxt',
+        '__let_vars',
         '__calltree_node_by_loc',
         '__trace',
         '__trace_call',
         '__do_await',
         '__save_ct_node_for_path',
+        '__Multiversion',
 
         /* Add dummy __call_id for toplevel. It does not make any sence
          * (toplevel is executed only once unlike function), we only add it
          * because we dont want to codegen differently for if statements in
          * toplevel and if statements within functions*/
-        'const __call_id = "SOMETHING_WRONG_HAPPENED";' + 
-        codegen(parse_result.modules[module], {module})
+        'const __call_id = __cxt.call_counter;' + 
+        code
       )
     }
-  ))
+  })
 
   const cxt = {
     modules: external_imports == null
@@ -482,7 +559,10 @@ const get_args_scope = (fn_node, args, closure) => {
     collect_destructuring_identifiers(fn_node.function_args)
     .map(i => i.value)
 
-  const destructuring = fn_node.function_args.children.map(n => codegen(n)).join(',')
+  const destructuring = fn_node
+    .function_args
+    .children.map(n => codegen(n, {literal_identifiers: true}))
+    .join(',')
 
   /*
   // TODO gensym __args. Or 
@@ -516,22 +596,72 @@ const get_args_scope = (fn_node, args, closure) => {
 }
 
 const eval_binary_expr = (node, scope, callsleft, context) => {
-  const {ok, children, calls} = eval_children(node, scope, callsleft, context)
+  const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, context)
   if(!ok) {
-    return {ok, children, calls}
+    return {ok, children, calls, scope: nextscope}
   }
 
   const op = node.operator
   const a = children[0].result.value
   const b = children[1].result.value
   const value = (new Function('a', 'b', ' return a ' + op + ' b'))(a, b)
-  return {ok, children, calls, value}
+  return {ok, children, calls, value, scope: nextscope}
 }
 
+const is_symbol_for_let_var = symbol =>
+  symbol.startsWith('!')
 
+const symbol_for_let_var = let_var_node => 
+  '!' + let_var_node.value + '_' + let_var_node.index
+
+const symbol_for_closed_let_var = name => 
+  '!' + name + '_' + 'closed'
+
+/*
+  For versioned let vars, any function call within expr can mutate let vars, so
+  it can change current scope and outer scopes. Since current scope and outer
+  scope can have let var with the same name, we need to address them with
+  different names. Prepend '!' symbol because it is not a valid js identifier,
+  so it will not be mixed with other variables
+*/
+const symbol_for_identifier = (node, context) => {
+  if(node.definition == 'global') {
+    return node.value
+  }
+
+  const index = node.definition == 'self' ? node.index : node.definition.index
+  const declaration = find_declaration(context.calltree_node.code, index)
+
+  const variable = node.definition == 'self'
+    ? node
+    : find_leaf(context.calltree_node.code, node.definition.index)
+  if(declaration == null) {
+    /*
+    Variable was declared in outer scope. Since there can be only one variable
+    with given name in outer scope, generate a name for it
+    */
+    return symbol_for_closed_let_var(node.value)
+  }
+  if(declaration.type == 'let'){
+    return symbol_for_let_var(variable)
+  } else {
+    return node.value
+  }
+}
+  
 const do_eval_frame_expr = (node, scope, callsleft, context) => {
-  if([
-    'identifier',
+  if(node.type == 'identifier') {
+    if(node.definition == 'global') {
+      return {...eval_codestring(node.value, scope), calls: callsleft, scope}
+    } else {
+      return {
+        ok: true,
+        value: scope[symbol_for_identifier(node, context)],
+        calls: callsleft, 
+        scope
+      }
+    }
+  } else if([
     'builtin_identifier',
     'number',
     'string_literal',
@@ -539,7 +669,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
   ].includes(node.type)){
     // TODO exprs inside backtick string
     // Pass scope for backtick string
-    return {...eval_codestring(node.value, scope), calls: callsleft}
+    return {...eval_codestring(node.value, scope), calls: callsleft, scope}
   } else if(node.type == 'array_spread') {
     const result = eval_children(node, scope, callsleft, context)
     if(!result.ok) {
@@ -553,6 +683,7 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         ok: false,
         children: result.children,
         calls: result.calls,
+        scope: result.scope,
         error: new TypeError(child.string + ' is not iterable'),
         is_error_origin: true,
       }
@@ -564,9 +695,9 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
   ].includes(node.type)) {
     return eval_children(node, scope, callsleft, context)
   } else if(node.type == 'array_literal' || node.type == 'call_args'){
-    const {ok, children, calls} = eval_children(node, scope, callsleft, context)
+    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, context)
     if(!ok) {
-      return {ok, children, calls}
+      return {ok, children, calls, scope: nextscope}
     }
     const value = children.reduce(
       (arr, el) => {
@@ -578,11 +709,11 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       },
       [],
     )
-    return {ok, children, calls, value}
+    return {ok, children, calls, value, scope: nextscope}
   } else if(node.type == 'object_literal'){
-    const {ok, children, calls} = eval_children(node, scope, callsleft, context)
+    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, context)
     if(!ok) {
-      return {ok, children, calls}
+      return {ok, children, calls, scope: nextscope}
     }
     const value = children.reduce(
       (value, el) => {
@@ -609,11 +740,11 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       },
       {}
     )
-    return {ok, children, value, calls}
+    return {ok, children, value, calls, scope: nextscope}
   } else if(node.type == 'function_call' || node.type == 'new'){
-    const {ok, children, calls} = eval_children(node, scope, callsleft, context)
+    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, context)
     if(!ok) {
-      return {ok: false, children, calls}
+      return {ok: false, children, calls, scope: nextscope}
     } else {
       if(typeof(children[0].result.value) != 'function') {
         return {
@@ -622,12 +753,43 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
           is_error_origin: true,
           children,
           calls,
+          scope: nextscope,
         }
       }
-      const c = calls[0]
+      const [c, ...next_calls] = calls
       if(c == null) {
         throw new Error('illegal state')
       }
+
+      const closure = context.calltree_node.fn?.__closure
+      const closure_let_vars = closure == null
+        ? null
+        : Object.fromEntries(
+            Object.entries(closure)
+              .filter(([k,value]) => value instanceof Multiversion)
+              .map(([k,value]) => [symbol_for_closed_let_var(k), value])
+          )
+
+      const let_vars = {
+        ...context.calltree_node.let_vars, 
+        ...closure_let_vars,
+      }
+      const changed_vars = filter_object(let_vars, (name, v) => 
+        v.last_version_number() >= c.id
+      )
+
+      const next_id = next_calls.length == 0
+        ? context.calltree_node.next_id
+        : next_calls[0].id
+
+      const updated_let_scope = map_object(changed_vars, (name, v) => 
+        /*
+          We can't just use c.next_id here because it will break in async
+          context
+        */
+        v.get_version(next_id)
+      )
+
       return {
         ok: c.ok, 
         call: c,
@@ -635,7 +797,8 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         error: c.error, 
         is_error_origin: !c.ok,
         children,
-        calls: calls.slice(1)
+        calls: next_calls,
+        scope: {...nextscope, ...updated_let_scope},
       }
     }
   } else if(node.type == 'function_expr'){
@@ -650,10 +813,11 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       ok: true,
       value: fn_placeholder, 
       calls: callsleft,
+      scope,
       children: node.children,
     }
   } else if(node.type == 'ternary') {
-    const {node: cond_evaled, calls: calls_after_cond} = eval_frame_expr(
+    const {node: cond_evaled, calls: calls_after_cond, scope: scope_after_cond} = eval_frame_expr(
       node.cond, 
       scope, 
       callsleft,
@@ -666,11 +830,13 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         ok: false, 
         children: [cond_evaled, branches[0], branches[1]],
         calls: calls_after_cond,
+        scope: scope_after_cond,
       }
     } else {
-      const {node: branch_evaled, calls: calls_after_branch} = eval_frame_expr(
+      const {node: branch_evaled, calls: calls_after_branch, scope: scope_after_branch} 
+        = eval_frame_expr(
         branches[value ? 0 : 1], 
-        scope, 
+        scope_after_cond, 
         calls_after_cond,
         context
       )
@@ -679,15 +845,16 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         : [cond_evaled, branches[0], branch_evaled]
       const ok = branch_evaled.result.ok
       if(ok) {
-        return {ok, children, calls: calls_after_branch, value: branch_evaled.result.value}
+        return {ok, children, calls: calls_after_branch, scope: scope_after_branch, 
+          value: branch_evaled.result.value}
       } else {
-        return {ok, children, calls: calls_after_branch}
+        return {ok, children, calls: calls_after_branch, scope: scope_after_branch}
       }
     }
   } else if(node.type == 'member_access'){
-    const {ok, children, calls} = eval_children(node, scope, callsleft, context)
+    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, context)
     if(!ok) {
-      return {ok: false, children, calls}
+      return {ok: false, children, calls, scope: nextscope}
     }
 
     const [obj, prop] = children
@@ -702,12 +869,13 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       }),
       children,
       calls,
+      scope: nextscope
     }
 
   } else if(node.type == 'unary') {
-    const {ok, children, calls} = eval_children(node, scope, callsleft, context)
+    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, context)
     if(!ok) {
-      return {ok: false, children, calls}
+      return {ok: false, children, calls, scope: nextscope}
     } else {
       const expr = children[0]
       let ok, value, error, is_error_origin
@@ -739,14 +907,14 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
       } else {
         throw new Error('unknown op')
       }
-      return {ok, children, calls, value, error, is_error_origin}
+      return {ok, children, calls, value, error, is_error_origin, scope: nextscope}
     }
   } else if(node.type == 'binary' && !['&&', '||', '??'].includes(node.operator)){
 
     return eval_binary_expr(node, scope, callsleft, context)
 
   } else if(node.type == 'binary' && ['&&', '||', '??'].includes(node.operator)){
-    const {node: left_evaled, calls} = eval_frame_expr(
+    const {node: left_evaled, calls, scope: nextscope} = eval_frame_expr(
       node.children[0], 
       scope, 
       callsleft,
@@ -768,17 +936,18 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
         value,
         children: [left_evaled, node.children[1]],
         calls,
+        scope: nextscope,
       }
     } else {
       return eval_binary_expr(node, scope, callsleft, context)
     }
 
   } else if(node.type == 'grouping'){
-    const {ok, children, calls} = eval_children(node, scope, callsleft, context)
+    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, context)
     if(!ok) {
-      return {ok, children, calls}
+      return {ok, children, calls, scope: nextscope}
     } else {
-      return {ok: true, children, calls, value: children[0].result.value}
+      return {ok: true, children, calls, scope: nextscope, value: children[0].result.value}
     }
   } else {
     console.error(node)
@@ -788,26 +957,33 @@ const do_eval_frame_expr = (node, scope, callsleft, context) => {
 
 const eval_children = (node, scope, calls, context) => {
   return node.children.reduce(
-    ({ok, children, calls}, child) => {
-      let next_child, next_ok, next_calls
+    ({ok, children, calls, scope}, child) => {
+      let next_child, next_ok, next_calls, next_scope
       if(!ok) {
         next_child = child
         next_ok = false
         next_calls = calls
+        next_scope = scope
       } else {
         const result = eval_frame_expr(child, scope, calls, context)
         next_child = result.node
         next_calls = result.calls
         next_ok = next_child.result.ok
+        next_scope = result.scope
       }
-      return {ok: next_ok, children: [...children, next_child], calls: next_calls}
+      return {
+        ok: next_ok, 
+        children: [...children, next_child], 
+        calls: next_calls,
+        scope: next_scope,
+      }
     },
-    {ok: true, children: [], calls}
+    {ok: true, children: [], calls, scope}
   )
 }
 
 const eval_frame_expr = (node, scope, callsleft, context) => {
-  const {ok, error, is_error_origin, value, call, children, calls} 
+  const {ok, error, is_error_origin, value, call, children, calls, scope: nextscope} 
     = do_eval_frame_expr(node, scope, callsleft, context)
   if(callsleft != null && calls == null) {
     // TODO remove it, just for debug
@@ -821,35 +997,18 @@ const eval_frame_expr = (node, scope, callsleft, context) => {
       // Add `call` for step_into
       result: {ok, error, value, call, is_error_origin}
     },
+    scope: nextscope,
     calls,
   }
 }
 
-const apply_assignments = (node, assignments) => {
-  const let_ids = node
-    .children
-    .filter(c => c.type == 'let')
-    .map(l => l.children)
-    .flat()
-    .map(c => c.index)
-
-  const parent_assignments = Object.entries(assignments).filter(([index, v]) => 
-    let_ids.find(i => i.toString() == index) == null
-  )
-  // Scope we return to parent block
-  const scope = Object.fromEntries(
-    parent_assignments.map(([k, {name, value}]) => [name, value])
-  )
-  return {node, scope, assignments: Object.fromEntries(parent_assignments)}
-}
-
-const eval_decl_pair = (s, scope, calls, context, is_assignment) => {
+const eval_decl_pair = (s, scope, calls, context) => {
   if(s.type != 'decl_pair') {
     throw new Error('illegal state')
   }
   // TODO default values for destructuring can be function calls
 
-  const {node, calls: next_calls} 
+  const {node, calls: next_calls, scope: scope_after_expr} 
     = eval_frame_expr(s.expr, scope, calls, context)
   const s_expr_evaled = {...s, children: [s.name_node, node]}
   if(!node.result.ok) {
@@ -858,22 +1017,27 @@ const eval_decl_pair = (s, scope, calls, context, is_assignment) => {
       node: {...s_expr_evaled, result: {ok: false}},
       scope,
       calls: next_calls,
+      scope: scope_after_expr,
     }
   }
 
   const name_nodes = collect_destructuring_identifiers(s.name_node)
   const names = name_nodes.map(n => n.value)
-  const destructuring = codegen(s.name_node)
+  const destructuring = codegen(s.name_node, {literal_identifiers: true})
 
   // TODO unique name for __value (gensym)
   const codestring = `
     const ${destructuring} = __value; 
     ({${names.join(',')}});
   `
-  const {ok, value: next_scope, error} = eval_codestring(
+  const {ok, value: values, error} = eval_codestring(
     codestring, 
-    {...scope, __value: node.result.value}
+    {...scope_after_expr, __value: node.result.value}
   )
+
+  const next_scope = Object.fromEntries(name_nodes.map(n => 
+    [symbol_for_identifier(n, context), values[n.value]]
+  ))
 
   // TODO fine-grained destructuring error, only for identifiers that failed
   // destructuring
@@ -884,7 +1048,7 @@ const eval_decl_pair = (s, scope, calls, context, is_assignment) => {
         result: {
           ok, 
           error: ok  ? null : error,
-          value: !ok ? null : next_scope[node.value],
+          value: !ok ? null : next_scope[symbol_for_identifier(node, context)],
         }
       })
     ),
@@ -903,7 +1067,7 @@ const eval_decl_pair = (s, scope, calls, context, is_assignment) => {
       ok: false,
       // TODO assign error to node where destructuring failed, not to every node
       node: {...s_evaled, result: {ok, error, is_error_origin: true}},
-      scope,
+      scope: scope_after_expr,
       calls,
     }
   }
@@ -911,19 +1075,8 @@ const eval_decl_pair = (s, scope, calls, context, is_assignment) => {
   return {
     ok: true,
     node: {...s_evaled, result: {ok: true}},
-    scope: {...scope, ...next_scope},
+    scope: {...scope_after_expr, ...next_scope},
     calls: next_calls,
-    assignments: is_assignment
-      ? Object.fromEntries(
-          name_nodes.map(n => [
-            n.definition.index, 
-            {
-              value: next_scope[n.value],
-              name: n.value,
-            }
-          ])
-        )
-      : null
   }
 }
 
@@ -954,17 +1107,16 @@ const eval_statement = (s, scope, calls, context) => {
 
     const initial_scope = {...scope, ...hoisted_functions_scope}
 
-    const {ok, assignments, returned, children, calls: next_calls} = s.children.reduce(
-      ({ok, returned, children, scope, calls, assignments}, s) => {
+    const {ok, returned, children, calls: next_calls, scope: next_scope}  = 
+      s.children.reduce( ({ok, returned, children, scope, calls}, s) => {
         if(returned || !ok) {
-          return {ok, returned, scope, calls, children: [...children, s], assignments}
+          return {ok, returned, scope, calls, children: [...children, s]}
         } else if(s.type == 'function_decl') {
           const node = function_decls.find(decl => decl.index == s.index)
           return {
             ok: true,
             returned: false,
             node,
-            assignments,
             scope,
             calls,
             children: [...children, node],
@@ -974,39 +1126,37 @@ const eval_statement = (s, scope, calls, context) => {
             ok, 
             returned, 
             node,
-            assignments: next_assignments, 
             scope: nextscope, 
             calls: next_calls, 
           } = eval_statement(s, scope, calls, context)
           return {
             ok,
             returned,
-            assignments: {...assignments, ...next_assignments},
             scope: nextscope,
             calls: next_calls,
             children: [...children, node],
           }
         }
       },
-      {ok: true, returned: false, children: [], scope: initial_scope, calls, assignments: {}}
+      {ok: true, returned: false, children: [], scope: initial_scope, calls}
     )
-    const {node: next_node, scope: next_scope, assignments: parent_assignments} = 
-      apply_assignments({...s, children: children, result: {ok}}, assignments)
+    const let_vars_scope = filter_object(next_scope, (k, v) => 
+      is_symbol_for_let_var(k)
+    )
     return {
       ok,
-      node: next_node,
-      scope: {...scope, ...next_scope},
+      node: {...s, children: children, result: {ok}},
+      scope: {...scope, ...let_vars_scope},
       returned,
-      parent_assignments,
       calls: next_calls,
     }
   } else if(['let', 'const', 'assignment'].includes(s.type)) {
     const stmt = s
 
-    const initial = {ok: true, children: [], scope, calls, assignments: null}
+    const initial = {ok: true, children: [], scope, calls}
 
-    const {ok, children, calls: next_calls, scope: next_scope, assignments} = s.children.reduce(
-      ({ok, children, scope, calls, assignments}, s) => {
+    const {ok, children, calls: next_calls, scope: next_scope} = s.children.reduce(
+      ({ok, children, scope, calls}, s) => {
         if(!ok) {
           return {ok, scope, calls, children: [...children, s]}
         } 
@@ -1015,7 +1165,7 @@ const eval_statement = (s, scope, calls, context) => {
           return {
             ok, 
             children: [...children, node], 
-            scope: {...scope, [s.value]: undefined},
+            scope: {...scope, [symbol_for_identifier(s, context)]: undefined},
             calls
           }
         }
@@ -1024,16 +1174,12 @@ const eval_statement = (s, scope, calls, context) => {
           node,
           scope: nextscope, 
           calls: next_calls, 
-          assignments: next_assignments,
-        } = eval_decl_pair(s, scope, calls, context, stmt.type == 'assignment')
+        } = eval_decl_pair(s, scope, calls, context)
         return {
           ok: next_ok,
           scope: nextscope,
           calls: next_calls,
           children: [...children, node],
-          assignments: stmt.type == 'assignment' 
-            ? {...assignments, ...next_assignments}
-            : null
         }
       },
       initial
@@ -1043,18 +1189,17 @@ const eval_statement = (s, scope, calls, context) => {
       node: {...s, children, result: {ok}},
       scope: {...scope, ...next_scope},
       calls: next_calls,
-      assignments,
     }
   } else if(s.type == 'return') {
 
-    const {node, calls: next_calls} = 
+    const {node, calls: next_calls, scope: nextscope} = 
       eval_frame_expr(s.expr, scope, calls, context)
 
     return {
       ok: node.result.ok,
       returned: node.result.ok,
       node: {...s, children: [node], result: {ok: node.result.ok}},
-      scope,
+      scope: nextscope,
       calls: next_calls,
     }
 
@@ -1090,7 +1235,8 @@ const eval_statement = (s, scope, calls, context) => {
     }
   } else if(s.type == 'if') {
 
-    const {node, calls: next_calls} = eval_frame_expr(s.cond, scope, calls, context)
+    const {node, calls: next_calls, scope: scope_after_cond} = 
+      eval_frame_expr(s.cond, scope, calls, context)
 
     if(!node.result.ok) {
       return {
@@ -1098,6 +1244,7 @@ const eval_statement = (s, scope, calls, context) => {
         node: {...s, children: [node, ...s.branches], result: {ok: false}},
         scope,
         calls: next_calls,
+        scope: scope_after_cond,
       }
     }
 
@@ -1108,19 +1255,17 @@ const eval_statement = (s, scope, calls, context) => {
         const {
           node: evaled_branch, 
           returned, 
-          assignments,
           scope: next_scope,
           calls: next_calls2,
         } = eval_statement(
           s.branches[0],
-          scope,
+          scope_after_cond,
           next_calls,
           context
         )
         return {
           ok: evaled_branch.result.ok,
           returned,
-          assignments,
           node: {...s, 
             children: [node, evaled_branch],
             result: {ok: evaled_branch.result.ok}
@@ -1144,12 +1289,11 @@ const eval_statement = (s, scope, calls, context) => {
       const {
         node: evaled_branch, 
         returned, 
-        assignments,
         scope: next_scope,
         calls: next_calls2
       } = eval_statement(
         active_branch,
-        scope,
+        scope_after_cond,
         next_calls,
         context,
       )
@@ -1161,7 +1305,6 @@ const eval_statement = (s, scope, calls, context) => {
       return {
         ok: evaled_branch.result.ok,
         returned,
-        assignments,
         node: {...s, children, result: {ok: evaled_branch.result.ok}},
         scope: next_scope,
         calls: next_calls2,
@@ -1170,7 +1313,8 @@ const eval_statement = (s, scope, calls, context) => {
 
   } else if(s.type == 'throw') {
 
-    const {node, calls: next_calls} = eval_frame_expr(s.expr, scope, calls, context)
+    const {node, calls: next_calls, scope: next_scope} = 
+      eval_frame_expr(s.expr, scope, calls, context)
 
     return {
       ok: false,
@@ -1182,17 +1326,17 @@ const eval_statement = (s, scope, calls, context) => {
           error: node.result.ok ? node.result.value : null,
         }
       },
-      scope,
+      scope: next_scope,
       calls: next_calls,
     }
 
   } else {
     // stmt type is expression
-    const {node, calls: next_calls} = eval_frame_expr(s, scope, calls, context)
+    const {node, calls: next_calls, scope: next_scope} = eval_frame_expr(s, scope, calls, context)
     return {
       ok: node.result.ok,
       node,
-      scope,
+      scope: next_scope,
       calls: next_calls,
     }
   }
@@ -1205,6 +1349,7 @@ export const eval_frame = (calltree_node, modules) => {
   const node = calltree_node.code
   const context = {calltree_node, modules}
   if(node.type == 'do') {
+    // eval module toplevel
     return eval_statement(
         node,
         {}, 
@@ -1214,10 +1359,15 @@ export const eval_frame = (calltree_node, modules) => {
   } else {
     // TODO default values for destructuring can be function calls
 
+    const closure = map_object(calltree_node.fn.__closure, (_key, value) => {
+      return value instanceof Multiversion
+        ? value.get_version(calltree_node.id)
+        : value
+    })
     const args_scope_result = get_args_scope(
       node, 
       calltree_node.args,
-      calltree_node.fn.__closure
+      closure
     )
 
     // TODO fine-grained destructuring error, only for identifiers that
@@ -1254,8 +1404,16 @@ export const eval_frame = (calltree_node, modules) => {
       }
     }
 
-    const scope = {...calltree_node.fn.__closure, ...args_scope_result.value}
+    const closure_scope = Object.fromEntries(
+      Object.entries(closure).map(([key, value]) => {
+        return [
+          symbol_for_closed_let_var(key),
+          value,
+        ]
+      })
+    )
 
+    const scope = {...closure_scope, ...args_scope_result.value}
 
     let nextbody
 

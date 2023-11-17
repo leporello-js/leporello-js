@@ -1,4 +1,4 @@
-import {uniq} from './utils.js'
+import {uniq, map_find} from './utils.js'
 
 export const collect_destructuring_identifiers = node => {
   if(Array.isArray(node)) {
@@ -76,6 +76,32 @@ export const find_leaf = (node, index) => {
   }
 }
 
+// Finds node declaring identifier with given index
+export const find_declaration = (node, index) => {
+  if(node.type == 'let' || node.type == 'const') {
+    return node
+  }
+  if(node.type == 'function_decl' && node.index == index) {
+    return node
+  }
+  if(node.type == 'function_args') {
+    return node
+  }
+  if(node.type == 'import') {
+    return node
+  }
+  if(node.children == null) {
+    return null
+  }
+  const child = node.children.find(node => is_index_within_node(node, index))
+  if(child == null) {
+    return null
+  }
+  return find_declaration(child, index)
+}
+
+export const is_index_within_node = (node, index) => 
+  node.index <= index && node.index + node.length > index
 
 export const is_child = (child, parent) => {
   return parent.index <= child.index && 

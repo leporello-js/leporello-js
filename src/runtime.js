@@ -79,17 +79,20 @@ const do_run = function*(module_fns, cxt, io_trace){
       toplevel: true, 
       module,
       id: ++cxt.call_counter,
+      let_vars: {},
     }
 
     try {
       cxt.modules[module] = {}
       const result = fn(
         cxt, 
+        calltree.let_vars,
         calltree_node_by_loc.get(module),
         __trace, 
         __trace_call, 
         __do_await, 
         __save_ct_node_for_path,
+        Multiversion,
       )
       if(result instanceof cxt.window.Promise) {
         yield cxt.window.Promise.race([replay_aborted_promise, result])
@@ -102,6 +105,7 @@ const do_run = function*(module_fns, cxt, io_trace){
       calltree.error = error
     }
     calltree.children = cxt.children
+    calltree.next_id = cxt.call_counter + 1
     if(!calltree.ok) {
       break
     }
@@ -184,6 +188,19 @@ export const set_record_call = cxt => {
 
 export const do_eval_expand_calltree_node = (cxt, node) => {
   cxt.is_recording_deferred_calls = false
+  cxt.is_expanding_calltree_node = true
+  cxt.touched_multiversions = new Set()
+
+  // Save call counter and set it to the value it had when executed 'fn' for
+  // the first time
+  const call_counter = cxt.call_counter
+  cxt.call_counter = node.fn.__location == null
+    // Function is native, set call_counter to node.id
+    ? node.id 
+    // call_counter will be incremented inside __trace and produce the same id
+    // as node.id
+    : node.id - 1 
+
   cxt.children = null
   try {
     if(node.is_new) {
@@ -195,6 +212,21 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
     // do nothing. Exception was caught and recorded inside '__trace'
   }
 
+  // Restore call counter
+  cxt.call_counter = call_counter
+
+  // Recover multiversions affected by expand_calltree_node
+  for(let m of cxt.touched_multiversions) {
+    if(m.is_expanding_calltree_node) {
+      delete m.is_expanding_calltree_node
+    }
+    if(m.latest_copy != null) {
+      m.latest = m.latest_copy.value
+    }
+  }
+  delete cxt.touched_multiversions
+
+  cxt.is_expanding_calltree_node = false
   cxt.is_recording_deferred_calls = true
   const children = cxt.children
   cxt.children = null
@@ -243,7 +275,7 @@ const __do_await = async (cxt, value) => {
   }
 }
 
-const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
+const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versioned_let_vars) => {
   const result = (...args) => {
     if(result.__closure == null) {
       result.__closure = get_closure()
@@ -266,6 +298,11 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
         set_record_call(cxt)
         nodes_of_module.set(__location.index, call_id)
       }
+    }
+
+    let let_vars
+    if(has_versioned_let_vars) {
+      let_vars = cxt.let_vars = {}
     }
 
     let ok, value, error
@@ -296,6 +333,8 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure) => {
 
       const call = {
         id: call_id,
+        next_id: cxt.call_counter + 1,
+        let_vars,
         ok,
         value,
         error,
@@ -358,6 +397,8 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
   cxt.children = null
   cxt.stack.push(false)
 
+  const call_id = ++cxt.call_counter
+
   // TODO: other console fns
   const is_log = fn == cxt.window.console.log || fn == cxt.window.console.error
 
@@ -392,7 +433,8 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
     cxt.prev_children = cxt.children
 
     const call = {
-      id: ++cxt.call_counter,
+      id: call_id,
+      next_id: cxt.call_counter + 1,
       ok,
       value,
       error,
@@ -431,9 +473,107 @@ const __save_ct_node_for_path = (cxt, __calltree_node_by_loc, index, __call_id) 
   if(cxt.skip_save_ct_node_for_path) {
     return
   }
-
   if(__calltree_node_by_loc.get(index) == null) {
     __calltree_node_by_loc.set(index, __call_id)
     set_record_call(cxt)
+  }
+}
+
+// https://stackoverflow.com/a/29018745
+function binarySearch(arr, el, compare_fn) {
+    let m = 0;
+    let n = arr.length - 1;
+    while (m <= n) {
+        let k = (n + m) >> 1;
+        let cmp = compare_fn(el, arr[k]);
+        if (cmp > 0) {
+            m = k + 1;
+        } else if(cmp < 0) {
+            n = k - 1;
+        } else {
+            return k;
+        }
+    }
+    return ~m;
+}
+
+// 'let' variable recording the history of its values
+export class Multiversion {
+  constructor(cxt, initial) {
+    this.cxt = cxt
+    this.is_expanding_calltree_node = cxt.is_expanding_calltree_node
+    this.latest = initial
+    this.versions = [{call_id: cxt.call_counter, value: initial}]
+  }
+
+  get() {
+    const call_id = this.cxt.call_counter
+
+    if(!this.cxt.is_expanding_calltree_node) {
+      return this.latest
+    } else {
+      if(this.is_expanding_calltree_node) {
+        // var was created during current expansion, use its latest value
+        return this.latest
+      } else {
+        if(this.latest_copy != null) {
+          // value was set during expand_calltree_node, use this value
+          return this.latest
+        }
+        // TODO on first read, set latest and latest_copy?
+        return this.get_version(call_id)
+      }
+    }
+  }
+
+  get_version(call_id) {
+    const idx = binarySearch(this.versions, call_id, (id, el) => id - el.call_id)
+    if(idx == 0) {
+      // This branch is unreachable. get_version will be never called for a
+      // call_id where let variable was declared.
+      throw new Error('illegal state')
+    } else if(idx > 0) {
+      return this.versions[idx - 1].value
+    } else if(idx == -1) {
+      throw new Error('illegal state')
+    } else {
+      return this.versions[-idx - 2].value
+    }
+  }
+
+  set(value) {
+    const call_id = this.cxt.call_counter
+    if(this.cxt.is_expanding_calltree_node) {
+      if(this.is_expanding_calltree_node) {
+        this.latest = value
+        this.set_version(call_id, value)
+        this.cxt.touched_multiversions.add(this)
+      } else {
+        if(this.latest_copy == null) {
+          this.latest_copy = {value: this.latest}
+        }
+        this.cxt.touched_multiversions.add(this)
+        this.latest = value
+      }
+    } else {
+      this.latest = value
+      this.set_version(call_id, value)
+    }
+  }
+
+  last_version_number() {
+    return this.versions.at(-1).call_id
+  }
+
+  set_version(call_id, value) {
+    const last_version = this.versions.at(-1)
+    if(last_version.call_id > call_id) {
+      throw new Error('illegal state')
+    }
+    if(last_version.call_id == call_id) {
+      last_version.value = value
+      return
+    }
+    this.versions.push({call_id, value})
   }
 }

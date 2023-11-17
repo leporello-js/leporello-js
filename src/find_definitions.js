@@ -82,7 +82,6 @@ const add_trivial_definition = node => {
 
 export const find_definitions = (ast, globals, scope = {}, closure_scope = {}, module_name) => {
   
-
   // sanity check
   if(!(globals instanceof Set)) {
     throw new Error('not a set')

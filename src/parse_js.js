@@ -7,6 +7,8 @@ import {
   analyze,
 } from './find_definitions.js'
 
+import { find_versioned_let_vars } from './analyze_versioned_let_vars.js'
+
 import {reserved} from './reserved.js'
 
 import {collect_imports} from './ast_utils.js'
@@ -1104,13 +1106,53 @@ const decl_pair = if_ok(
   }
 )
 
+/*
+Like decl_pair, but lefthand can be only an identifier.
+
+The reason for having this is that currently we don't compile correctly code
+like this:
+
+  let {x} = ...
+
+If we have just
+
+  let x = ...
+
+Then we compile it into
+
+  const x = new Multiversion(cxt, ...)
+
+For 'let {x} = ...' we should compile it to something like
+
+  const {x} = ...
+  const __x_multiversion = x;
+
+And then inside eval.js access x value only through __x_multiversion
+
+See branch 'let_vars_destructuring'
+
+Same for assignment
+*/
+const simple_decl_pair = if_ok(
+  seq([identifier, literal('='), expr]),
+  ({value, ...node}) => {
+    const [lefthand, _eq, expr] = value
+    return {
+      ...node,
+      type: 'decl_pair',
+      not_evaluatable: true,
+      children: [lefthand, expr],
+    }
+  }
+)
+
 const const_or_let = is_const => if_ok(
   seq_select(1, [
     literal(is_const ? 'const' : 'let'),
     comma_separated_1(
       is_const
         ? decl_pair
-        : either(decl_pair, identifier)
+        : either(simple_decl_pair, identifier)
     )
   ]),
   ({value, ...node}) => ({
@@ -1125,8 +1167,9 @@ const const_statement = const_or_let(true)
 const let_declaration = const_or_let(false)
 
 // TODO object assignment required braces, like ({foo} = {foo: 1})
+// TODO +=, *= etc
 const assignment = if_ok(
-  comma_separated_1(decl_pair),
+  comma_separated_1(simple_decl_pair),
   ({value, ...node}) => ({
     ...node,
     type: 'assignment',
@@ -1644,7 +1687,9 @@ export const parse = (str, globals, is_module = false, module_name) => {
         // property to some nodes, and children no more equal to other properties
         // of nodes by idenitity, which somehow breaks code (i dont remember how
         // exactly). Refactor it?
-        const fixed_node = update_children(deduce_fn_names(populate_string(node)))
+        const fixed_node = update_children(
+          find_versioned_let_vars(deduce_fn_names(populate_string(node))).node
+        )
         const problems = analyze(fixed_node)
         if(problems.length != 0) {
           return {ok: false, problems}
