@@ -1100,7 +1100,6 @@ const decl_pair = if_ok(
     return {
       ...node,
       type: 'decl_pair',
-      not_evaluatable: true,
       children: [lefthand, expr],
     }
   }
@@ -1140,7 +1139,6 @@ const simple_decl_pair = if_ok(
     return {
       ...node,
       type: 'decl_pair',
-      not_evaluatable: true,
       children: [lefthand, expr],
     }
   }

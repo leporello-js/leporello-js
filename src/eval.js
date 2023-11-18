@@ -1078,7 +1078,7 @@ const eval_decl_pair = (s, scope, calls, context) => {
 
   return {
     ok: true,
-    node: {...s_evaled, result: {ok: true}},
+    node: {...s_evaled, result: node.result},
     scope: {...scope_after_expr, ...next_scope},
     calls: next_calls,
   }
