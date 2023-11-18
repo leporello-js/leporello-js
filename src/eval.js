@@ -18,7 +18,7 @@ import {has_toplevel_await} from './find_definitions.js'
 
 // import runtime as external because it has non-functional code
 // external
-import {run, do_eval_expand_calltree_node, Multiversion} from './runtime/runtime.js'
+import {run, do_eval_expand_calltree_node, LetMultiversion} from './runtime/runtime.js'
 
 // TODO: fix error messages. For example, "__fn is not a function"
 
@@ -766,7 +766,7 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
         ? null
         : Object.fromEntries(
             Object.entries(closure)
-              .filter(([k,value]) => value instanceof Multiversion)
+              .filter(([k,value]) => value instanceof LetMultiversion)
               .map(([k,value]) => [symbol_for_closed_let_var(k), value])
           )
 
@@ -1353,7 +1353,7 @@ export const eval_frame = (calltree_node, modules) => {
     // TODO default values for destructuring can be function calls
 
     const closure = map_object(calltree_node.fn.__closure, (_key, value) => {
-      return value instanceof Multiversion
+      return value instanceof LetMultiversion
         ? value.get_version(calltree_node.id)
         : value
     })
