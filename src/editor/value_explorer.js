@@ -30,7 +30,7 @@ export class ValueExplorer {
     this.scroll_to_element = scroll_to_element
     this.on_escape = on_escape
 
-    event_target.addEventListener('keydown', (e) => {
+    event_target.addEventListener('keydown', e => with_code_execution(() => {
 
       /*
         Right - 
@@ -154,7 +154,7 @@ export class ValueExplorer {
           }
         }
       }
-    })
+    }))
   }
 
   get_node_data(path, node_data = this.node_data) {
