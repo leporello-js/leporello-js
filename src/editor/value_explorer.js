@@ -8,12 +8,12 @@ import {with_code_execution} from '../index.js'
 import {header, is_expandable, displayed_entries} from '../value_explorer_utils.js'
 
 
-const get_path = (o, path) => {
+const get_value_by_path = (o, path) => {
   if(path.length == 0) {
     return o
   } else {
     const [start, ...rest] = path
-    return get_path(o[start], rest)
+    return get_value_by_path(o[start], rest)
   }
 }
 
@@ -52,7 +52,7 @@ export class ValueExplorer {
         return
       }
       
-      const current_object = get_path(this.value, this.current_path)
+      const current_object = get_value_by_path(this.value, this.current_path)
 
       if(e.key == 'ArrowDown' || e.key == 'j'){
         // Do not scroll
@@ -68,7 +68,7 @@ export class ValueExplorer {
               return null
             }
             const parent = p.slice(0, p.length - 1)
-            const children = displayed_entries(get_path(this.value, parent))
+            const children = displayed_entries(get_value_by_path(this.value, parent))
             const child_index = children.findIndex(([k,v]) =>  
               k == p[p.length - 1]
             )
@@ -96,7 +96,7 @@ export class ValueExplorer {
           return
         }
         const parent = this.current_path.slice(0, this.current_path.length - 1)
-        const children = displayed_entries(get_path(this.value, parent))
+        const children = displayed_entries(get_value_by_path(this.value, parent))
         const child_index = children.findIndex(([k,v]) =>  
           k == this.current_path[this.current_path.length - 1]
         )
@@ -105,10 +105,10 @@ export class ValueExplorer {
           this.select_path(parent)
         } else {
           const last = p => {
-            if(!is_expandable(get_path(this.value, p)) || !this.is_expanded(p)) {
+            if(!is_expandable(get_value_by_path(this.value, p)) || !this.is_expanded(p)) {
               return p
             } else {
-              const children = displayed_entries(get_path(this.value, p))
+              const children = displayed_entries(get_value_by_path(this.value, p))
                 .map(([k,v]) => k)
               return last([...p, children[children.length - 1]])
 
@@ -144,7 +144,7 @@ export class ValueExplorer {
           if(!is_expanded) {
             this.toggle_expanded()
           } else {
-            const children = displayed_entries(get_path(this.value, this.current_path))
+            const children = displayed_entries(get_value_by_path(this.value, this.current_path))
             this.select_path(
               [
                 ...this.current_path,
@@ -225,7 +225,7 @@ export class ValueExplorer {
     const key = this.current_path.length == 0 
       ? null 
       : this.current_path[this.current_path.length - 1]
-    const value = get_path(this.value, this.current_path)
+    const value = get_value_by_path(this.value, this.current_path)
     const next = this.render_value_explorer_node(key, value, this.current_path, data)
     prev_dom_node.parentNode.replaceChild(next, prev_dom_node)
   }
