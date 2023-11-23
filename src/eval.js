@@ -595,17 +595,17 @@ const get_args_scope = (fn_node, args, closure) => {
   }
 }
 
-const eval_binary_expr = (node, scope, callsleft, frame_cxt) => {
-  const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, frame_cxt)
+const eval_binary_expr = (node, eval_cxt, frame_cxt) => {
+  const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
   if(!ok) {
-    return {ok, children, calls, scope: nextscope}
+    return {ok, children, eval_cxt: next_eval_cxt}
   }
 
   const op = node.operator
   const a = children[0].result.value
   const b = children[1].result.value
   const value = (new Function('a', 'b', ' return a ' + op + ' b'))(a, b)
-  return {ok, children, calls, value, scope: nextscope}
+  return {ok, children, value, eval_cxt: next_eval_cxt}
 }
 
 const is_symbol_for_let_var = symbol =>
@@ -649,19 +649,18 @@ const symbol_for_identifier = (node, frame_cxt) => {
   }
 }
   
-const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
+const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
   if(node.type == 'identifier') {
     let value
     if(node.definition == 'global') {
       value = globalThis.app_window[node.value]
     } else {
-      value = scope[symbol_for_identifier(node, frame_cxt)]
+      value = eval_cxt.scope[symbol_for_identifier(node, frame_cxt)]
     }
     return {
       ok: true,
       value,
-      calls: callsleft, 
-      scope,
+      eval_cxt,
     }
   } else if([
     'builtin_identifier',
@@ -671,9 +670,9 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
   ].includes(node.type)){
     // TODO exprs inside backtick string
     // TODO for string literal and number, do not use eval
-    return {...eval_codestring(node.value, scope), calls: callsleft, scope}
+    return {...eval_codestring(node.value, eval_cxt.scope), eval_cxt}
   } else if(node.type == 'array_spread') {
-    const result = eval_children(node, scope, callsleft, frame_cxt)
+    const result = eval_children(node, eval_cxt, frame_cxt)
     if(!result.ok) {
       return result
     }
@@ -684,8 +683,7 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
       return {
         ok: false,
         children: result.children,
-        calls: result.calls,
-        scope: result.scope,
+        eval_cxt: result.eval_cxt,
         error: new TypeError(child.string + ' is not iterable'),
         is_error_origin: true,
       }
@@ -695,11 +693,11 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
     'key_value_pair',
     'computed_property'
   ].includes(node.type)) {
-    return eval_children(node, scope, callsleft, frame_cxt)
+    return eval_children(node, eval_cxt, frame_cxt)
   } else if(node.type == 'array_literal' || node.type == 'call_args'){
-    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, frame_cxt)
+    const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
-      return {ok, children, calls, scope: nextscope}
+      return {ok, children, eval_cxt: next_eval_cxt}
     }
     const value = children.reduce(
       (arr, el) => {
@@ -711,11 +709,11 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
       },
       [],
     )
-    return {ok, children, calls, value, scope: nextscope}
+    return {ok, children, value, eval_cxt: next_eval_cxt}
   } else if(node.type == 'object_literal'){
-    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, frame_cxt)
+    const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
-      return {ok, children, calls, scope: nextscope}
+      return {ok, children, eval_cxt: next_eval_cxt}
     }
     const value = children.reduce(
       (value, el) => {
@@ -742,11 +740,11 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
       },
       {}
     )
-    return {ok, children, value, calls, scope: nextscope}
+    return {ok, children, value, eval_cxt: next_eval_cxt}
   } else if(node.type == 'function_call' || node.type == 'new'){
-    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, frame_cxt)
+    const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
-      return {ok: false, children, calls, scope: nextscope}
+      return {ok: false, children, eval_cxt: next_eval_cxt}
     } else {
       if(typeof(children[0].result.value) != 'function') {
         return {
@@ -754,11 +752,10 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
           error: frame_cxt.calltree_node.error,
           is_error_origin: true,
           children,
-          calls,
-          scope: nextscope,
+          eval_cxt: next_eval_cxt,
         }
       }
-      const [c, ...next_calls] = calls
+      const [c, ...next_calls] = next_eval_cxt.calls
       if(c == null) {
         throw new Error('illegal state')
       }
@@ -799,8 +796,11 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
         error: c.error, 
         is_error_origin: !c.ok,
         children,
-        calls: next_calls,
-        scope: {...nextscope, ...updated_let_scope},
+        eval_cxt: {
+          ...next_eval_cxt, 
+          calls: next_calls,
+          scope: {...next_eval_cxt.scope, ...updated_let_scope},
+        },
       }
     }
   } else if(node.type == 'function_expr'){
@@ -814,16 +814,14 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
     return {
       ok: true,
       value: fn_placeholder, 
-      calls: callsleft,
-      scope,
+      eval_cxt,
       children: node.children,
     }
   } else if(node.type == 'ternary') {
-    const {node: cond_evaled, calls: calls_after_cond, scope: scope_after_cond} = eval_frame_expr(
+    const {node: cond_evaled, eval_cxt: eval_cxt_after_cond} = eval_frame_expr(
       node.cond, 
-      scope, 
-      callsleft,
-      frame_cxt
+      eval_cxt,
+      frame_cxt,
     )
     const {ok, value} = cond_evaled.result
     const branches = node.branches
@@ -831,15 +829,13 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
       return {
         ok: false, 
         children: [cond_evaled, branches[0], branches[1]],
-        calls: calls_after_cond,
-        scope: scope_after_cond,
+        eval_cxt: eval_cxt_after_cond,
       }
     } else {
-      const {node: branch_evaled, calls: calls_after_branch, scope: scope_after_branch} 
+      const {node: branch_evaled, eval_cxt: eval_cxt_after_branch} 
         = eval_frame_expr(
         branches[value ? 0 : 1], 
-        scope_after_cond, 
-        calls_after_cond,
+        eval_cxt_after_cond,
         frame_cxt
       )
       const children = value
@@ -847,16 +843,16 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
         : [cond_evaled, branches[0], branch_evaled]
       const ok = branch_evaled.result.ok
       if(ok) {
-        return {ok, children, calls: calls_after_branch, scope: scope_after_branch, 
+        return {ok, children, eval_cxt: eval_cxt_after_branch, 
           value: branch_evaled.result.value}
       } else {
-        return {ok, children, calls: calls_after_branch, scope: scope_after_branch}
+        return {ok, children, eval_cxt: eval_cxt_after_branch}
       }
     }
   } else if(node.type == 'member_access'){
-    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, frame_cxt)
+    const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
-      return {ok: false, children, calls, scope: nextscope}
+      return {ok: false, children, eval_cxt: next_eval_cxt}
     }
 
     const [obj, prop] = children
@@ -870,14 +866,13 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
         prop: prop.result.value,
       }),
       children,
-      calls,
-      scope: nextscope
+      eval_cxt: next_eval_cxt,
     }
 
   } else if(node.type == 'unary') {
-    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, frame_cxt)
+    const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
-      return {ok: false, children, calls, scope: nextscope}
+      return {ok: false, children, eval_cxt: next_eval_cxt}
     } else {
       const expr = children[0]
       let ok, value, error, is_error_origin
@@ -909,17 +904,16 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
       } else {
         throw new Error('unknown op')
       }
-      return {ok, children, calls, value, error, is_error_origin, scope: nextscope}
+      return {ok, children, value, error, is_error_origin, eval_cxt: next_eval_cxt}
     }
   } else if(node.type == 'binary' && !['&&', '||', '??'].includes(node.operator)){
 
-    return eval_binary_expr(node, scope, callsleft, frame_cxt)
+    return eval_binary_expr(node, eval_cxt, frame_cxt)
 
   } else if(node.type == 'binary' && ['&&', '||', '??'].includes(node.operator)){
-    const {node: left_evaled, calls, scope: nextscope} = eval_frame_expr(
+    const {node: left_evaled, eval_cxt: next_eval_cxt} = eval_frame_expr(
       node.children[0], 
-      scope, 
-      callsleft,
+      eval_cxt,
       frame_cxt
     )
 
@@ -937,19 +931,18 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
         ok,
         value,
         children: [left_evaled, node.children[1]],
-        calls,
-        scope: nextscope,
+        eval_cxt: next_eval_cxt,
       }
     } else {
-      return eval_binary_expr(node, scope, callsleft, frame_cxt)
+      return eval_binary_expr(node, eval_cxt, frame_cxt)
     }
 
   } else if(node.type == 'grouping'){
-    const {ok, children, calls, scope: nextscope} = eval_children(node, scope, callsleft, frame_cxt)
+    const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
-      return {ok, children, calls, scope: nextscope}
+      return {ok, children, eval_cxt: next_eval_cxt}
     } else {
-      return {ok: true, children, calls, scope: nextscope, value: children[0].result.value}
+      return {ok: true, children, value: children[0].result.value, eval_cxt: next_eval_cxt}
     }
   } else {
     console.error(node)
@@ -957,37 +950,34 @@ const do_eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
   }
 }
 
-const eval_children = (node, scope, calls, frame_cxt) => {
+const eval_children = (node, eval_cxt, frame_cxt) => {
   return node.children.reduce(
-    ({ok, children, calls, scope}, child) => {
-      let next_child, next_ok, next_calls, next_scope
+    ({ok, children, eval_cxt}, child) => {
+      let next_child, next_ok, next_eval_cxt
       if(!ok) {
         next_child = child
         next_ok = false
-        next_calls = calls
-        next_scope = scope
+        next_eval_cxt = eval_cxt
       } else {
-        const result = eval_frame_expr(child, scope, calls, frame_cxt)
+        const result = eval_frame_expr(child, eval_cxt, frame_cxt)
         next_child = result.node
-        next_calls = result.calls
         next_ok = next_child.result.ok
-        next_scope = result.scope
+        next_eval_cxt = result.eval_cxt
       }
       return {
         ok: next_ok, 
         children: [...children, next_child], 
-        calls: next_calls,
-        scope: next_scope,
+        eval_cxt: next_eval_cxt,
       }
     },
-    {ok: true, children: [], calls, scope}
+    {ok: true, children: [], eval_cxt}
   )
 }
 
-const eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
-  const {ok, error, is_error_origin, value, call, children, calls, scope: nextscope} 
-    = do_eval_frame_expr(node, scope, callsleft, frame_cxt)
-  if(callsleft != null && calls == null) {
+const eval_frame_expr = (node, eval_cxt, frame_cxt) => {
+  const {ok, error, is_error_origin, value, call, children, eval_cxt: next_eval_cxt} 
+    = do_eval_frame_expr(node, eval_cxt, frame_cxt)
+  if(eval_cxt.calls != null && next_eval_cxt.calls == null) {
     // TODO remove it, just for debug
     console.error('node', node)
     throw new Error('illegal state')
@@ -999,27 +989,24 @@ const eval_frame_expr = (node, scope, callsleft, frame_cxt) => {
       // Add `call` for step_into
       result: {ok, error, value, call, is_error_origin}
     },
-    scope: nextscope,
-    calls,
+    eval_cxt: next_eval_cxt,
   }
 }
 
-const eval_decl_pair = (s, scope, calls, frame_cxt) => {
+const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
   if(s.type != 'decl_pair') {
     throw new Error('illegal state')
   }
   // TODO default values for destructuring can be function calls
 
-  const {node, calls: next_calls, scope: scope_after_expr} 
-    = eval_frame_expr(s.expr, scope, calls, frame_cxt)
+  const {node, eval_cxt: next_eval_cxt} 
+    = eval_frame_expr(s.expr, eval_cxt, frame_cxt)
   const s_expr_evaled = {...s, children: [s.name_node, node]}
   if(!node.result.ok) {
     return {
       ok: false,
       node: {...s_expr_evaled, result: {ok: false}},
-      scope,
-      calls: next_calls,
-      scope: scope_after_expr,
+      eval_cxt: next_eval_cxt,
     }
   }
 
@@ -1036,7 +1023,7 @@ const eval_decl_pair = (s, scope, calls, frame_cxt) => {
   `
   const {ok, value: values, error} = eval_codestring(
     codestring, 
-    {...scope_after_expr, __value: node.result.value}
+    {...next_eval_cxt.scope, __value: node.result.value}
   )
 
   const next_scope = Object.fromEntries(name_nodes.map(n => 
@@ -1071,33 +1058,34 @@ const eval_decl_pair = (s, scope, calls, frame_cxt) => {
       ok: false,
       // TODO assign error to node where destructuring failed, not to every node
       node: {...s_evaled, result: {ok, error, is_error_origin: true}},
-      scope: scope_after_expr,
-      calls,
+      eval_cxt: next_eval_cxt,
     }
   }
 
   return {
     ok: true,
     node: {...s_evaled, result: node.result},
-    scope: {...scope_after_expr, ...next_scope},
-    calls: next_calls,
+    eval_cxt: {
+      ...next_eval_cxt,
+      scope: {...next_eval_cxt.scope, ...next_scope},
+    }
   }
 }
 
 
-const eval_statement = (s, scope, calls, frame_cxt) => {
+const eval_statement = (s, eval_cxt, frame_cxt) => {
   if(s.type == 'do') {
     const stmt = s
     // hoist function decls to the top
     const function_decls = s.children
       .filter(s => s.type == 'function_decl')
       .map(s => {
-        const {ok, children, calls: next_calls} = eval_children(s, scope, calls, frame_cxt)
+        const {ok, children, eval_cxt: next_eval_cxt} = eval_children(s, eval_cxt, frame_cxt)
         if(!ok) {
           // Function decl can never fail
           throw new Error('illegal state')
         }
-        if(next_calls != calls) {
+        if(eval_cxt != next_eval_cxt) {
           throw new Error('illegal state')
         }
         return {...s, children, result: {ok: true}}
@@ -1109,20 +1097,25 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
       )
     )
 
-    const initial_scope = {...scope, ...hoisted_functions_scope}
+    const initial_scope = {...eval_cxt.scope, ...hoisted_functions_scope}
+    const initial = {
+      ok: true, 
+      returned: false, 
+      children: [], 
+      eval_cxt: {...eval_cxt, scope: initial_scope}
+    }
 
-    const {ok, returned, children, calls: next_calls, scope: next_scope}  = 
-      s.children.reduce( ({ok, returned, children, scope, calls}, s) => {
+    const {ok, returned, children, eval_cxt: next_eval_cxt}  = 
+      s.children.reduce( ({ok, returned, children, eval_cxt}, s) => {
         if(returned || !ok) {
-          return {ok, returned, scope, calls, children: [...children, s]}
+          return {ok, returned, eval_cxt, children: [...children, s]}
         } else if(s.type == 'function_decl') {
           const node = function_decls.find(decl => decl.index == s.index)
           return {
             ok: true,
             returned: false,
             node,
-            scope,
-            calls,
+            eval_cxt,
             children: [...children, node],
           }
         } else {
@@ -1130,59 +1123,57 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
             ok, 
             returned, 
             node,
-            scope: nextscope, 
-            calls: next_calls, 
-          } = eval_statement(s, scope, calls, frame_cxt)
+            eval_cxt: next_eval_cxt,
+          } = eval_statement(s, eval_cxt, frame_cxt)
           return {
             ok,
             returned,
-            scope: nextscope,
-            calls: next_calls,
+            eval_cxt: next_eval_cxt,
             children: [...children, node],
           }
         }
       },
-      {ok: true, returned: false, children: [], scope: initial_scope, calls}
+      initial,
     )
-    const let_vars_scope = filter_object(next_scope, (k, v) => 
+    const let_vars_scope = filter_object(next_eval_cxt.scope, (k, v) => 
       is_symbol_for_let_var(k)
     )
     return {
       ok,
       node: {...s, children: children, result: {ok}},
-      scope: {...scope, ...let_vars_scope},
       returned,
-      calls: next_calls,
+      eval_cxt: {
+        ...next_eval_cxt,
+        scope: {...eval_cxt.scope, ...let_vars_scope},
+      }
     }
   } else if(['let', 'const', 'assignment'].includes(s.type)) {
     const stmt = s
 
-    const initial = {ok: true, children: [], scope, calls}
+    const initial = {ok: true, children: [], eval_cxt}
 
-    const {ok, children, calls: next_calls, scope: next_scope} = s.children.reduce(
-      ({ok, children, scope, calls}, s) => {
+    const {ok, children, eval_cxt: next_eval_cxt} = s.children.reduce(
+      ({ok, children, eval_cxt}, s) => {
         if(!ok) {
-          return {ok, scope, calls, children: [...children, s]}
+          return {ok, eval_cxt, children: [...children, s]}
         } 
         if(stmt.type == 'let' && s.type == 'identifier') {
           const node = {...s, result: {ok: true}}
+          const scope = {...eval_cxt.scope, [symbol_for_identifier(s, frame_cxt)]: undefined}
           return {
             ok, 
             children: [...children, node], 
-            scope: {...scope, [symbol_for_identifier(s, frame_cxt)]: undefined},
-            calls
+            eval_cxt: {...eval_cxt, scope},
           }
         }
         const {
           ok: next_ok, 
           node,
-          scope: nextscope, 
-          calls: next_calls, 
-        } = eval_decl_pair(s, scope, calls, frame_cxt)
+          eval_cxt: next_eval_cxt,
+        } = eval_decl_pair(s, eval_cxt, frame_cxt)
         return {
           ok: next_ok,
-          scope: nextscope,
-          calls: next_calls,
+          eval_cxt: next_eval_cxt,
           children: [...children, node],
         }
       },
@@ -1191,29 +1182,26 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
     return {
       ok,
       node: {...s, children, result: {ok}},
-      scope: {...scope, ...next_scope},
-      calls: next_calls,
+      eval_cxt: next_eval_cxt,
     }
   } else if(s.type == 'return') {
 
-    const {node, calls: next_calls, scope: nextscope} = 
-      eval_frame_expr(s.expr, scope, calls, frame_cxt)
+    const {node, eval_cxt: next_eval_cxt} = 
+      eval_frame_expr(s.expr, eval_cxt, frame_cxt)
 
     return {
       ok: node.result.ok,
       returned: node.result.ok,
       node: {...s, children: [node], result: {ok: node.result.ok}},
-      scope: nextscope,
-      calls: next_calls,
+      eval_cxt: next_eval_cxt,
     }
 
   } else if(s.type == 'export') {
-    const {ok, scope: nextscope, calls: next_calls, node} 
-      = eval_statement(s.binding, scope, calls, frame_cxt)
+    const {ok, eval_cxt: next_eval_cxt, node} 
+      = eval_statement(s.binding, eval_cxt, frame_cxt)
     return {
       ok,
-      scope: nextscope,
-      calls: next_calls,
+      eval_cxt: next_eval_cxt,
       node: {...s, children: [node], result: {ok: node.result.ok}}
     }
   } else if(s.type == 'import') {
@@ -1233,22 +1221,22 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
     )
     return {
       ok: true,
-      scope: {...scope, ...imported_scope},
-      calls,
+      eval_cxt: {
+        ...eval_cxt,
+        scope: {...eval_cxt.scope, ...imported_scope}
+      },
       node: {...s, children, result: {ok: true}}
     }
   } else if(s.type == 'if') {
 
-    const {node, calls: next_calls, scope: scope_after_cond} = 
-      eval_frame_expr(s.cond, scope, calls, frame_cxt)
+    const {node, eval_cxt: eval_cxt_after_cond} = 
+      eval_frame_expr(s.cond, eval_cxt, frame_cxt)
 
     if(!node.result.ok) {
       return {
         ok: false,
         node: {...s, children: [node, ...s.branches], result: {ok: false}},
-        scope,
-        calls: next_calls,
-        scope: scope_after_cond,
+        eval_cxt: eval_cxt_after_cond,
       }
     }
 
@@ -1259,12 +1247,10 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
         const {
           node: evaled_branch, 
           returned, 
-          scope: next_scope,
-          calls: next_calls2,
+          eval_cxt: eval_cxt_after_branch,
         } = eval_statement(
           s.branches[0],
-          scope_after_cond,
-          next_calls,
+          eval_cxt_after_cond,
           frame_cxt
         )
         return {
@@ -1274,16 +1260,14 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
             children: [node, evaled_branch],
             result: {ok: evaled_branch.result.ok}
           },
-          scope: next_scope,
-          calls: next_calls2,
+          eval_cxt: eval_cxt_after_branch,
         }
       } else {
         // Branch is not executed
         return {
           ok: true,
           node: {...s, children: [node, s.branches[0]], result: {ok: true}},
-          scope,
-          calls: next_calls,
+          eval_cxt: eval_cxt_after_cond,
         }
       }
     } else {
@@ -1293,12 +1277,10 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
       const {
         node: evaled_branch, 
         returned, 
-        scope: next_scope,
-        calls: next_calls2
+        eval_cxt: eval_cxt_after_branch,
       } = eval_statement(
         active_branch,
-        scope_after_cond,
-        next_calls,
+        eval_cxt_after_cond,
         frame_cxt,
       )
 
@@ -1310,15 +1292,14 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
         ok: evaled_branch.result.ok,
         returned,
         node: {...s, children, result: {ok: evaled_branch.result.ok}},
-        scope: next_scope,
-        calls: next_calls2,
+        eval_cxt: eval_cxt_after_branch,
       }
     }
 
   } else if(s.type == 'throw') {
 
-    const {node, calls: next_calls, scope: next_scope} = 
-      eval_frame_expr(s.expr, scope, calls, frame_cxt)
+    const {node, eval_cxt: next_eval_cxt} = 
+      eval_frame_expr(s.expr, eval_cxt, frame_cxt)
 
     return {
       ok: false,
@@ -1330,19 +1311,24 @@ const eval_statement = (s, scope, calls, frame_cxt) => {
           error: node.result.ok ? node.result.value : null,
         }
       },
-      scope: next_scope,
-      calls: next_calls,
+      eval_cxt: next_eval_cxt,
     }
 
   } else {
     // stmt type is expression
-    const {node, calls: next_calls, scope: next_scope} = eval_frame_expr(s, scope, calls, frame_cxt)
+    const {node, eval_cxt: next_eval_cxt} = eval_frame_expr(s, eval_cxt, frame_cxt)
     return {
       ok: node.result.ok,
       node,
-      scope: next_scope,
-      calls: next_calls,
+      eval_cxt: next_eval_cxt,
     }
+  }
+}
+
+const check_eval_result = result => {
+  // Ensure that eval_cxt is only constructed within eval_frame
+  if(!result.eval_cxt.__eval_cxt_marker) {
+    throw new Error('illegal state')
   }
 }
 
@@ -1354,12 +1340,19 @@ export const eval_frame = (calltree_node, modules) => {
   const frame_cxt = {calltree_node, modules}
   if(node.type == 'do') {
     // eval module toplevel
-    return eval_statement(
-        node,
-        {}, 
-        calltree_node.children,
-        frame_cxt,
-      ).node
+    const eval_result = eval_statement(
+      node,
+      {
+        __eval_cxt_marker: true,
+        scope: {},
+        calls: calltree_node.children,
+      },
+      frame_cxt,
+    )
+
+    check_eval_result(eval_result)
+
+    return eval_result.node
   } else {
     // TODO default values for destructuring can be function calls
 
@@ -1421,21 +1414,24 @@ export const eval_frame = (calltree_node, modules) => {
 
     let nextbody
 
-    if(body.type == 'do') {
-      nextbody = eval_statement(
-          body, 
-          scope,
-          calltree_node.children,
-          frame_cxt,
-        ).node
-    } else {
-      nextbody = eval_frame_expr(body, scope, calltree_node.children, frame_cxt)
-        .node
+    const eval_cxt = {
+      __eval_cxt_marker: true,
+      scope,
+      calls: calltree_node.children,
     }
 
+    let eval_result
+    if(body.type == 'do') {
+      eval_result = eval_statement(body, eval_cxt, frame_cxt)
+    } else {
+      eval_result = eval_frame_expr(body, eval_cxt, frame_cxt)
+    }
+
+    check_eval_result(eval_result)
+
     return {...node,
-      result: {ok: nextbody.result.ok},
-      children: [function_args_with_result, nextbody],
+      result: {ok: eval_result.node.result.ok},
+      children: [function_args_with_result, eval_result.node],
     }
   }
 }
