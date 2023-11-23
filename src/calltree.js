@@ -216,7 +216,7 @@ const replace_calltree_node = (root, node, replacement) => {
 const expand_calltree_node = (state, node) => {
   if(node.has_more_children) {
     const next_node = eval_expand_calltree_node(
-      state.eval_cxt, 
+      state.rt_cxt, 
       state.parse_result, 
       node
     )

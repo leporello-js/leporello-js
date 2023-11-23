@@ -2749,11 +2749,11 @@ const y = x()`
     assert_equal(s3.current_calltree_node.toplevel, true)
 
     // Go back to fn
-    assert_equal(s3.eval_cxt == null, false)
+    assert_equal(s3.rt_cxt == null, false)
     const s4 = COMMANDS.move_cursor(
       {...s3, 
-        // Set eval_cxt to null, ensure eval would not be called again
-        eval_cxt: null
+        // Set rt_cxt to null, ensure eval would not be called again
+        rt_cxt: null
       },
       code.indexOf('1')
     )
@@ -2837,10 +2837,10 @@ const y = x()`
 
     // Check that when we move cursor inside unreachable function, find_call
     // not called again
-    assert_equal(s2.eval_cxt != null, true)
+    assert_equal(s2.rt_cxt != null, true)
     const s3 = COMMANDS.move_cursor(
-      // Set eval_cxt to null, ensure it would not be called again
-      {...s2, eval_cxt: null},
+      // Set rt_cxt to null, ensure it would not be called again
+      {...s2, rt_cxt: null},
       code.indexOf('2')
     )
     assert_equal(s3.active_calltree_node, null)
@@ -3858,7 +3858,7 @@ const y = x()`
 
     const next = COMMANDS.input(initial, `const x = Math.random()*2`, 0).state
     assert_equal(next.value_explorer.result.value, 2)
-    assert_equal(next.eval_cxt.io_trace_index, 1)
+    assert_equal(next.rt_cxt.io_trace_index, 1)
 
     // Patch Math.random to return 2. 
     // TODO The first call to Math.random() is cached with value 1, and the
@@ -4030,7 +4030,7 @@ const y = x()`
     const state = on_deferred_call(i)
 
     // Deferred calls should not be record in cache
-    assert_equal(state.eval_cxt.io_trace.length, 0)
+    assert_equal(state.rt_cxt.io_trace.length, 0)
   }),
 
   test('record io discard prev execution', () => {

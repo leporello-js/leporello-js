@@ -40,7 +40,7 @@ export class IO_Trace {
 
     const items = state.io_trace ?? []
     // Number of items that were used during execution
-    const used_count = state.eval_cxt.io_trace_index ?? items.length
+    const used_count = state.rt_cxt.io_trace_index ?? items.length
 
     for(let i = 0; i < items.length; i++) {
       const item = items[i]

@@ -223,7 +223,7 @@ export const apply_side_effects = (prev, next, ui) => {
         if(
           prev.io_trace != next.io_trace 
           || 
-          prev.eval_cxt?.io_trace_index != next.eval_cxt.io_trace_index
+          prev.rt_cxt?.io_trace_index != next.rt_cxt.io_trace_index
         ) {
           ui.render_io_trace(next)
         }

@@ -255,17 +255,17 @@ export const with_code_execution = (action, state = get_state()) => {
     call toJSON(), which can call trigger deferred call (see lodash.js lazy
     chaining)
   */
-  if(state.eval_cxt != null) {
-    state.eval_cxt.is_recording_deferred_calls = false
-    state.eval_cxt.skip_save_ct_node_for_path = true
+  if(state.rt_cxt != null) {
+    state.rt_cxt.is_recording_deferred_calls = false
+    state.rt_cxt.skip_save_ct_node_for_path = true
   }
 
   try {
     return action()
   } finally {
-    if(state.eval_cxt != null) {
-      state.eval_cxt.is_recording_deferred_calls = true
-      state.eval_cxt.skip_save_ct_node_for_path = false
+    if(state.rt_cxt != null) {
+      state.rt_cxt.is_recording_deferred_calls = true
+      state.rt_cxt.skip_save_ct_node_for_path = false
     }
   }
 }

@@ -480,10 +480,10 @@ export const eval_modules = (
     return {
       modules: result.modules,
       logs: result.logs,
-      eval_cxt: result.eval_cxt,
+      rt_cxt: result.rt_cxt,
       calltree,
       calltree_node_by_loc: result.calltree_node_by_loc,
-      io_trace: result.eval_cxt.io_trace,
+      io_trace: result.rt_cxt.io_trace,
     }
   }
 

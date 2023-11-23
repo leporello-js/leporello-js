@@ -122,7 +122,7 @@ const do_run = function*(module_fns, cxt, io_trace){
     modules: cxt.modules,
     calltree,
     logs: _logs,
-    eval_cxt: cxt,
+    rt_cxt: cxt,
     calltree_node_by_loc,
   }
 }
@@ -130,9 +130,9 @@ const do_run = function*(module_fns, cxt, io_trace){
 export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
   const result = yield* do_run(module_fns, cxt, io_trace)
 
-  if(result.eval_cxt.io_trace_is_replay_aborted) {
+  if(result.rt_cxt.io_trace_is_replay_aborted) {
     // TODO test next line
-    result.eval_cxt.is_recording_deferred_calls = false
+    result.rt_cxt.is_recording_deferred_calls = false
 
     // run again without io trace
     return yield* do_run(module_fns, cxt, null)

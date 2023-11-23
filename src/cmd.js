@@ -46,8 +46,8 @@ const apply_eval_result = (state, eval_result) => {
     ...state,
     calltree: make_calltree(eval_result.calltree, null),
     calltree_node_by_loc: eval_result.calltree_node_by_loc,
-    // TODO copy eval_cxt?
-    eval_cxt: eval_result.eval_cxt,
+    // TODO copy rt_cxt?
+    rt_cxt: eval_result.rt_cxt,
     logs: {
       logs: collect_logs(eval_result.logs, eval_result.calltree), 
       log_position: null
@@ -90,7 +90,7 @@ const run_code = (s, dirty_files) => {
     // Shows that calltree is brand new and requires entire rerender
     calltree_changed_token: {},
 
-    eval_cxt: null,
+    rt_cxt: null,
     logs: null,
     current_calltree_node: null,
     active_calltree_node: null,
