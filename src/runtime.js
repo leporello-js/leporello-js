@@ -234,7 +234,9 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
   if(node.fn.__location != null) {
     // fn is hosted, it created call, this time with children
     const result = children[0]
-    result.id = node.id
+    if(result.id != node.id) {
+      throw new Error('illegal state')
+    }
     result.children = cxt.prev_children
     result.has_more_children = false
     return result
