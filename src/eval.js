@@ -755,8 +755,9 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
           eval_cxt: next_eval_cxt,
         }
       }
-      const [c, ...next_calls] = next_eval_cxt.calls
-      if(c == null) {
+      const calls = frame_cxt.calltree_node.children
+      const call = calls == null ? null : calls[next_eval_cxt.call_index]
+      if(call == null) {
         throw new Error('illegal state')
       }
 
@@ -774,31 +775,31 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
         ...closure_let_vars,
       }
       const changed_vars = filter_object(let_vars, (name, v) => 
-        v.last_version_number() >= c.id
+        v.last_version_number() >= call.id
       )
 
-      const next_id = next_calls.length == 0
+      const next_id = next_eval_cxt.call_index == calls.length - 1
         ? frame_cxt.calltree_node.next_id
-        : next_calls[0].id
+        : calls[next_eval_cxt.call_index + 1].id
 
       const updated_let_scope = map_object(changed_vars, (name, v) => 
         /*
-          We can't just use c.next_id here because it will break in async
+          We can't just use call.next_id here because it will break in async
           context
         */
         v.get_version(next_id)
       )
 
       return {
-        ok: c.ok, 
-        call: c,
-        value: c.value, 
-        error: c.error, 
-        is_error_origin: !c.ok,
+        ok: call.ok, 
+        call,
+        value: call.value, 
+        error: call.error, 
+        is_error_origin: !call.ok,
         children,
         eval_cxt: {
           ...next_eval_cxt, 
-          calls: next_calls,
+          call_index: next_eval_cxt.call_index + 1,
           scope: {...next_eval_cxt.scope, ...updated_let_scope},
         },
       }
@@ -977,11 +978,6 @@ const eval_children = (node, eval_cxt, frame_cxt) => {
 const eval_frame_expr = (node, eval_cxt, frame_cxt) => {
   const {ok, error, is_error_origin, value, call, children, eval_cxt: next_eval_cxt} 
     = do_eval_frame_expr(node, eval_cxt, frame_cxt)
-  if(eval_cxt.calls != null && next_eval_cxt.calls == null) {
-    // TODO remove it, just for debug
-    console.error('node', node)
-    throw new Error('illegal state')
-  }
   return {
     node: {
       ...node, 
@@ -1345,7 +1341,7 @@ export const eval_frame = (calltree_node, modules) => {
       {
         __eval_cxt_marker: true,
         scope: {},
-        calls: calltree_node.children,
+        call_index: 0,
       },
       frame_cxt,
     )
@@ -1417,7 +1413,7 @@ export const eval_frame = (calltree_node, modules) => {
     const eval_cxt = {
       __eval_cxt_marker: true,
       scope,
-      calls: calltree_node.children,
+      call_index: 0,
     }
 
     let eval_result
