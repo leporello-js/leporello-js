@@ -21,12 +21,10 @@ export class Multiversion {
     this.cxt = cxt
     this.is_expanding_calltree_node = cxt.is_expanding_calltree_node
     this.latest = initial
-    this.versions = [{call_id: cxt.call_counter, value: initial}]
+    this.versions = [{version_number: cxt.version_counter, value: initial}]
   }
 
   get() {
-    const call_id = this.cxt.call_counter
-
     if(!this.cxt.is_expanding_calltree_node) {
       return this.latest
     } else {
@@ -38,20 +36,21 @@ export class Multiversion {
           // value was set during expand_calltree_node, use this value
           return this.latest
         }
-        // TODO on first read, set latest and latest_copy?
-        return this.get_version(call_id)
+        // TODO on first read, set latest and latest_copy? Note that it will
+        // interfere with at_moment_in_time
+        const version_number = this.cxt.version_counter
+        return this.get_version(version_number)
       }
     }
   }
 
-  get_version(call_id) {
-    const idx = binarySearch(this.versions, call_id, (id, el) => id - el.call_id)
-    if(idx == 0) {
-      // This branch is unreachable. get_version will be never called for a
-      // call_id where let variable was declared.
+  get_version(version_number) {
+    if(version_number == null) {
       throw new Error('illegal state')
-    } else if(idx > 0) {
-      return this.versions[idx - 1].value
+    }
+    const idx = binarySearch(this.versions, version_number, (id, el) => id - el.version_number)
+    if(idx >= 0) {
+      return this.versions[idx].value
     } else if(idx == -1) {
       throw new Error('illegal state')
     } else {
@@ -60,11 +59,11 @@ export class Multiversion {
   }
 
   set(value) {
-    const call_id = this.cxt.call_counter
+    const version_number = ++this.cxt.version_counter
     if(this.cxt.is_expanding_calltree_node) {
       if(this.is_expanding_calltree_node) {
         this.latest = value
-        this.set_version(call_id, value)
+        this.set_version(version_number, value)
         this.cxt.touched_multiversions.add(this)
       } else {
         if(this.latest_copy == null) {
@@ -75,23 +74,11 @@ export class Multiversion {
       }
     } else {
       this.latest = value
-      this.set_version(call_id, value)
+      this.set_version(version_number, value)
     }
   }
 
-  last_version_number() {
-    return this.versions.at(-1).call_id
-  }
-
-  set_version(call_id, value) {
-    const last_version = this.versions.at(-1)
-    if(last_version.call_id > call_id) {
-      throw new Error('illegal state')
-    }
-    if(last_version.call_id == call_id) {
-      last_version.value = value
-      return
-    }
-    this.versions.push({call_id, value})
+  set_version(version_number, value) {
+    this.versions.push({version_number, value})
   }
 }

@@ -454,6 +454,7 @@ export const eval_modules = (
       : map_object(external_imports, (name, {module}) => module),
 
     call_counter: 0,
+    version_counter: 0,
     children: null,
     prev_children: null,
     // TODO use native array for stack for perf? stack contains booleans
@@ -774,20 +775,9 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
         ...frame_cxt.calltree_node.let_vars, 
         ...closure_let_vars,
       }
-      const changed_vars = filter_object(let_vars, (name, v) => 
-        v.last_version_number() >= call.id
-      )
 
-      const next_id = next_eval_cxt.call_index == calls.length - 1
-        ? frame_cxt.calltree_node.next_id
-        : calls[next_eval_cxt.call_index + 1].id
-
-      const updated_let_scope = map_object(changed_vars, (name, v) => 
-        /*
-          We can't just use call.next_id here because it will break in async
-          context
-        */
-        v.get_version(next_id)
+      const updated_let_scope = map_object(let_vars, (name, v) => 
+        v.get_version(call.last_version_number)
       )
 
       return {
@@ -1354,7 +1344,7 @@ export const eval_frame = (calltree_node, modules) => {
 
     const closure = map_object(calltree_node.fn.__closure, (_key, value) => {
       return value instanceof LetMultiversion
-        ? value.get_version(calltree_node.id)
+        ? value.get_version(calltree_node.version_number)
         : value
     })
     const args_scope_result = get_args_scope(

@@ -83,6 +83,7 @@ const do_run = function*(module_fns, cxt, io_trace){
       toplevel: true, 
       module,
       id: ++cxt.call_counter,
+      version_number: cxt.version_counter,
       let_vars: {},
     }
 
@@ -109,7 +110,7 @@ const do_run = function*(module_fns, cxt, io_trace){
       calltree.error = error
     }
     calltree.children = cxt.children
-    calltree.next_id = cxt.call_counter + 1
+    calltree.last_version_number = cxt.version_counter
     if(!calltree.ok) {
       break
     }
@@ -205,6 +206,11 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
     // as node.id
     : node.id - 1 
 
+  const version_counter = cxt.version_counter
+
+  // Save version_counter
+  cxt.version_counter = node.version_number
+
   cxt.children = null
   try {
     if(node.is_new) {
@@ -218,6 +224,8 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
 
   // Restore call counter
   cxt.call_counter = call_counter
+  // Restore version_counter
+  cxt.version_counter = version_counter
 
   // Recover multiversions affected by expand_calltree_node
   for(let m of cxt.touched_multiversions) {
@@ -292,6 +300,7 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versione
     cxt.stack.push(false)
 
     const call_id = ++cxt.call_counter
+    const version_number = cxt.version_counter
 
     // populate calltree_node_by_loc only for entrypoint module
     if(cxt.is_entrypoint && !cxt.skip_save_ct_node_for_path) {
@@ -339,7 +348,8 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versione
 
       const call = {
         id: call_id,
-        next_id: cxt.call_counter + 1,
+        version_number,
+        last_version_number: cxt.version_counter,
         let_vars,
         ok,
         value,
@@ -404,6 +414,7 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
   cxt.stack.push(false)
 
   const call_id = ++cxt.call_counter
+  const version_number = cxt.version_counter
 
   // TODO: other console fns
   const is_log = fn == cxt.window.console.log || fn == cxt.window.console.error
@@ -440,7 +451,8 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
 
     const call = {
       id: call_id,
-      next_id: cxt.call_counter + 1,
+      version_number,
+      last_version_number: cxt.version_counter,
       ok,
       value,
       error,
