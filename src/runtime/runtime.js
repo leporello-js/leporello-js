@@ -194,7 +194,9 @@ export const set_record_call = cxt => {
 export const do_eval_expand_calltree_node = (cxt, node) => {
   cxt.is_recording_deferred_calls = false
   cxt.is_expanding_calltree_node = true
-  cxt.touched_multiversions = new Set()
+  cxt.expand_calltree_node_number = cxt.expand_calltree_node_number == null
+    ? 0
+    : cxt.expand_calltree_node_number + 1
 
   // Save call counter and set it to the value it had when executed 'fn' for
   // the first time
@@ -227,16 +229,6 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
   // Restore version_counter
   cxt.version_counter = version_counter
 
-  // Recover multiversions affected by expand_calltree_node
-  for(let m of cxt.touched_multiversions) {
-    if(m.is_expanding_calltree_node) {
-      delete m.is_expanding_calltree_node
-    }
-    if(m.latest_copy != null) {
-      m.latest = m.latest_copy.value
-    }
-  }
-  delete cxt.touched_multiversions
 
   cxt.is_expanding_calltree_node = false
   cxt.is_recording_deferred_calls = true

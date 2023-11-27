@@ -19,25 +19,22 @@ function binarySearch(arr, el, compare_fn) {
 export class Multiversion {
   constructor(cxt, initial) {
     this.cxt = cxt
-    this.is_expanding_calltree_node = cxt.is_expanding_calltree_node
+    this.expand_calltree_node_number = cxt.expand_calltree_node_number
     this.latest = initial
     this.versions = [{version_number: cxt.version_counter, value: initial}]
+  }
+
+  is_created_during_current_expand() {
+    return this.expand_calltree_node_number == this.cxt.expand_calltree_node_number
   }
 
   get() {
     if(!this.cxt.is_expanding_calltree_node) {
       return this.latest
     } else {
-      if(this.is_expanding_calltree_node) {
-        // var was created during current expansion, use its latest value
+      if(this.is_created_during_current_expand()) {
         return this.latest
       } else {
-        if(this.latest_copy != null) {
-          // value was set during expand_calltree_node, use this value
-          return this.latest
-        }
-        // TODO on first read, set latest and latest_copy? Note that it will
-        // interfere with at_moment_in_time
         const version_number = this.cxt.version_counter
         return this.get_version(version_number)
       }
@@ -61,16 +58,11 @@ export class Multiversion {
   set(value) {
     const version_number = ++this.cxt.version_counter
     if(this.cxt.is_expanding_calltree_node) {
-      if(this.is_expanding_calltree_node) {
+      if(this.is_created_during_current_expand()) {
         this.latest = value
         this.set_version(version_number, value)
-        this.cxt.touched_multiversions.add(this)
       } else {
-        if(this.latest_copy == null) {
-          this.latest_copy = {value: this.latest}
-        }
-        this.cxt.touched_multiversions.add(this)
-        this.latest = value
+        // do nothing
       }
     } else {
       this.latest = value

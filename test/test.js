@@ -4682,4 +4682,32 @@ const y = x()`
     const moved = COMMANDS.move_cursor(expanded, code.indexOf('return x'))
     assert_equal(moved.value_explorer.result.value, 2)
   }),
+
+  test('let_versions deferred calls get value', () => {
+    const code = `
+      let x = 0
+
+      function noop() {
+      }
+      
+      function set(value) {
+        x = value
+        noop()
+      }
+
+      set(1)
+      set(2)
+      set(3)
+
+      export const get = () => x
+    `
+
+    const {state: i} = test_deferred_calls_state(code)
+
+    const second_set_call = root_calltree_node(i).children[1]
+    assert_equal(second_set_call.has_more_children, true)
+
+    const exp = COMMANDS.calltree.click(i, second_set_call.id)
+    assert_equal(exp.modules[''].get(), 3)
+  }),
 ]
