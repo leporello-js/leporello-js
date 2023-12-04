@@ -15,6 +15,7 @@ import {
   initial_calltree_node, default_expand_path, toggle_expanded, active_frame, 
   find_call, set_active_calltree_node, 
   set_cursor_position, current_cursor_position, set_location,
+  is_native_fn,
 } from './calltree.js'
 
 const collect_logs = (logs, call) => {
@@ -344,6 +345,17 @@ const step_into = (state, index) => {
     active_frame(state),
     index
   )
+
+  if(is_native_fn(calltree_node)) {
+    return {
+      state, 
+      effects: {
+        type: 'set_status', 
+        args: ['Cannot step into: function is either builtin or from external lib']
+      }
+    }
+  }
+
   if(!ok){
     return {state, effects: {type: 'set_status', args: [message]}}
   } else {

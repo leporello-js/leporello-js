@@ -1650,6 +1650,19 @@ export const tests = [
     assert_equal(cn.index, code.indexOf('() => x()'))
   }),
 
+  test('step_into native bug', () => {
+    const code = `Object()`
+    const initial = test_initial_state(code)
+    const {state, effects} = COMMANDS.step_into(initial, 0)
+    assert_equal(initial == state, true)
+    assert_equal(effects, {
+      "type": "set_status",
+      "args": [
+        "Cannot step into: function is either builtin or from external lib"
+      ]
+    })
+  }),
+
   test('coloring', () => {
     const code = `
       const x = () => {
