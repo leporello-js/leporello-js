@@ -475,6 +475,7 @@ const eval_selection = (state, index, is_expand) => {
     selection_state,
     value_explorer: selection_state.ok
       ? {
+          node: selection_state.node,
           index: selection_state.node.index,
           length: selection_state.node.length,
           result,

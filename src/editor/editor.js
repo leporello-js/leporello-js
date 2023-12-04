@@ -224,7 +224,7 @@ export class Editor {
     }
   }
 
-  embed_value_explorer({index, length, result: {ok, value, error}}) {
+  embed_value_explorer({node, index, length, result: {ok, value, error}}) {
     this.unembed_value_explorer()
 
     const session = this.ace_editor.getSession()
@@ -261,6 +261,14 @@ export class Editor {
         escape()
       }
     })
+
+    if(node != null && node.type == 'function_call') {
+      content.append(el('a', {
+        href: 'javascript: void(0)',
+        'class': 'embed_value_explorer_control',
+        click: () => exec('step_into', index),
+      }, 'Step into call (Enter)'))
+    }
 
     let is_dom_el
 
@@ -305,14 +313,15 @@ export class Editor {
     }
 
     const widget = this.widget = {
-       row: is_dom_el
-        ? session.doc.indexToPosition(index + length).row
-        : session.doc.indexToPosition(index).row,
-       fixedWidth: true,
-       el: container,
-       content,
-       is_dom_el,
-     }
+      node,
+      row: is_dom_el
+       ? session.doc.indexToPosition(index + length).row
+       : session.doc.indexToPosition(index).row,
+      fixedWidth: true,
+      el: container,
+      content,
+      is_dom_el,
+    }
 
 
     if (!session.widgetManager) {
@@ -360,6 +369,16 @@ export class Editor {
 
   init_keyboard(){
     this.set_keyboard_handler(localStorage.keyboard)
+
+    // Intercept Enter to execute step_into if function_call selected
+    this.ace_editor.keyBinding.addKeyboardHandler(($data, hashId, keyString, keyCode, e) => {
+      if(keyString == 'return') {
+        if(this.widget?.node?.type == 'function_call') {
+          exec('step_into', this.widget.node.index)
+          return {command: "null"} // to stop other handlers
+        }
+      }
+    })
 
     const VimApi = require("ace/keyboard/vim").CodeMirror.Vim
 

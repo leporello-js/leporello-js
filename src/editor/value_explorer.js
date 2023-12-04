@@ -175,13 +175,8 @@ export class ValueExplorer {
     this.toggle_expanded()
   }
 
-  clear() {
-    this.container.innerHTML = ''
-    this.node_data = {is_expanded: true}
-  }
-
   render(value) {
-    this.clear()
+    this.node_data = {is_expanded: true}
     this.value = value
     const path = []
     this.container.appendChild(this.render_value_explorer_node(null, value, path, this.node_data))
