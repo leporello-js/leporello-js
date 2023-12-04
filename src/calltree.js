@@ -280,6 +280,8 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
   } else {
     const frame = next.frames[active_calltree_node.id]
     callsite_node = find_node(frame, n => 
+      (n.type == 'function_call' || n.type == 'new')
+      &&
       n.result?.call?.id == current_calltree_node.id
     )
     loc = {

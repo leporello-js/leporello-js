@@ -1050,7 +1050,7 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
 
   return {
     ok: true,
-    node: {...s_evaled, result: node.result},
+    node: {...s_evaled, result: {...node.result, call: null}},
     eval_cxt: {
       ...next_eval_cxt,
       scope: {...next_eval_cxt.scope, ...next_scope},
