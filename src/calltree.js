@@ -300,25 +300,39 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
     with_location.active_calltree_node.id,
   )
 
-  return {...with_selected_calltree_node,
-    value_explorer: next.current_calltree_node.toplevel
-      ? null
-      : {
-          index: loc.index,
-          result: {
-            ok: true,
-            value: current_calltree_node.ok
-              ?  {
-                '*arguments*': current_calltree_node.args,
-                '*return*': current_calltree_node.value,
-              }
-              : {
-                '*arguments*': current_calltree_node.args,
-                '*throws*': current_calltree_node.error,
-              }
-          }
-        },
+  let value_explorer
 
+  if(next.current_calltree_node.toplevel) {
+    value_explorer = null
+  } else {
+
+    const args = show_body
+      ? active_frame(with_selected_calltree_node)
+        // function args node
+        .children[0]
+        .result
+        .value
+      : current_calltree_node.args
+
+    value_explorer = {
+      index: loc.index,
+      result: {
+        ok: true,
+        value: current_calltree_node.ok
+          ?  {
+            '*arguments*': args,
+            '*return*': current_calltree_node.value,
+          }
+          : {
+            '*arguments*': args,
+            '*throws*': current_calltree_node.error,
+          }
+      }
+    }
+  }
+
+  return {...with_selected_calltree_node, 
+    value_explorer,
     selection_state: show_body
       ? null
       : {node: callsite_node}

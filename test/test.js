@@ -2120,6 +2120,18 @@ const y = x()`
     assert_equal(map_expanded.children.length, 3)
   }),
 
+  test('value_explorer arguments', () => {
+    const i = test_initial_state(`
+      function foo(x, {y}) {
+      }
+
+      foo(1, {y: 2})
+    `)
+    const expanded = COMMANDS.calltree.click(i, root_calltree_node(i).children[0].id)
+    const args = expanded.value_explorer.result.value['*arguments*']
+    assert_equal(args, {x: 1, y: 2})
+  }),
+
   test('click native calltree node', () => {
     const s = test_initial_state(`Object.fromEntries([])`)
     const index = 0 // Where call starts
