@@ -32,6 +32,12 @@ import {
 
 export const tests = [
 
+  test('reserved words', () => {
+    const result = do_parse('let catch')
+    assert_equal(result.ok, false)
+    assert_equal(result.problems[0].index, 4)
+  }),
+
   test('invalid token in the beginning', () => {
     const result = do_parse('# import')
     assert_equal(result, { 

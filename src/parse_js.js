@@ -724,7 +724,10 @@ const function_call_or_member_access = nested =>
             ),
             // Adjust identifier to string literal
             if_ok(
-              identifier,
+              either(
+                identifier,
+                by_type('keyword'),
+              ),
               iden => ({...iden, 
                 type: 'string_literal', 
                 value: '"' + iden.value + '"',
