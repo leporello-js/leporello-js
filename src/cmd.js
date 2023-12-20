@@ -709,6 +709,10 @@ const get_value_explorer = (state, index) => {
 
   if(frame.type == 'function_expr' && frame.body.type != 'do') {
     const result = frame.children[1].result
+    if(result == null) {
+      // Error in arguments, body not evaluated
+      return null
+    }
     return {
       index: frame.children[1].index,
       length: frame.children[1].length,

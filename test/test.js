@@ -18,7 +18,6 @@ import {
   assert_equal, 
   stringify, 
   do_parse,
-  eval_tree,
   assert_code_evals_to, assert_code_evals_to_async,
   assert_code_error, assert_code_error_async,
   parse_modules,
@@ -63,8 +62,8 @@ export const tests = [
   }),
 
   test('empty program', () => {
-    const tree = eval_tree('')
-    const frame = eval_frame(tree)
+    const i = test_initial_state('')
+    const frame = active_frame(i)
     assert_equal(frame.children, [])
     assert_equal(frame.result, {ok: true})
   }),
@@ -84,8 +83,8 @@ export const tests = [
   }),
 
   test('Only semicolons', () => {
-    const tree = eval_tree(';;;;')
-    const frame = eval_frame(tree)
+    const i = test_initial_state(';;;;')
+    const frame = active_frame(i)
     assert_equal(frame.children, [])
     assert_equal(frame.result, {ok: true})
   }),
@@ -181,14 +180,13 @@ export const tests = [
   }),
 
   test('closure', () => {
-    const tree = eval_tree(
-      `
-        const x = 1
-        const y = () => x;
-        y()
-      `
-    )
-    const frame = eval_frame(tree.children[0])
+    const code = `
+      const x = 1
+      const y = () => x;
+      y()
+    `
+    const i = test_initial_state(code, code.indexOf('x;'))
+    const frame = active_frame(i)
     assert_equal(frame.children[1].result.value, 1)
   }),
 
@@ -391,12 +389,12 @@ export const tests = [
   }),
 
   test('out of order decl', () => {
-    const tree = eval_tree( `
+    const i = test_initial_state( `
       const y = () => x;
       const x = 1;
       y();
     `)
-    assert_equal(tree.children[0].value, 1)
+    assert_equal(root_calltree_node(i).children[0].value, 1)
   }),
 
   test('nested closure', () => {
@@ -698,10 +696,10 @@ export const tests = [
   }),
 
   test('eval_frame binary', () => {
-    const tree = eval_tree(`
+    const i = test_initial_state(`
       1 + 1
     `)
-    assert_equal(eval_frame(tree).children[0].result.value, 2)
+    assert_equal(active_frame(i).children[0].result.value, 2)
   }),
 
   test('eval_frame instanceof', () => {
@@ -710,45 +708,47 @@ export const tests = [
   }),
 
   test('eval_frame grouping', () => {
-    const tree = eval_tree('(1+1)')
-    assert_equal(eval_frame(tree).children[0].result.value, 2)
+    const i = test_initial_state('(1+1)')
+    assert_equal(active_frame(i).children[0].result.value, 2)
   }),
 
   test('eval_frame member_access', () => {
-    const tree = eval_tree('{foo: "bar"}["foo"]')
-    assert_equal(eval_frame(tree).children[0].result.value, 'bar')
+    const i = test_initial_state('{foo: "bar"}["foo"]')
+    assert_equal(active_frame(i).children[0].result.value, 'bar')
   }),
 
   test('eval_frame new', () => {
-    const tree = eval_tree('new Error("foobar")')
-    assert_equal(eval_frame(tree).children[0].result.value.message, 'foobar')
+    const i = test_initial_state('new Error("foobar")')
+    assert_equal(active_frame(i).children[0].result.value.message, 'foobar')
   }),
 
   test('eval_frame function_call', () => {
-    const tree = eval_tree(`
+    const i = test_initial_state(`
       const x = () => 1;
       2 * x();
     `)
-    assert_equal(eval_frame(tree).children[1].result.value, 2)
+    assert_equal(active_frame(i).children[1].result.value, 2)
   }),
 
   test('eval_frame function_body_expr', () => {
-    const tree = eval_tree(`
+    const code = `
       const x = y => y;
       x(2);
-    `)
-    assert_equal(eval_frame(tree.children[0]).children[1].result, {ok: true, value: 2})
+    `
+    const i = test_initial_state(code, code.indexOf('y;'))
+    assert_equal(active_frame(i).children[1].result, {ok: true, value: 2})
   }),
 
   test('eval_frame function_body_do', () => {
-    const tree = eval_tree(`
+    const code = `
       const x = y => {
         return y;
         const z = 1;
       };
       x(2);
-    `)
-    const frame = eval_frame(tree.children[0])
+    `
+    const i = test_initial_state(code, code.indexOf('return y'))
+    const frame = active_frame(i)
     const ret = frame.children[1].children[0]
     const z_after_ret = frame.children[1].children[1]
     assert_equal(ret.result, {ok: true})
@@ -756,14 +756,14 @@ export const tests = [
   }),
 
   test('eval_frame if', () => {
-    const tree = eval_tree(`
+    const i = test_initial_state(`
       if(1) {
         const x = 1;
       } else {
         const x = 1;
       }
     `)
-    const frame = eval_frame(tree)
+    const frame = active_frame(i)
     const _if = frame.children[0]
     assert_equal(_if.children[0].result, {ok: true, value: 1})
     assert_equal(_if.children[1].result, {ok: true})
@@ -771,12 +771,12 @@ export const tests = [
   }),
 
   test('eval_frame if without else', () => {
-    const tree = eval_tree(`
+    const i = test_initial_state(`
       if(1) {
         const x = 1;
       }
     `)
-    const frame = eval_frame(tree)
+    const frame = active_frame(i)
     const _if = frame.children[0]
     assert_equal(_if.children.length, 2)
     assert_equal(_if.children[0].result, {ok: true, value: 1})
@@ -801,65 +801,63 @@ export const tests = [
   }),
 
   test('eval_frame error', () => {
-    const tree = eval_tree(`
+    const code = `
       const x = ({a}) => 0;
       x(null);
-    `)
-    const frame = eval_frame(tree.children[0])
+    `
+    const frame = active_frame(
+      test_initial_state(code, code.indexOf('0'))
+    )
     assert_equal(frame.result, {ok: false})
   }),
 
   test('eval_frame binary &&', () => {
-    const tree = eval_tree(`
+    const frame = active_frame(test_initial_state(`
       const x = () => 1;
       const y = () => 2;
       false && x();
       y();
-    `)
-    const frame = eval_frame(tree)
+    `))
     assert_equal(frame.children[3].result.value, 2)
   }),
 
   test('eval_frame binary ||', () => {
-    const tree = eval_tree(`
+    const frame = active_frame(test_initial_state(`
       const x = () => 1;
       const y = () => 2;
       true || x();
       y();
-    `)
-    const frame = eval_frame(tree)
+    `))
     assert_equal(frame.children[3].result.value, 2)
   }),
 
   test('eval_frame binary ??', () => {
-    const tree = eval_tree(`
+    const frame = active_frame(test_initial_state(`
       const x = () => 1;
       const y = () => 2;
       1 ?? x();
       y();
-    `)
-    const frame = eval_frame(tree)
+    `))
     assert_equal(frame.children[3].result.value, 2)
   }),
 
   test('eval_frame null call', () => {
-    const tree = eval_tree(`null()`)
-    const frame = eval_frame(tree)
+    const frame = active_frame(test_initial_state(`null()`))
     assert_equal(frame.children[0].result.ok, false)
   }),
 
   test('eval_frame non-function call bug', () => {
-    const tree = eval_tree(`Object.assign({}, {}); null()`)
-    const frame = eval_frame(tree)
+    const frame = active_frame(test_initial_state(`Object.assign({}, {}); null()`))
     assert_equal(frame.children[frame.children.length - 1].result.ok, false)
   }),
 
   test('eval_frame destructuring args', () => {
-    const tree = eval_tree(`
+    const code = `
       const x = (...a) => a;
       x(1,2,3);
-    `)
-    const frame = eval_frame(tree.children[0])
+    `
+    const i = test_initial_state(code, code.indexOf('a;'))
+    const frame = active_frame(i)
     assert_equal(frame.children[0].children[0].children[0].result.value, [1,2,3])
   }),
 
@@ -871,8 +869,8 @@ export const tests = [
       }
       y()
     `
-    const tree = eval_tree(code)
-    const frame = eval_frame(tree.children[0])
+    const i = test_initial_state(code, code.indexOf('return z'))
+    const frame = active_frame(i)
     assert_equal(
       // value for z in return statement
       frame.children[1].children[0].children[0].result.value, 

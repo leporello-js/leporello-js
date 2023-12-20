@@ -59,17 +59,6 @@ export const parse_modules = (entry, modules) =>
     new Set(Object.getOwnPropertyNames(globalThis.app_window))
   )
 
-export const eval_tree = code => {
-  const parse_result = do_parse(code)
-  assert_equal(parse_result.ok, true)
-  return eval_modules(
-    {
-      modules: {'': parse_result.node}, 
-      sorted: ['']
-    }
-  ).calltree
-}
-
 export const assert_code_evals_to = (codestring, expected) => {
   const s = test_initial_state(codestring)
   if(!s.parse_result.ok) {
