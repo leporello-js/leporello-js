@@ -873,9 +873,15 @@ export const tests = [
     const frame = active_frame(i)
     assert_equal(
       // value for z in return statement
-      frame.children[1].children[0].children[0].result.value, 
+      find_node(frame.children[1], n => n.value == 'z').result.value,
       1
     )
+    // TODO not implemented
+    //assert_equal(
+    //  // value for x in arguments
+    //  find_node(frame.children[0], n => n.value == 'x').result.value,
+    //  1
+    //)
   }),
 
   test('array spread not iterable', () => {
@@ -2651,6 +2657,12 @@ const y = x()`
       length: lettext.length,
       result: {ok: true, value: 1},
     })
+  }),
+
+  test('move_cursor destructuring default', () => {
+    const code = `const [x = 1, y] = [undefined, 2]`
+    const s = test_initial_state(code)
+    assert_equal(s.value_explorer.result.value, {x: 1, y: 2})
   }),
 
   test('move_cursor after type toplevel', () => {

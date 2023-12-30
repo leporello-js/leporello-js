@@ -1,3 +1,4 @@
+import {update_children} from './parse_js.js'
 import {map_accum, map_find, map_object, stringify, findLast} from './utils.js'
 import {is_eq, find_error_origin_node} from './ast_utils.js'
 import {find_node, find_leaf, ancestry_inc} from './ast_utils.js'
@@ -147,7 +148,7 @@ export const add_frame = (
   let frame
   frame = state.frames?.[active_calltree_node.id]
   if(frame == null) {
-    frame = eval_frame(active_calltree_node, state.modules)
+    frame = update_children(eval_frame(active_calltree_node, state.modules))
     const execution_paths = active_calltree_node.toplevel
       ? null
       : get_execution_paths(frame)

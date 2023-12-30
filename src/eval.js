@@ -1029,9 +1029,12 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
         }
       })
     ),
-    n => n.result == null
-      ? {...n, result: {ok}}
-      : n
+    n => 
+      // TODO this should set result for default values in destructuring
+      // Currently not implemented
+      n.result == null
+        ? {...n, result: {ok}}
+        : n
   )
 
   const s_evaled = {...s_expr_evaled, children: [

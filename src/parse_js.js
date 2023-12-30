@@ -1561,7 +1561,7 @@ const update_children_not_rec = (node, children = node.children) => {
   }
 }
 
-const update_children = node => {
+export const update_children = node => {
   if(Array.isArray(node)) {
     return node.map(update_children)
   } else {
