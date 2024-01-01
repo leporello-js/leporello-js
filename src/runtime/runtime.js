@@ -1,8 +1,9 @@
 import {set_current_context} from './record_io.js'
-import {Multiversion} from './multiversion.js'
-
-// Create separate class to check value instanceof LetMultiversion
-export class LetMultiversion extends Multiversion {}
+import {LetMultiversion} from './let_multiversion.js'
+import {defineMultiversionArray, create_array, wrap_array} from './array.js'
+import {create_object} from './object.js'
+import {defineMultiversionSet} from './set.js'
+import {defineMultiversionMap} from './map.js'
 
 /*
 Converts generator-returning function to promise-returning function. Allows to
@@ -70,6 +71,7 @@ const do_run = function*(module_fns, cxt, io_trace){
       io_trace_abort_replay,
     }
 
+  defineMultiversion(cxt.window)
   apply_promise_patch(cxt)
   set_current_context(cxt)
 
@@ -85,6 +87,7 @@ const do_run = function*(module_fns, cxt, io_trace){
       id: ++cxt.call_counter,
       version_number: cxt.version_counter,
       let_vars: {},
+      literals: new Map(),
     }
 
     try {
@@ -92,12 +95,15 @@ const do_run = function*(module_fns, cxt, io_trace){
       const result = fn(
         cxt, 
         calltree.let_vars,
+        calltree.literals,
         calltree_node_by_loc.get(module),
         __trace, 
         __trace_call, 
         __do_await, 
         __save_ct_node_for_path,
         LetMultiversion,
+        create_array,
+        create_object,
       )
       if(result instanceof cxt.window.Promise) {
         yield cxt.window.Promise.race([replay_aborted_promise, result])
@@ -193,10 +199,6 @@ export const set_record_call = cxt => {
 
 export const do_eval_expand_calltree_node = (cxt, node) => {
   cxt.is_recording_deferred_calls = false
-  cxt.is_expanding_calltree_node = true
-  cxt.expand_calltree_node_number = cxt.expand_calltree_node_number == null
-    ? 0
-    : cxt.expand_calltree_node_number + 1
 
   // Save call counter and set it to the value it had when executed 'fn' for
   // the first time
@@ -208,29 +210,24 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
     // as node.id
     : node.id - 1 
 
-  const version_counter = cxt.version_counter
-
-  // Save version_counter
-  cxt.version_counter = node.version_number
 
   cxt.children = null
   try {
-    if(node.is_new) {
-      new node.fn(...node.args)
-    } else {
-      node.fn.apply(node.context, node.args)
-    }
+    with_version_number(cxt, node.version_number, () => {
+      if(node.is_new) {
+        new node.fn(...node.args)
+      } else {
+        node.fn.apply(node.context, node.args)
+      }
+    })
   } catch(e) {
     // do nothing. Exception was caught and recorded inside '__trace'
   }
 
   // Restore call counter
   cxt.call_counter = call_counter
-  // Restore version_counter
-  cxt.version_counter = version_counter
 
 
-  cxt.is_expanding_calltree_node = false
   cxt.is_recording_deferred_calls = true
   const children = cxt.children
   cxt.children = null
@@ -312,6 +309,9 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versione
       let_vars = cxt.let_vars = {}
     }
 
+    // TODO only allocate map if has literals
+    const literals = cxt.literals = new Map()
+
     let ok, value, error
 
     const is_toplevel_call_copy = cxt.is_toplevel_call
@@ -343,6 +343,7 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versione
         version_number,
         last_version_number: cxt.version_counter,
         let_vars,
+        literals,
         ok,
         value,
         error,
@@ -384,6 +385,47 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versione
   Object.defineProperty(result, 'name', {value: name})
   result.__location = __location
   return result
+}
+
+const defineMultiversion = window => {
+  if(window.defineMultiversionDone) {
+    return
+  }
+  window.defineMultiversionDone = true
+  defineMultiversionArray(window)
+  defineMultiversionSet(window)
+  defineMultiversionMap(window)
+}
+
+const wrap_multiversion_value = (value, cxt) => {
+
+  // TODO use a WeakMap value => wrapper ???
+
+  if(value instanceof cxt.window.Set) {
+    if(!(value instanceof cxt.window.MultiversionSet)) {
+      return new cxt.window.MultiversionSet(value, cxt)
+    } else {
+      return value
+    }
+  }
+
+  if(value instanceof cxt.window.Map) {
+    if(!(value instanceof cxt.window.MultiversionMap)) {
+      return new cxt.window.MultiversionMap(value, cxt)
+    } else {
+      return value
+    }
+  }
+
+  if(value instanceof cxt.window.Array) {
+    if(!(value instanceof cxt.window.MultiversionArray)) {
+      return wrap_array(value, cxt)
+    } else {
+      return value
+    }
+  }
+
+  return value
 }
 
 const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
@@ -431,7 +473,11 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
     if(value instanceof cxt.window.Promise) {
       set_record_call(cxt)
     }
+
+    value = wrap_multiversion_value(value, cxt)
+
     return value
+
   } catch(_error) {
     ok = false
     error = _error
@@ -486,5 +532,30 @@ const __save_ct_node_for_path = (cxt, __calltree_node_by_loc, index, __call_id) 
   if(__calltree_node_by_loc.get(index) == null) {
     __calltree_node_by_loc.set(index, __call_id)
     set_record_call(cxt)
+  }
+}
+
+export const with_version_number = (rt_cxt, version_number, action) => {
+  if(rt_cxt.logs == null) {
+    // check that argument is rt_cxt
+    throw new Error('illegal state')
+  }
+  if(version_number == null) {
+    throw new Error('illegal state')
+  }
+  if(rt_cxt.is_expanding_calltree_node) {
+    throw new Error('illegal state')
+  }
+  rt_cxt.is_expanding_calltree_node = true
+  const version_counter_copy = rt_cxt.version_counter 
+  rt_cxt.version_counter = version_number
+  rt_cxt.ct_expansion_id = rt_cxt.ct_expansion_id == null
+    ? 0
+    : rt_cxt.ct_expansion_id + 1
+  try {
+    return action()
+  } finally {
+    rt_cxt.is_expanding_calltree_node = false
+    rt_cxt.version_counter = version_counter_copy
   }
 }

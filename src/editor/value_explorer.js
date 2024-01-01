@@ -5,15 +5,30 @@
 
 import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
 import {with_code_execution} from '../index.js'
-import {header, is_expandable, displayed_entries} from '../value_explorer_utils.js'
+// TODO remove is_expandble, join with displayed entries
+import {header, short_header, is_expandable, displayed_entries} from '../value_explorer_utils.js'
+import {with_version_number} from '../runtime/runtime.js'
+import {is_versioned_object, get_version_number} from '../calltree.js'
 
-
-const get_value_by_path = (o, path) => {
-  if(path.length == 0) {
-    return o
-  } else {
+const node_props_by_path = (state, o, path) => {
+  if(is_versioned_object(o)) {
+    return with_version_number(
+      state.rt_cxt,
+      get_version_number(o),
+      () => node_props_by_path(state, o.value, path),
+    )
+  }
+  if(path.length != 0) {
     const [start, ...rest] = path
-    return get_value_by_path(o[start], rest)
+    const value = displayed_entries(o).find(([k,v]) => k == start)[1]
+    return node_props_by_path(state, value, rest)
+  } else {
+    return {
+      displayed_entries: displayed_entries(o),
+      header: header(o),
+      short_header: short_header(o),
+      is_exp: is_expandable(o),
+    }
   }
 }
 
@@ -52,15 +67,15 @@ export class ValueExplorer {
         return
       }
       
-      const current_object = get_value_by_path(this.value, this.current_path)
+      const current_node = node_props_by_path(this.state, this.value, this.current_path)
 
       if(e.key == 'ArrowDown' || e.key == 'j'){
         // Do not scroll
         e.preventDefault()
 
-        if(is_expandable(current_object) && this.is_expanded(this.current_path)) {
+        if(current_node.is_exp && this.is_expanded(this.current_path)) {
           this.select_path(this.current_path.concat(
-            displayed_entries(current_object)[0][0]
+            current_node.displayed_entries[0][0]
           ))
         } else {
           const next = p => {
@@ -68,7 +83,8 @@ export class ValueExplorer {
               return null
             }
             const parent = p.slice(0, p.length - 1)
-            const children = displayed_entries(get_value_by_path(this.value, parent))
+            const children = node_props_by_path(this.state, this.value, parent)
+              .displayed_entries
             const child_index = children.findIndex(([k,v]) =>  
               k == p[p.length - 1]
             )
@@ -96,7 +112,7 @@ export class ValueExplorer {
           return
         }
         const parent = this.current_path.slice(0, this.current_path.length - 1)
-        const children = displayed_entries(get_value_by_path(this.value, parent))
+        const children = node_props_by_path(this.state, this.value, parent).displayed_entries
         const child_index = children.findIndex(([k,v]) =>  
           k == this.current_path[this.current_path.length - 1]
         )
@@ -105,10 +121,12 @@ export class ValueExplorer {
           this.select_path(parent)
         } else {
           const last = p => {
-            if(!is_expandable(get_value_by_path(this.value, p)) || !this.is_expanded(p)) {
+            const node_props = node_props_by_path(this.state, this.value, p)
+            if(!node_props.is_exp || !this.is_expanded(p)) {
               return p
             } else {
-              const children = displayed_entries(get_value_by_path(this.value, p))
+              const children = node_props
+                .displayed_entries
                 .map(([k,v]) => k)
               return last([...p, children[children.length - 1]])
 
@@ -123,7 +141,7 @@ export class ValueExplorer {
         e.preventDefault()
 
         const is_expanded = this.is_expanded(this.current_path)
-        if(!is_expandable(current_object) || !is_expanded) {
+        if(!current_node.is_exp || !is_expanded) {
           if(this.current_path.length != 0) {
             const parent = this.current_path.slice(0, this.current_path.length - 1)
             this.select_path(parent)
@@ -139,12 +157,13 @@ export class ValueExplorer {
         // Do not scroll
         e.preventDefault()
 
-        if(is_expandable(current_object)) {
+        if(current_node.is_exp) {
           const is_expanded = this.is_expanded(this.current_path)
           if(!is_expanded) {
             this.toggle_expanded()
           } else {
-            const children = displayed_entries(get_value_by_path(this.value, this.current_path))
+            const children = node_props_by_path(this.state, this.value, this.current_path)
+              .displayed_entries
             this.select_path(
               [
                 ...this.current_path,
@@ -175,11 +194,12 @@ export class ValueExplorer {
     this.toggle_expanded()
   }
 
-  render(value) {
-    this.node_data = {is_expanded: true}
+  render(state, value, node_data) {
+    this.state = state
     this.value = value
+    this.node_data = node_data
     const path = []
-    this.container.appendChild(this.render_value_explorer_node(null, value, path, this.node_data))
+    this.container.appendChild(this.render_value_explorer_node(path, this.node_data))
     this.select_path(path)
   }
 
@@ -217,11 +237,7 @@ export class ValueExplorer {
     const data = this.get_node_data(this.current_path)
     data.is_expanded = fn(data.is_expanded)
     const prev_dom_node = data.el
-    const key = this.current_path.length == 0 
-      ? null 
-      : this.current_path[this.current_path.length - 1]
-    const value = get_value_by_path(this.value, this.current_path)
-    const next = this.render_value_explorer_node(key, value, this.current_path, data)
+    const next = this.render_value_explorer_node(this.current_path, data)
     prev_dom_node.parentNode.replaceChild(next, prev_dom_node)
   }
 
@@ -230,18 +246,23 @@ export class ValueExplorer {
     this.set_active(this.current_path, true)
   }
 
-  render_value_explorer_node(...args) {
-    return with_code_execution(() => {
-      return this.do_render_value_explorer_node(...args)
-    })
+  render_value_explorer_node(path, node_data) {
+    return with_code_execution(() => (
+      this.do_render_value_explorer_node(path, node_data)
+    ), this.state)
   }
 
-  do_render_value_explorer_node(key, value, path, node_data) {
+  do_render_value_explorer_node(path, node_data) {
+    const key = path.length == 0 
+      ? null 
+      : path[path.length - 1]
 
-    const is_exp = is_expandable(value)
+    const {displayed_entries, header, short_header, is_exp} 
+      = node_props_by_path(this.state, this.value, path)
+
     const is_expanded = is_exp && node_data.is_expanded
 
-    node_data.children = {}
+    node_data.children ??= {}
 
     const result = el('div', 'value_explorer_node',
 
@@ -259,17 +280,17 @@ export class ValueExplorer {
 
         key == null || !is_exp || !is_expanded
           // Full header
-          ? header(value)
+          ? header
           // Short header
-          : Array.isArray(value)
-            ? 'Array(' + value.length + ')'
-            : ''
+          : key == '*arguments*' 
+            ? ''
+            : short_header
       ),
 
       (is_exp && is_expanded)
-        ? displayed_entries(value).map(([k,v]) => {
-            node_data.children[k] = {}
-            return this.render_value_explorer_node(k, v, [...path, k], node_data.children[k])
+        ? displayed_entries.map(([k,v]) => {
+            node_data.children[k] ??= {}
+            return this.do_render_value_explorer_node([...path, k], node_data.children[k])
           })
         : []
     )

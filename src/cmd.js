@@ -18,6 +18,9 @@ import {
   is_native_fn,
 } from './calltree.js'
 
+// external
+import {with_version_number} from './runtime/runtime.js'
+
 const collect_logs = (logs, call) => {
   const id_to_log = new Map(
     collect_nodes_with_parents(call, n => n.is_log)
@@ -26,6 +29,7 @@ const collect_logs = (logs, call) => {
         node.id,
         {
           id: node.id,
+          version_number: node.version_number,
           toplevel: parent.toplevel,
           module: parent.toplevel 
             ? parent.module
@@ -39,6 +43,9 @@ const collect_logs = (logs, call) => {
   )
   return logs.map(l => id_to_log.get(l.id))
 }
+
+export const with_version_number_of_log = (state, log_item, action) => 
+  with_version_number(state.rt_cxt, log_item.version_number, action)
 
 const apply_eval_result = (state, eval_result) => {
   // TODO what if console.log called from native fn (like Array::map)?
@@ -619,38 +626,53 @@ const get_stmt_value_explorer = (state, stmt) => {
     if(stmt.type == 'return') {
       result = stmt.children[0].result
     } else if(['let', 'const', 'assignment'].includes(stmt.type)) {
-      const identifiers = stmt
-        .children
-        .flatMap(
-          collect_destructuring_identifiers
-        )
-        .filter(id => id.result != null)
-        .map(id => [id.value, id.result.value])
-      let value
-      if(
-        stmt.children.length == 1 
-        && 
-        (
-          stmt.children[0].type == 'identifier' 
-          || 
-          stmt.children[0].type == 'decl_pair' 
-          && 
-          stmt.children[0].name_node.type == 'identifier'
-        )
-      ) {
-        // Just a single declaration
-        if(identifiers.length != 1) {
-          throw new Error('illegal state')
-        }
-        value = identifiers[0][1]
-      } else {
-        value = Object.fromEntries(identifiers)
-      }
 
-      return {
-        index: stmt.index,
-        length: stmt.length,
-        result: {ok: true, value},
+      if(stmt.children.find(c => c.type == 'assignment_pair') != null) {
+        if(stmt.children.length != 1) {
+          // Multiple assignments, not clear what value to show in value
+          // explorer, show nothing
+          return null
+        }
+        // get result of first assignment
+        result = stmt.children[0].result 
+      } else {
+        const identifiers = stmt
+          .children
+          .flatMap(
+            collect_destructuring_identifiers
+          )
+          .filter(id => id.result != null)
+          .map(id => [id.value, id.result.value])
+        let value
+        if(
+          stmt.children.length == 1 
+          && 
+          (
+            stmt.children[0].type == 'identifier' 
+            || 
+            stmt.children[0].type == 'decl_pair' 
+            && 
+            stmt.children[0].name_node.type == 'identifier'
+          )
+        ) {
+          // Just a single declaration
+          if(identifiers.length != 1) {
+            throw new Error('illegal state')
+          }
+          value = identifiers[0][1]
+        } else {
+          value = Object.fromEntries(identifiers)
+        }
+
+        // TODO different identifiers may have different version_number,
+        // because there may be function calls and assignments in between fix
+        // it
+        const version_number = stmt.children[0].result.version_number
+        return {
+          index: stmt.index,
+          length: stmt.length,
+          result: {ok: true, value, version_number},
+        }
       }
     } else if(stmt.type == 'if'){
       return null
@@ -658,6 +680,9 @@ const get_stmt_value_explorer = (state, stmt) => {
       result = {
         ok: true,
         value: state.modules[stmt.full_import_path],
+        // For imports, we show version for the moment of module toplevel
+        // starts execution
+        version_number: state.active_calltree_node.version_number,
       }
     } else if (stmt.type == 'export') {
       return get_stmt_value_explorer(state, stmt.children[0])
@@ -766,7 +791,16 @@ const get_value_explorer = (state, index) => {
 }
 
 const do_move_cursor = (state, index) => {
-  return { ...state, value_explorer: get_value_explorer(state, index) }
+  const value_explorer = get_value_explorer(state, index)  
+  if(
+    value_explorer != null
+    && value_explorer.result.ok
+    && value_explorer.result.version_number == null
+  ) {
+    console.error('no version_number found', value_explorer)
+    throw new Error('illegal state')
+  }
+  return { ...state, value_explorer}
 }
 
 const move_cursor = (s, index) => {

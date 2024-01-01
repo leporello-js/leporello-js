@@ -1,76 +1,91 @@
-// https://stackoverflow.com/a/29018745
-function binarySearch(arr, el, compare_fn) {
-    let m = 0;
-    let n = arr.length - 1;
-    while (m <= n) {
-        let k = (n + m) >> 1;
-        let cmp = compare_fn(el, arr[k]);
-        if (cmp > 0) {
-            m = k + 1;
-        } else if(cmp < 0) {
-            n = k - 1;
-        } else {
-            return k;
-        }
-    }
-    return ~m;
-}
-
 export class Multiversion {
-  constructor(cxt, initial) {
+  constructor(cxt) {
     this.cxt = cxt
-    this.expand_calltree_node_number = cxt.expand_calltree_node_number
-    this.latest = initial
-    this.versions = [{version_number: cxt.version_counter, value: initial}]
+    this.ct_expansion_id = cxt.ct_expansion_id
   }
 
-  is_created_during_current_expand() {
-    return this.expand_calltree_node_number == this.cxt.expand_calltree_node_number
+  is_created_during_current_expansion() {
+    return this.ct_expansion_id == this.cxt.ct_expansion_id
   }
 
-  get() {
-    if(!this.cxt.is_expanding_calltree_node) {
-      return this.latest
-    } else {
-      if(this.is_created_during_current_expand()) {
-        return this.latest
-      } else {
-        const version_number = this.cxt.version_counter
-        return this.get_version(version_number)
-      }
-    }
-  }
-
-  get_version(version_number) {
-    if(version_number == null) {
-      throw new Error('illegal state')
-    }
-    const idx = binarySearch(this.versions, version_number, (id, el) => id - el.version_number)
-    if(idx >= 0) {
-      return this.versions[idx].value
-    } else if(idx == -1) {
-      throw new Error('illegal state')
-    } else {
-      return this.versions[-idx - 2].value
-    }
-  }
-
-  set(value) {
-    const version_number = ++this.cxt.version_counter
+  needs_rollback() {
     if(this.cxt.is_expanding_calltree_node) {
-      if(this.is_created_during_current_expand()) {
-        this.latest = value
-        this.set_version(version_number, value)
+      if(this.is_created_during_current_expansion()) {
+        // do nothing, keep using current version
+      } else {
+        if(this.rollback_expansion_id == this.cxt.ct_expansion_id) {
+          // do nothing, keep using current version
+          // We are in the same expansion rollback was done, keep using current version
+        } else {
+          this.rollback_expansion_id = this.cxt.ct_expansion_id
+          return true
+        }
+      }
+    } else {
+      if(this.rollback_expansion_id != null) {
+        this.rollback_expansion_id = null
+        return true
       } else {
         // do nothing
       }
-    } else {
-      this.latest = value
-      this.set_version(version_number, value)
     }
   }
+}
 
-  set_version(version_number, value) {
-    this.versions.push({version_number, value})
+
+export function rollback_if_needed(object) {
+  if(object.multiversion.needs_rollback()) {
+    // Rollback to initial value
+    object.apply_initial()
+    // Replay redo log
+    for(let i = 0; i < object.redo_log.length; i++) {
+      const log_item = object.redo_log[i]
+      if(log_item.version_number > object.multiversion.cxt.version_counter) {
+        break
+      }
+      log_item.method.apply(object, log_item.args)
+    }
+  }
+}
+
+function wrap_readonly_method(clazz, method) {
+  const original = clazz.__proto__.prototype[method]
+  clazz.prototype[method] = {
+    [method](){
+      rollback_if_needed(this)
+      return original.apply(this, arguments)
+    }
+  }[method]
+}
+
+export function mutate(object, method, args) {
+  rollback_if_needed(object)
+  const version_number = ++object.multiversion.cxt.version_counter
+  if(object.multiversion.is_created_during_current_expansion()) {
+    object.redo_log.push({
+      method, 
+      args, 
+      version_number,
+    })
+  }
+  return method.apply(object, args)
+}
+
+function wrap_mutating_method(clazz, method) {
+  const original = clazz.__proto__.prototype[method]
+  clazz.prototype[method] = {
+    [method]() {
+      return mutate(this, original, arguments)
+    }
+  }[method]
+}
+
+export function wrap_methods(clazz, all_methods, mutating_methods) {
+  for (let method of all_methods) {
+    if(mutating_methods.includes(method)) {
+      wrap_mutating_method(clazz, method)
+    } else {
+      wrap_readonly_method(clazz, method)
+    }
   }
 }

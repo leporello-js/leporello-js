@@ -1,7 +1,7 @@
 import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {print_debug_node} from '../src/parse_js.js'
 import {eval_frame, eval_modules} from '../src/eval.js'
-import {COMMANDS} from '../src/cmd.js'
+import {COMMANDS, with_version_number_of_log} from '../src/cmd.js'
 import {header} from '../src/value_explorer_utils.js'
 import {
   root_calltree_node, 
@@ -11,6 +11,7 @@ import {
   current_cursor_position,
   get_execution_paths,
 } from '../src/calltree.js'
+
 import {color_file} from '../src/color.js'
 import {
   test, 
@@ -20,6 +21,7 @@ import {
   do_parse,
   assert_code_evals_to, assert_code_evals_to_async,
   assert_code_error, assert_code_error_async,
+  assert_versioned_value, assert_value_explorer, assert_selection,
   parse_modules,
   test_initial_state, test_initial_state_async,
   test_deferred_calls_state,
@@ -427,6 +429,24 @@ export const tests = [
     )
   }),
 
+  test('parse assignment error', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1, x?.[0] = 2
+    `
+    const parse_result = do_parse(code)
+    assert_equal(parse_result.ok, false)
+  }),
+
+  test('parse assignment ok', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1
+    `
+    const parse_result = do_parse(code)
+    assert_equal(parse_result.ok, true)
+  }),
+
   test('ASI_1', () => {
     const parse_result = do_parse(`
       1
@@ -717,6 +737,16 @@ export const tests = [
     assert_equal(active_frame(i).children[0].result.value, 'bar')
   }),
 
+  test('eval_frame member_access null', () => {
+    const frame = active_frame(test_initial_state('null["foo"]'))
+    const result = frame.children[0].result
+    assert_equal(result.ok, false)
+    assert_equal(
+      result.error, 
+      new TypeError("Cannot read properties of null (reading 'foo')")
+    )
+  }),
+
   test('eval_frame new', () => {
     const i = test_initial_state('new Error("foobar")')
     assert_equal(active_frame(i).children[0].result.value.message, 'foobar')
@@ -736,7 +766,9 @@ export const tests = [
       x(2);
     `
     const i = test_initial_state(code, code.indexOf('y;'))
-    assert_equal(active_frame(i).children[1].result, {ok: true, value: 2})
+    const result = active_frame(i).children[1].result
+    assert_equal(result.ok, true)
+    assert_equal(result.value, 2)
   }),
 
   test('eval_frame function_body_do', () => {
@@ -765,7 +797,8 @@ export const tests = [
     `)
     const frame = active_frame(i)
     const _if = frame.children[0]
-    assert_equal(_if.children[0].result, {ok: true, value: 1})
+    assert_equal(_if.children[0].result.ok, true)
+    assert_equal(_if.children[0].result.value, 1)
     assert_equal(_if.children[1].result, {ok: true})
     assert_equal(_if.children[2].result, null)
   }),
@@ -779,7 +812,8 @@ export const tests = [
     const frame = active_frame(i)
     const _if = frame.children[0]
     assert_equal(_if.children.length, 2)
-    assert_equal(_if.children[0].result, {ok: true, value: 1})
+    assert_equal(_if.children[0].result.ok, true)
+    assert_equal(_if.children[0].result.value, 1)
     assert_equal(_if.children[1].result, {ok: true})
   }),
 
@@ -882,6 +916,17 @@ export const tests = [
     //  find_node(frame.children[0], n => n.value == 'x').result.value,
     //  1
     //)
+  }),
+
+  test('eval_frame const lefthand', () => {
+    const code = `
+      const x = 1
+    `
+    const initial = test_initial_state(code)
+    const frame = active_frame(initial)
+    const x = find_node(frame, n => n.string == 'x')
+    assert_equal(x.result.value, 1)
+    assert_equal(x.result.version_number, 0)
   }),
 
   test('array spread not iterable', () => {
@@ -2139,7 +2184,7 @@ const y = x()`
     `)
     const expanded = COMMANDS.calltree.click(i, root_calltree_node(i).children[0].id)
     const args = expanded.value_explorer.result.value['*arguments*']
-    assert_equal(args, {x: 1, y: 2})
+    assert_equal(args, {value: {x: 1, y: 2}})
   }),
 
   test('click native calltree node', () => {
@@ -2154,11 +2199,16 @@ const y = x()`
         index,
         result: {
           "ok": true,
+          "is_calltree_node_explorer": true,
           "value": {
-            "*arguments*": [
-              []
-            ],
-            "*return*": {}
+            "*arguments*": {
+              value: [
+                []
+              ],
+            },
+            "*return*": {
+              value: {},
+            }
           }
         }
       }
@@ -2548,7 +2598,8 @@ const y = x()`
     // focus call
     const s2 = COMMANDS.calltree.arrow_right(s1)
     const s3 = COMMANDS.calltree.select_arguments(s2)
-    assert_equal(s3.state.value_explorer.result, {ok: true, value: [1]})
+    assert_equal(s3.state.value_explorer.result.ok, true)
+    assert_equal(s3.state.value_explorer.result.value, [1])
     assert_equal(current_cursor_position(s3.state), code.indexOf('(1)'))
     assert_equal(s3.effects, {type: 'set_focus'})
   }),
@@ -2564,7 +2615,14 @@ const y = x()`
     // expand call
     const s2 = COMMANDS.calltree.arrow_right(s2_0)
     const s3 = COMMANDS.calltree.select_arguments(s2)
-    assert_equal(s3.state.value_explorer.result, {ok: true, value: {a: 1}})
+    assert_equal(
+      s3.state.value_explorer.result, 
+      {
+        ok: true, 
+        value: {a: 1},
+        version_number: 0,
+      }
+    )
     assert_equal(current_cursor_position(s3.state), code.indexOf('(a)'))
     assert_equal(s3.effects, {type: 'set_focus'})
   }),
@@ -2574,7 +2632,8 @@ const y = x()`
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.calltree.arrow_right(s1)
     const s3 = COMMANDS.calltree.select_arguments(s2).state
-    assert_equal(s3.value_explorer.result, {ok: true, value: ["1"]})
+    assert_equal(s3.value_explorer.result.ok, true)
+    assert_equal(s3.value_explorer.result.value, ["1"])
   }),
 
   test('select_error', () => {
@@ -2627,7 +2686,7 @@ const y = x()`
     assert_equal(s4.value_explorer, {
       index: code.indexOf(selected),
       length: selected.length,
-      result: {ok: true, value: {a: 1, b: 2}},
+      result: {ok: true, value: {a: 1, b: 2}, version_number: 0},
     })
   }),
 
@@ -2638,11 +2697,10 @@ const y = x()`
     `
     const s1 = test_initial_state(code)
     const s2 = COMMANDS.move_cursor(s1, code.indexOf('2'))
-    assert_equal(s2.value_explorer, {
-      index: code.indexOf('y*2'),
-      length: 3,
-      result: {ok: true, value: 4},
-    })
+    assert_equal(s2.value_explorer.index, code.indexOf('y*2'))
+    assert_equal(s2.value_explorer.length, 3)
+    assert_equal(s2.value_explorer.result.ok, true)
+    assert_equal(s2.value_explorer.result.value, 4)
   }),
 
   test('move_cursor let', () => {
@@ -2655,7 +2713,7 @@ const y = x()`
     assert_equal(s2.value_explorer, {
       index: code.indexOf(lettext),
       length: lettext.length,
-      result: {ok: true, value: 1},
+      result: {ok: true, value: 1, version_number: 0},
     })
   }),
 
@@ -2742,7 +2800,7 @@ const y = x()`
     const m = COMMANDS.move_cursor(i, code.indexOf('x(null'))
     assert_equal(
       m.value_explorer.result.error, 
-      new Error("Cannot read properties of null (reading 'foo')")
+      new TypeError("Cannot read properties of null (reading 'foo')")
     )
   }),
 
@@ -4284,7 +4342,8 @@ const y = x()`
     `
     const x_pos = code.indexOf('x /*x*/')
     const i = test_initial_state(code, x_pos)
-    assert_equal(i.value_explorer.result, {ok: true, value: undefined})
+    assert_equal(i.value_explorer.result.ok, true)
+    assert_equal(i.value_explorer.result.value, undefined)
   }),
 
   test('let_versions save version bug', () => {
@@ -4656,7 +4715,7 @@ const y = x()`
     assert_equal(second_map_call_exp.children[0].id == second_map_call_exp.id + 1, true)
   }),
 
-  test('let_versions expand twice', () => {
+  test('let_versions expand_calltree_node twice', () => {
     const code = `
       function test() {
         let x = 0
@@ -4724,6 +4783,7 @@ const y = x()`
     assert_equal(moved.value_explorer.result.value, 2)
   }),
 
+
   test('let_versions deferred calls get value', () => {
     const code = `
       let x = 0
@@ -4750,5 +4810,485 @@ const y = x()`
 
     const exp = COMMANDS.calltree.click(i, second_set_call.id)
     assert_equal(exp.modules[''].get(), 3)
+  }),
+
+  test('let_versions multiple assignments', () => {
+    const code = `
+      let x
+      function foo () {
+        x /*x foo*/
+      }
+      x = 1
+      foo()
+      x = 2
+      foo() /*foo 2*/
+      x = 3
+      x /*x*/
+    `
+    const i = test_initial_state(code, code.indexOf('x /*x*/'))
+    assert_value_explorer(i, 3)
+    const stepped = COMMANDS.step_into(i, code.indexOf('foo() /*foo 2*/'))
+    const moved = COMMANDS.move_cursor(stepped, code.indexOf('x /*x foo*/'))
+    assert_value_explorer(moved, 2)
+  }),
+
+  test('mutability array', () => {
+    const code = `
+      const arr = [2,1]
+      arr.at(1)
+      arr.push(3)
+      arr /*after push*/
+      arr.sort()
+      arr /*after sort*/
+      arr[0] = 4
+      arr /*after set*/
+    `
+    const i = test_initial_state(code, code.indexOf('arr.at'))
+    assert_value_explorer(i, 1)
+
+    const s1 = COMMANDS.move_cursor(i, code.indexOf('arr /*after push*/'))
+    assert_value_explorer(s1, [2,1,3])
+
+    const s2 = COMMANDS.move_cursor(i, code.indexOf('arr /*after sort*/'))
+    assert_value_explorer(s2, [1,2,3])
+
+    const s3 = COMMANDS.move_cursor(i, code.indexOf('arr /*after set*/'))
+    assert_value_explorer(s3, [4,2,3])
+  }),
+
+  test('mutability array set length', () => {
+    const code = `
+      const x = [1,2,3]
+      x.length = 2
+      x /*x*/
+      x.length = 1
+    `
+    const i = test_initial_state(code, code.indexOf('x /*x*/'))
+    assert_value_explorer(i, [1,2])
+  }),
+
+  test('mutability array method name', () => {
+    assert_code_evals_to(`[].sort.name`, 'sort')
+    assert_code_evals_to(`[].forEach.name`, 'forEach')
+  }),
+
+  test('mutability array method returns itself', () => {
+    const code = `
+      const x = [3,2,1]
+      const y = x.sort()
+      if(x != y) {
+        throw new Error('not eq')
+      }
+      x.push(4)
+    `
+    const i = test_initial_state(code, code.indexOf('const y'))
+    assert_equal(root_calltree_node(i).ok, true)
+    assert_value_explorer(i, [1,2,3])
+  }),
+
+  test('mutability set', () => {
+    const code = `
+      const s = new Set([1,2])
+      s.delete(2)
+      if(s.size != 1) {
+        throw new Error('size not eq')
+      }
+      s.add(3)
+      s /*s*/
+    `
+    const i = test_initial_state(code, code.indexOf('const s'))
+    assert_value_explorer(i, new Set([1,2]))
+    const moved = COMMANDS.move_cursor(i, code.indexOf('s /*s*/'))
+    assert_value_explorer(moved, new Set([1,3]))
+  }),
+
+  test('mutability set method name', () => {
+    assert_code_evals_to(`new Set().delete.name`, 'delete')
+  }),
+
+  // This test is for browser environment where runtime is loaded from the main
+  // (IDE) window, and user code is loaded from app window
+  test('mutability instanceof', () => {
+    assert_code_evals_to(`{} instanceof Object`, true)
+    assert_code_evals_to(`new Object() instanceof Object`, true)
+    assert_code_evals_to(`[] instanceof Array`, true)
+    assert_code_evals_to(`new Array() instanceof Array`, true)
+    assert_code_evals_to(`new Set() instanceof Set`, true)
+    assert_code_evals_to(`new Map() instanceof Map`, true)
+  }),
+
+  test('mutability map', () => {
+    const code = `
+      const s = new Map([['foo', 1], ['bar', 2]])
+      s.delete('foo')
+      s.set('baz', 3)
+      s /*s*/
+    `
+    const i = test_initial_state(code, code.indexOf('const s'))
+    assert_value_explorer(i, {foo: 1, bar: 2})
+    const moved = COMMANDS.move_cursor(i, code.indexOf('s /*s*/'))
+    assert_value_explorer(moved, {bar: 2, baz: 3})
+  }),
+
+  test('mutability object', () => {
+    const code = `
+      const s = {foo: 1, bar: 2}
+      s.foo = 2
+      s.baz = 3
+      s /*s*/
+    `
+    const i = test_initial_state(code, code.indexOf('const s'))
+    assert_value_explorer(i, {foo: 1, bar: 2})
+    const moved = COMMANDS.move_cursor(i, code.indexOf('s /*s*/'))
+    assert_value_explorer(moved, {foo: 2, bar: 2, baz: 3})
+  }),
+
+  test('mutability', () => {
+    const code = `
+      const make_array = () => [3,2,1]
+      const x = make_array()
+      x.sort()
+    `
+
+    const i = test_initial_state(code)
+
+    const index = code.indexOf('x.sort()')
+
+    const selected_x = COMMANDS.eval_selection(i, index, true).state
+
+    assert_equal(selected_x.selection_state.node.length, 'x'.length)
+
+    assert_selection(selected_x, [3, 2, 1])
+
+    const selected_sort = COMMANDS.eval_selection(
+      COMMANDS.eval_selection(selected_x, index, true).state, index, true
+    ).state
+
+    assert_equal(selected_sort.selection_state.node.length, 'x.sort()'.length)
+
+    assert_selection(selected_sort, [1,2,3])
+  }),
+
+  test('mutability value_explorer bug', () => {
+    const code = `
+      const x = [3,2,1]
+      x.sort()
+      x /*x*/
+    `
+    const i = test_initial_state(code, code.indexOf('x /*x*/'))
+    assert_value_explorer(
+      i,
+      [1,2,3]
+    )
+  }),
+
+  test('mutability with_version_number', () => {
+    const code = `
+      const make_array = () => [3,2,1]
+      const x = make_array()
+      x.sort()
+    `
+    const i = test_initial_state(code, code.indexOf('const x'))
+
+   assert_value_explorer(i, [3,2,1])
+  }),
+
+  test('mutability member access version', () => {
+    const code = `
+      const x = [0]
+      x[0] /*x[0]*/
+      x[0] = 1
+    `
+    const i = test_initial_state(code, code.indexOf('x[0] /*x[0]*/'))
+    assert_equal(i.value_explorer.result.value, 0)
+  }),
+
+  test('mutability assignment', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1
+    `
+    const i = test_initial_state(code)
+    const index = code.indexOf('x[0]')
+    const evaled = COMMANDS.eval_selection(
+      COMMANDS.eval_selection(i, index).state,
+      index,
+    ).state
+    assert_equal(evaled.selection_state.node.length, 'x[0]'.length)
+    assert_selection(evaled, 1)
+  }),
+
+  test('mutability assignment value explorer', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1
+    `
+    const i = test_initial_state(code, code.indexOf('x[0]'))
+    assert_value_explorer(i, 1)
+  }),
+
+  test('mutability multiple assignment value explorer', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1, x[0] = 2
+      x /*x*/
+    `
+    const i = test_initial_state(code, code.indexOf('x[0]'))
+    assert_equal(i.value_explorer, null)
+    const moved = COMMANDS.move_cursor(i, code.indexOf('x /*x*/'))
+    assert_value_explorer(moved, [2])
+  }),
+
+  test('mutability assignment value explorer new value', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1
+      x[0] /*x*/
+    `
+    const i = test_initial_state(code, code.indexOf('x[0] /*x*/'))
+    assert_value_explorer(i, [1])
+  }),
+
+  test('mutability eval_selection lefthand', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1
+    `
+    const i = test_initial_state(code)
+    const evaled = COMMANDS.eval_selection(i, code.indexOf('x[0]')).state
+    assert_selection(evaled, [0])
+    // expand eval to x[0]
+    const evaled2 = COMMANDS.eval_selection(evaled, code.indexOf('x[0]')).state
+    assert_selection(evaled2, 1)
+  }),
+
+  test('mutability multiple assignments', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1
+      x /*x*/
+      x[0] = 2
+    `
+    const i = test_initial_state(code, code.indexOf('x /*x*/'))
+    assert_value_explorer(i, [1])
+  }),
+
+  test('mutability value explorer', () => {
+    const code = `
+      const x = [0]
+      x[0] = 1
+    `
+    const i = test_initial_state(code, code.indexOf('x[0] = 1'))
+    assert_value_explorer(i, 1)
+  }),
+
+  test('mutability calltree value explorer', () => {
+    const i = test_initial_state(`
+      const array = [3,2,1]
+      function sort(array) {
+        return array.sort()
+      }
+      sort(array)
+    `)
+    const selected = COMMANDS.calltree.click(i, root_calltree_node(i).children[0].id)
+
+    const args = selected.value_explorer.result.value['*arguments*']
+    assert_versioned_value(i, args, {array: [3,2,1]})
+
+    const returned = selected.value_explorer.result.value['*return*']
+    assert_versioned_value(i, returned, [1,2,3])
+  }),
+
+  test('mutability import mutable value', () => {
+    const code = {
+      '': `
+        import {array} from 'x.js'
+        import {change_array} from 'x.js'
+        change_array()
+        array /*result*/
+      `,
+      'x.js': `
+        export const array = ['initial']
+        export const change_array = () => {
+          array[0] = 'changed'
+        }
+      `
+    }
+    const main = code['']
+    const i = test_initial_state(code, main.indexOf('import'))
+    assert_value_explorer(i, {array: ['initial']})
+    const sel = COMMANDS.eval_selection(i, main.indexOf('array')).state
+    assert_selection(sel, ['initial'])
+    const moved = COMMANDS.move_cursor(sel, main.indexOf('array /*result*/'))
+    assert_value_explorer(moved, ['changed'])
+  }),
+
+  test('mutability Object.assign', () => {
+    const i = test_initial_state(`Object.assign({}, {foo: 1})`)
+    assert_value_explorer(i, {foo: 1})
+  }),
+
+  test('mutability wrap external arrays', () => {
+    const code = `
+      const x = "foo bar".split(' ')  
+      x.push('baz')
+      x /*x*/
+    `
+    const i = test_initial_state(code, code.indexOf('const x'))
+    assert_value_explorer(i, ['foo', 'bar'])
+  }),
+
+  test('mutability logs', () => {
+    const i = test_initial_state(`
+      const x = [1]
+      console.log(x)
+      x.push(2)
+      console.log(x)
+    `)
+    const log1 = i.logs.logs[0]
+    with_version_number_of_log(i, log1, () =>
+      assert_equal(
+        [[1]],
+        log1.args,
+      )
+    )
+    const log2 = i.logs.logs[1]
+    with_version_number_of_log(i, log2, () =>
+      assert_equal(
+        [[1,2]],
+        log2.args,
+      )
+    )
+
+  }),
+
+  // copypasted from the same test for let_versions
+  test('mutability expand_calltree_node', () => {
+    const code = `
+      const y = []
+
+      function foo(x) {
+        y /*y*/
+        bar(y)
+      }
+
+      function bar(arg) {
+      }
+
+      foo(0)
+      y[0] = 11
+      foo(0)
+      y[0] = 12
+    `
+    const i = test_initial_state(code)
+    const second_foo_call = root_calltree_node(i).children[1]
+    assert_equal(second_foo_call.has_more_children, true)
+    const expanded = COMMANDS.calltree.click(i, second_foo_call.id)
+    const bar_call = root_calltree_node(expanded).children[1].children[0]
+    assert_equal(bar_call.fn.name, 'bar')
+    const moved = COMMANDS.move_cursor(expanded, code.indexOf('y /*y*/'))
+    assert_value_explorer(moved, [11])
+  }),
+
+  // copypasted from the same test for let_versions
+  test('mutability expand_calltree_node twice', () => {
+    const code = `
+      function test() {
+        let x = {value: 0}
+        function test2() {
+          function foo() {
+            x /*x*/
+          }
+          x.value = x.value + 1
+          foo()
+        }
+        test2()
+      }
+      test()
+      test()
+    `
+    const i = test_initial_state(code)
+    const test_call = root_calltree_node(i).children[1]
+    assert_equal(test_call.has_more_children , true)
+
+    const expanded = COMMANDS.calltree.click(i, test_call.id)
+    const test2_call = root_calltree_node(expanded).children[1].children[0]
+    assert_equal(test2_call.has_more_children, true)
+
+    const expanded2 = COMMANDS.calltree.click(expanded, test2_call.id)
+    const foo_call = root_calltree_node(expanded2).children[1].children[0].children[0]
+
+    const expanded3 = COMMANDS.calltree.click(expanded2, foo_call.id)
+
+    const moved = COMMANDS.move_cursor(expanded3, code.indexOf('x /*x*/'))
+    assert_equal(moved.value_explorer.result.value, {value: 1 })
+  }),
+
+  test('mutability quicksort', () => {
+    const code = `
+      const loop = new Function('action', \`
+        while(true) {
+          if(action()) {
+            return
+          }
+        }
+      \`)
+
+      function partition(arr, begin, end) {
+        const pivot = arr[begin]
+        
+        let i = begin - 1, j = end + 1
+        
+        loop(() => {
+          
+          i = i + 1
+          loop(() => {
+            if(arr[i] < pivot) {
+              i = i + 1
+            } else {
+              return true /* stop */
+            }
+          })
+          
+          j = j - 1
+          loop(() => {
+            if(arr[j] > pivot) {
+              j = j - 1
+            } else {
+              return true // stop iteration
+            }
+          })
+          
+          if(i >= j) {
+            return true // stop iteration
+          }
+          
+          const temp = arr[i]
+          arr[i] = arr[j]
+          arr[j] = temp
+        })
+        
+        return j
+      }
+
+
+      function qsort(arr, begin = 0, end = arr.length - 1) {
+        if(begin >= 0 && end >= 0 && begin < end) {
+          const p = partition(arr, begin, end)
+          qsort(arr, begin, p)
+          qsort(arr, p + 1, end)
+        }
+      }
+
+      const arr = [ 2, 15, 13, 12, 3, 9, 14, 3, 18, 0 ]
+
+      qsort(arr)
+
+      arr /*result*/
+    `
+    const i = test_initial_state(code, code.indexOf('arr /*result*/'))
+    const expected = [ 0,  2,  3,  3,  9, 12, 13, 14, 15, 18 ]
+    assert_value_explorer(i, expected)
+
   }),
 ]

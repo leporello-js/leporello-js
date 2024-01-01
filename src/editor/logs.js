@@ -1,6 +1,7 @@
 import {el, scrollIntoViewIfNeeded} from './domutils.js'
 import {exec} from '../index.js'
 import {header} from '../value_explorer_utils.js'
+import {with_version_number_of_log} from '../cmd.js'
 
 export class Logs {
   constructor(ui, el) {
@@ -36,12 +37,12 @@ export class Logs {
     })
   }
 
-  rerender_logs(logs) {
+  rerender_logs(state, logs) {
     this.el.innerHTML = ''
-    this.render_logs(null, logs)
+    this.render_logs(state, null, logs)
   }
 
-  render_logs(prev_logs, logs) {
+  render_logs(state, prev_logs, logs) {
     for(
       let i = prev_logs == null ? 0 : prev_logs.logs.length ; 
       i < logs.logs.length; 
@@ -71,8 +72,10 @@ export class Logs {
             + ':'
           ),
           ' ',
-          // TODO fn_link, for function args, like in ./calltree.js
-          log.args.map(a => header(a)).join(', ')
+          with_version_number_of_log(state, log, () =>
+            // TODO fn_link, for function args, like in ./calltree.js
+            log.args.map(a => header(a)).join(', ')
+          )
         )
       )
     }

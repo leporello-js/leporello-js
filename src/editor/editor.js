@@ -2,6 +2,7 @@ import {exec, get_state} from '../index.js'
 import {ValueExplorer} from './value_explorer.js'
 import {stringify_for_header} from '../value_explorer_utils.js'
 import {el, stringify, fn_link} from './domutils.js'
+import {version_number_symbol} from '../calltree.js'
 
 /*
   normalize events 'change' and 'changeSelection':
@@ -224,7 +225,21 @@ export class Editor {
     }
   }
 
-  embed_value_explorer({node, index, length, result: {ok, value, error}}) {
+  embed_value_explorer(
+    state, 
+    {
+      node,
+      index, 
+      length, 
+      result: {
+        ok, 
+        value, 
+        error, 
+        version_number, 
+        is_calltree_node_explorer
+      }
+    }
+  ) {
     this.unembed_value_explorer()
 
     const session = this.ace_editor.getSession()
@@ -304,8 +319,22 @@ export class Editor {
             }
           },
         })
+          
+        if(is_calltree_node_explorer) {
+          exp.render(state, value, {
+            is_expanded: true,
+            children: {
+              '*arguments*': {is_expanded: true},
+            }
+          })
+        } else {
+          exp.render(
+            state, 
+            {value, [version_number_symbol]: version_number},
+            {is_expanded: true},
+          )
+        }
 
-        exp.render(value)
       }
     } else {
       is_dom_el = false

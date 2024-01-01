@@ -234,7 +234,7 @@ export class UI {
     this.debugger_loaded.style = ''
 
     this.calltree.render_calltree(state)
-    this.logs.render_logs(null, state.logs)
+    this.logs.render_logs(state, null, state.logs)
   }
 
   render_io_trace(state) {

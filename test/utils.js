@@ -1,8 +1,11 @@
 import {find_error_origin_node} from '../src/ast_utils.js'
 import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
 import {eval_modules} from '../src/eval.js'
-import {active_frame, pp_calltree} from '../src/calltree.js'
+import {active_frame, pp_calltree, version_number_symbol} from '../src/calltree.js'
 import {COMMANDS} from '../src/cmd.js'
+
+// external
+import {with_version_number} from '../src/runtime/runtime.js'
 
 Object.assign(globalThis, 
   {
@@ -163,6 +166,8 @@ export const stringify = val =>
   JSON.stringify(val, (key, value) => {
     if(value instanceof Set){
       return [...value]
+    } else if (value instanceof Map) {
+      return Object.fromEntries([...value.entries()])
     } else if(value instanceof Error) {
       return {message: value.message}
     } else {
@@ -197,6 +202,22 @@ export const print_debug_ct_node = node => {
   }
   return stringify(do_print(node))
 }
+
+export const assert_versioned_value = (state, versioned, expected) => {
+  const version_number = versioned[version_number_symbol] ?? versioned.version_number
+  if(version_number == null) {
+    throw new Error('illegal state')
+  }
+  return with_version_number(state.rt_cxt, version_number, () => 
+    assert_equal(versioned.value, expected)
+  )
+}
+
+export const assert_value_explorer = (state, expected) => 
+  assert_versioned_value(state, state.value_explorer.result, expected)
+
+export const assert_selection = (state, expected) => 
+  assert_versioned_value(state, state.selection_state.node.result, expected)
 
 export const test = (message, test, only = false) => {
   return {

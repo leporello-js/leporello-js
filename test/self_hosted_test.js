@@ -90,6 +90,9 @@ const state = COMMANDS.eval_modules_finished(loaded, loaded, result, s.node, s.t
 const root = root_calltree_node(state)
 const run = root.children[0]
 
+if(!root_calltree_node(state).ok) {
+  console.error(root_calltree_node(state).error)
+}
 assert_equal(root_calltree_node(state).ok, true)
 
 // Assert that run children are tests

@@ -2,6 +2,7 @@ import {exec} from '../index.js'
 import {el, stringify, fn_link, scrollIntoViewIfNeeded} from './domutils.js'
 import {stringify_for_header} from '../value_explorer_utils.js'
 import {find_node} from '../ast_utils.js'
+import {with_version_number} from '../runtime/runtime.js'
 import {is_expandable, root_calltree_node, get_deferred_calls, has_error} 
   from '../calltree.js'
 
@@ -104,15 +105,23 @@ export class CallTree {
             n.fn.name,
             '(' ,
              ...join(
-               n.args.map(
-                 a => typeof(a) == 'function'
-                  ? fn_link(a)
-                  : stringify_for_header(a)
+               // for arguments, use n.version_number - last version before call
+               with_version_number(this.state.rt_cxt, n.version_number, () =>
+                 n.args.map(
+                   a => typeof(a) == 'function'
+                    ? fn_link(a)
+                    : stringify_for_header(a)
+                 )
                )
              ),
             ')' ,
             // TODO: show error message only where it was thrown, not every frame?
-            ': ', (n.ok ? stringify_for_header(n.value) : stringify_for_header(n.error)) 
+            ': ', 
+            // for return value, use n.last_version_number - last version that was
+            // created during call
+            with_version_number(this.state.rt_cxt, n.last_version_number, () => 
+              (n.ok ? stringify_for_header(n.value) : stringify_for_header(n.error)) 
+            )
           ),
       ),
       (n.children == null || !is_expanded)

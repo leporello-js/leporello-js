@@ -314,6 +314,20 @@ const if_ok = (parser, fn) => cxt => {
   }
 }
 
+const check_if_valid = (parser, check) => cxt => {
+  const result = parser(cxt)
+  if(!result.ok) {
+    return result
+  } else {
+    const {ok, error} = check(result.value)
+    if(!ok) {
+      return {ok: false, error, cxt}
+    } else {
+      return result
+    }
+  }
+}
+
 const if_fail = (parser, error) => cxt => {
   const result = parser(cxt)
   if(result.ok) {
@@ -760,7 +774,7 @@ const function_call_or_member_access = nested =>
             }
           )
         ),
-        
+
         // Function call
         if_ok(
           list(
@@ -1077,6 +1091,7 @@ const expr =
     unary('-'),
     unary('typeof'),
     unary('await'),
+    // TODO 'delete' operator
     binary(['**']),
     binary(['*','/','%']),
     binary(['+','-']),
@@ -1168,9 +1183,40 @@ const const_statement = const_or_let(true)
 const let_declaration = const_or_let(false)
 
 // TODO object assignment required braces, like ({foo} = {foo: 1})
+// require assignment cannot start with '{' by not_followed_by
+// TODO chaining assignment, like 'foo = bar = baz'
 // TODO +=, *= etc
+// TODO make assignment an expression, not a statement. Add comma operator to
+// allow multiple assignments
 const assignment = if_ok(
-  comma_separated_1(simple_decl_pair),
+  comma_separated_1(
+    either(
+      simple_decl_pair,
+      check_if_valid(
+        if_ok(
+          seq([
+            expr,
+            literal('='),
+            expr,
+          ]),
+          ({value: [lefthand, _, righthand], ...node}) => {
+            return {...node,
+              type: 'assignment_pair',
+              children: [lefthand, righthand],
+            }
+          }
+        ),
+        (node) => {
+          const [lefthand, righthand] = node.children
+          if(lefthand.type != 'member_access' || lefthand.is_optional_chaining) {
+            return {ok: false, error: 'Invalid left-hand side in assignment'}
+          } else {
+            return {ok: true}
+          }
+        }
+      )
+    )
+  ),
   ({value, ...node}) => ({
     ...node,
     type: 'assignment',
@@ -1178,11 +1224,13 @@ const assignment = if_ok(
   })
 )
 
+
 const return_statement =
   if_ok(
     seq_select(1, [
 
       // We forbid bare return statement
+      // TODO bare return statement
       // TODO implement bare return statement compatible with ASI
       // see https://riptutorial.com/javascript/example/15248/rules-of-automatic-semicolon-insertion
       // see ASI_restrited unit test
@@ -1464,6 +1512,8 @@ const update_children_not_rec = (node, children = node.children) => {
     return {...node, is_statement: true }
   } else if(node.type == 'decl_pair') {
     return {...node, expr: children[1], name_node: children[0]}
+  } else if(node.type == 'assignment_pair') {
+    return {...node, children}
   } else if(node.type == 'assignment'){
     return {...node, is_statement: true}
   } else if(node.type == 'do'){

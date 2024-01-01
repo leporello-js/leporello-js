@@ -218,7 +218,7 @@ export const apply_side_effects = (prev, next, ui) => {
         ui.render_debugger(next)
         clear_coloring(ui)
         render_coloring(ui, next)
-        ui.logs.rerender_logs(next.logs)
+        ui.logs.rerender_logs(next, next.logs)
 
         if(
           prev.io_trace != next.io_trace 
@@ -253,7 +253,7 @@ export const apply_side_effects = (prev, next, ui) => {
         render_coloring(ui, next)
       }
 
-      ui.logs.render_logs(prev.logs, next.logs)
+      ui.logs.render_logs(next, prev.logs, next.logs)
     }
   }
 
@@ -280,7 +280,7 @@ export const apply_side_effects = (prev, next, ui) => {
     if(next.value_explorer == null) {
       ui.editor.unembed_value_explorer()
     } else {
-      ui.editor.embed_value_explorer(next.value_explorer)
+      ui.editor.embed_value_explorer(next, next.value_explorer)
     }
   }
 }

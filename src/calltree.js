@@ -5,6 +5,10 @@ import {find_node, find_leaf, ancestry_inc} from './ast_utils.js'
 import {color} from './color.js'
 import {eval_frame, eval_expand_calltree_node, get_after_if_path} from './eval.js'
 
+export const version_number_symbol = Symbol('version_number')
+export const is_versioned_object = o => o?.[version_number_symbol] != null
+export const get_version_number = o => o[version_number_symbol]
+
 export const pp_calltree = tree => ({
   id: tree.id,
   ok: tree.ok,
@@ -148,7 +152,7 @@ export const add_frame = (
   let frame
   frame = state.frames?.[active_calltree_node.id]
   if(frame == null) {
-    frame = update_children(eval_frame(active_calltree_node, state.modules))
+    frame = update_children(eval_frame(active_calltree_node, state.modules, state.rt_cxt))
     const execution_paths = active_calltree_node.toplevel
       ? null
       : get_execution_paths(frame)
@@ -304,37 +308,45 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
   )
 
   let value_explorer
-
   if(next.current_calltree_node.toplevel) {
     value_explorer = null
   } else {
-
-    const args = show_body
-      ? active_frame(with_selected_calltree_node)
-        // function args node
-        .children[0]
-        .result
-        .value
-      : current_calltree_node.args
-
+    const _arguments = {
+      value: 
+        show_body
+          ? active_frame(with_selected_calltree_node)
+            // function args node
+            .children[0]
+            .result
+            .value
+          : current_calltree_node.args,
+      [version_number_symbol]: current_calltree_node.version_number,
+    }
     value_explorer = {
       index: loc.index,
       result: {
         ok: true,
+        is_calltree_node_explorer: true,
         value: current_calltree_node.ok
-          ?  {
-            '*arguments*': args,
-            '*return*': current_calltree_node.value,
+          ? {
+            '*arguments*': _arguments,
+            '*return*': {
+              value: current_calltree_node.value,
+              [version_number_symbol]: current_calltree_node.last_version_number,
+            }
           }
           : {
-            '*arguments*': args,
-            '*throws*': current_calltree_node.error,
+            '*arguments*': _arguments,
+            '*throws*': {
+              value: current_calltree_node.error,
+              [version_number_symbol]: current_calltree_node.last_version_number,
+            }
           }
       }
     }
   }
 
-  return {...with_selected_calltree_node, 
+  return {...with_selected_calltree_node,
     value_explorer,
     selection_state: show_body
       ? null

@@ -15,10 +15,14 @@ import {
 } from './ast_utils.js'
 
 import {has_toplevel_await} from './find_definitions.js'
+// external
+import {with_version_number} from './runtime/runtime.js'
 
 // import runtime as external because it has non-functional code
 // external
-import {run, do_eval_expand_calltree_node, LetMultiversion} from './runtime/runtime.js'
+import {run, do_eval_expand_calltree_node} from './runtime/runtime.js'
+// external
+import {LetMultiversion} from './runtime/let_multiversion.js'
 
 // TODO: fix error messages. For example, "__fn is not a function"
 
@@ -73,7 +77,7 @@ const codegen_function_expr = (node, node_cxt) => {
     ? `(${args}) => `
     : `function(${args})`
 
-  // TODO gensym __obj, __fn, __call_id, __let_vars
+  // TODO gensym __obj, __fn, __call_id, __let_vars, __literals
   const prolog = 
     '{const __call_id = __cxt.call_counter;' 
     + (
@@ -81,6 +85,7 @@ const codegen_function_expr = (node, node_cxt) => {
         ? 'const __let_vars = __cxt.let_vars;'
         : ''
       )
+    + 'const __literals = __cxt.literals;';
 
   const call = (node.is_async ? 'async ' : '') + decl + (
     (node.body.type == 'do')
@@ -206,7 +211,9 @@ const codegen = (node, node_cxt) => {
       `__save_ct_node_for_path(__cxt, __calltree_node_by_loc, `
         + `${get_after_if_path(node)}, __call_id);`
   } else if(node.type == 'array_literal'){
-    return '[' + node.elements.map(c => do_codegen(c)).join(', ') + ']'
+    return '__create_array([' 
+      + node.elements.map(c => do_codegen(c)).join(', ') 
+      + `], __cxt, ${node.index}, __literals)`
   } else if(node.type == 'object_literal'){
     const elements = 
       node.elements.map(el => {
@@ -223,7 +230,7 @@ const codegen = (node, node_cxt) => {
         }
       })
       .join(',')
-    return '({' + elements + '})'
+    return `__create_object({${elements}}, __cxt, ${node.index}, __literals)`
   } else if(node.type == 'function_call'){
     return codegen_function_call(node, node_cxt)
   } else if(node.type == 'function_expr'){
@@ -278,7 +285,7 @@ const codegen = (node, node_cxt) => {
           } // Otherwise goes to the end of the func
         }
         
-        if(node.type == 'assignment') {
+        if(node.type == 'assignment' && c.children[0].type != 'member_access') {
           const [lefthand, righthand] = c.children
           if(lefthand.type != 'identifier') {
             // TODO
@@ -406,7 +413,7 @@ export const eval_modules = (
   location
 ) => {
   // TODO gensym __cxt, __trace, __trace_call, __calltree_node_by_loc,
-  // __do_await, __Multiversion
+  // __do_await, __Multiversion, __create_array, __create_object
 
   // TODO bug if module imported twice, once as external and as regular
 
@@ -428,15 +435,19 @@ export const eval_modules = (
       module,
       // TODO refactor, instead of multiple args prefixed with '__', pass
       // single arg called `runtime`
+
       fn: new Function(
         '__cxt',
         '__let_vars',
+        '__literals',
         '__calltree_node_by_loc',
         '__trace',
         '__trace_call',
         '__do_await',
         '__save_ct_node_for_path',
         '__Multiversion',
+        '__create_array',
+        '__create_object',
 
         /* Add dummy __call_id for toplevel. It does not make any sence
          * (toplevel is executed only once unlike function), we only add it
@@ -695,7 +706,14 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
     'computed_property'
   ].includes(node.type)) {
     return eval_children(node, eval_cxt, frame_cxt)
-  } else if(node.type == 'array_literal' || node.type == 'call_args'){
+  } else if(node.type == 'array_literal'){
+    const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
+    if(!ok) {
+      return {ok, children, eval_cxt: next_eval_cxt}
+    }
+    const value = frame_cxt.calltree_node.literals.get(node.index)
+    return {ok, children, value, eval_cxt: next_eval_cxt}
+  } else if(node.type == 'call_args'){
     const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
       return {ok, children, eval_cxt: next_eval_cxt}
@@ -716,31 +734,7 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
     if(!ok) {
       return {ok, children, eval_cxt: next_eval_cxt}
     }
-    const value = children.reduce(
-      (value, el) => {
-        if(el.type == 'object_spread'){
-          return {...value, ...el.children[0].result.value}
-        } else if(el.type == 'identifier') {
-          // TODO check that it works
-          return {...value, ...{[el.value]: el.result.value}}
-        } else if(el.type == 'key_value_pair') {
-          const [key, val] = el.children
-          let k
-          if(key.type == 'computed_property') {
-            k = key.children[0].result.value
-          } else {
-            k = key.result.value
-          }
-          return {
-            ...value,
-            ...{[k]: val.result.value},
-          }
-        } else {
-          throw new Error('unknown node type ' + el.type)
-        }
-      },
-      {}
-    )
+    const value = frame_cxt.calltree_node.literals.get(node.index)
     return {ok, children, value, eval_cxt: next_eval_cxt}
   } else if(node.type == 'function_call' || node.type == 'new'){
     const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
@@ -762,6 +756,10 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
         throw new Error('illegal state')
       }
 
+      // TODO refactor. let vars in scope should be Multiversions, not values
+      // Unwrap them to values inside idenitifer handler
+      // So here should be no logic for extracting Multiversion values
+  
       const closure = frame_cxt.calltree_node.fn?.__closure
       const closure_let_vars = closure == null
         ? null
@@ -791,6 +789,7 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
           ...next_eval_cxt, 
           call_index: next_eval_cxt.call_index + 1,
           scope: {...next_eval_cxt.scope, ...updated_let_scope},
+          version_number: call.last_version_number,
         },
       }
     }
@@ -841,6 +840,8 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
       }
     }
   } else if(node.type == 'member_access'){
+    // TODO prop should only be evaluated if obj is not null, if optional
+    // chaining
     const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
       return {ok: false, children, eval_cxt: next_eval_cxt}
@@ -848,18 +849,35 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
 
     const [obj, prop] = children
 
-    const codestring = node.is_optional_chaining ? 'obj?.[prop]' : 'obj[prop]'
 
-    // TODO do not use eval here
+    let value
+
+    if(obj.result.value == null) {
+      if(!node.is_optional_chaining) {
+        return {
+          ok: false,
+          error: new TypeError('Cannot read properties of ' 
+            + obj.result.value
+            + ` (reading '${prop.result.value}')`
+          ),
+          is_error_origin: true,
+          children,
+          eval_cxt: next_eval_cxt,
+        }
+      } else {
+        value = undefined
+      }
+    } else {
+      value = with_version_number(frame_cxt.rt_cxt, obj.result.version_number, () => 
+        obj.result.value[prop.result.value]
+      )
+    }
     return {
-      ...eval_codestring(codestring, {
-        obj: obj.result.value,
-        prop: prop.result.value,
-      }),
+      ok: true,
+      value,
       children,
       eval_cxt: next_eval_cxt,
     }
-
   } else if(node.type == 'unary') {
     const {ok, children, eval_cxt: next_eval_cxt} = eval_children(node, eval_cxt, frame_cxt)
     if(!ok) {
@@ -968,21 +986,26 @@ const eval_children = (node, eval_cxt, frame_cxt) => {
 const eval_frame_expr = (node, eval_cxt, frame_cxt) => {
   const {ok, error, is_error_origin, value, call, children, eval_cxt: next_eval_cxt} 
     = do_eval_frame_expr(node, eval_cxt, frame_cxt)
+
   return {
     node: {
       ...node, 
       children, 
       // Add `call` for step_into
-      result: {ok, error, value, call, is_error_origin}
+      result: {
+        ok, 
+        error, 
+        value, 
+        call, 
+        is_error_origin, 
+        version_number: next_eval_cxt.version_number,
+      }
     },
     eval_cxt: next_eval_cxt,
   }
 }
 
 const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
-  if(s.type != 'decl_pair') {
-    throw new Error('illegal state')
-  }
   // TODO default values for destructuring can be function calls
 
   const {node, eval_cxt: next_eval_cxt} 
@@ -1026,12 +1049,14 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
           ok, 
           error: ok  ? null : error,
           value: !ok ? null : next_scope[symbol_for_identifier(node, frame_cxt)],
+          version_number: next_eval_cxt.version_number,
         }
       })
     ),
     n => 
       // TODO this should set result for default values in destructuring
       // Currently not implemented
+      // TODO version_number
       n.result == null
         ? {...n, result: {ok}}
         : n
@@ -1061,6 +1086,62 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
   }
 }
 
+const eval_assignment_pair = (s, eval_cxt, context) => {
+  const [lefthand, righthand] = s.children
+  if(lefthand.type != 'member_access') {
+    throw new Error('illegal state')
+  }
+
+  // TODO it also evals value of member access which we dont need. We should
+  // eval obj, prop, and then righthand
+  // TODO prop and righthand only evaluated if obj is not null???
+  const {node: lefthand_evaled, eval_cxt: lefthand_eval_cxt} = 
+    eval_frame_expr(lefthand, eval_cxt, context)
+  if(!lefthand_evaled.result.ok) {
+    return {
+      ok: false,
+      eval_cxt: lefthand_eval_cxt,
+      node: {...s, result: {ok: false}, children: [lefthand_evaled, righthand]},
+    }
+  }
+
+  const {node: righthand_evaled, eval_cxt: righthand_eval_cxt} = 
+    eval_frame_expr(righthand, lefthand_eval_cxt, context)
+
+  if(!righthand_evaled.result.ok) {
+    return {
+      ok: false,
+      eval_cxt: righthand_eval_cxt,
+      node: {
+        ...s, 
+        result: {ok: false}, 
+        children: [lefthand_evaled, righthand_evaled],
+      },
+    }
+  }
+
+  const next_version_number = righthand_eval_cxt.version_number + 1
+
+  return {
+    ok: true,
+    eval_cxt: {
+      ...righthand_eval_cxt,
+      version_number: next_version_number,
+    },
+    node: {...s, 
+      result: righthand_evaled.result,
+      children: [
+        {
+          ...lefthand_evaled, 
+          result: {
+            ...righthand_evaled.result, 
+          },
+        },
+        righthand_evaled,
+      ]
+    },
+  }
+}
 
 const eval_statement = (s, eval_cxt, frame_cxt) => {
   if(s.type == 'do') {
@@ -1147,19 +1228,28 @@ const eval_statement = (s, eval_cxt, frame_cxt) => {
           return {ok, eval_cxt, children: [...children, s]}
         } 
         if(stmt.type == 'let' && s.type == 'identifier') {
-          const node = {...s, result: {ok: true}}
-          const scope = {...eval_cxt.scope, [symbol_for_identifier(s, frame_cxt)]: undefined}
+          const value = undefined
+          const node = {...s, result: {ok: true, value, version_number: eval_cxt.version_number}}
+          const scope = {...eval_cxt.scope, [symbol_for_identifier(s, frame_cxt)]: value}
           return {
             ok, 
             children: [...children, node], 
             eval_cxt: {...eval_cxt, scope},
           }
         }
+        let result
+        if(s.type == 'decl_pair') {
+          result = eval_decl_pair(s, eval_cxt, frame_cxt)
+        } else if(s.type == 'assignment_pair') {
+          result = eval_assignment_pair(s, eval_cxt, frame_cxt)
+        } else {
+          throw new Error('illegal state')
+        }
         const {
           ok: next_ok, 
           node,
           eval_cxt: next_eval_cxt,
-        } = eval_decl_pair(s, eval_cxt, frame_cxt)
+        } = result
         return {
           ok: next_ok,
           eval_cxt: next_eval_cxt,
@@ -1201,7 +1291,10 @@ const eval_statement = (s, eval_cxt, frame_cxt) => {
           ok: true, 
           value: imp.definition.is_default
             ? module['default']
-            : module[imp.value]
+            : module[imp.value],
+          // For imports, we show version for the moment of module toplevel
+          // starts execution
+          version_number: frame_cxt.calltree_node.version_number,
         }
       }
     ))
@@ -1319,14 +1412,32 @@ const check_eval_result = result => {
   if(!result.eval_cxt.__eval_cxt_marker) {
     throw new Error('illegal state')
   }
+
+  // Commented for performance
+
+  // Check that every node with result has version_number property
+
+  //function check_version_number(node) {
+  //  if(node.result != null && node.result.ok && node.result.value != null) {
+  //    if(node.result.version_number == null) {
+  //      console.error(node)
+  //      throw new Error('bad node')
+  //    }
+  //  }
+  //  if(node.children != null) {
+  //    node.children.forEach(c => check_version_number(c))
+  //  }
+  //}
+
+  //check_version_number(result.node)
 }
 
-export const eval_frame = (calltree_node, modules) => {
+export const eval_frame = (calltree_node, modules, rt_cxt) => {
   if(calltree_node.has_more_children) {
     throw new Error('illegal state')
   }
   const node = calltree_node.code
-  const frame_cxt = {calltree_node, modules}
+  const frame_cxt = {calltree_node, modules, rt_cxt}
   if(node.type == 'do') {
     // eval module toplevel
     const eval_result = eval_statement(
@@ -1335,6 +1446,7 @@ export const eval_frame = (calltree_node, modules) => {
         __eval_cxt_marker: true,
         scope: {},
         call_index: 0,
+        version_number: calltree_node.version_number,
       },
       frame_cxt,
     )
@@ -1350,11 +1462,17 @@ export const eval_frame = (calltree_node, modules) => {
         ? value.get_version(calltree_node.version_number)
         : value
     })
-    const args_scope_result = get_args_scope(
-      node, 
-      calltree_node.args,
-      closure
-    )
+
+    const version_number = calltree_node.version_number
+
+    const args_scope_result = {
+      ...get_args_scope(
+        node, 
+        calltree_node.args,
+        closure
+      ),
+      version_number,
+    }
 
     // TODO fine-grained destructuring error, only for identifiers that
     // failed destructuring
@@ -1371,10 +1489,14 @@ export const eval_frame = (calltree_node, modules) => {
                 error: args_scope_result.ok ? null : args_scope_result.error,
                 is_error_origin: !args_scope_result.ok,
                 value: !args_scope_result.ok ? null : args_scope_result.value[a.value],
+                version_number,
               }
             })
           ),
           n => n.result == null
+            // TODO this should set result for default values in destructuring
+            // Currently not implemented
+            // TODO version_number
             ? {...n, result: {ok: args_scope_result.ok}}
             : n
         )
@@ -1407,6 +1529,7 @@ export const eval_frame = (calltree_node, modules) => {
       __eval_cxt_marker: true,
       scope,
       call_index: 0,
+      version_number: calltree_node.version_number,
     }
 
     let eval_result

@@ -105,7 +105,10 @@ export const find_versioned_let_vars = (node, current_fn = node) => {
   } else if(node.type == 'assignment') {
     const {node: next_node, closed_let_vars, assigned_vars} 
         = do_find_versioned_let_vars(node, current_fn)
-    const next_assigned_vars = node.children.flatMap(decl_pair => 
+    const next_assigned_vars = node
+      .children
+      .filter(c => c.type == 'decl_pair')
+      .flatMap(decl_pair => 
       collect_destructuring_identifiers(decl_pair).map(id => {
         if(id.definition.index == null) {
           throw new Error('illegal state')

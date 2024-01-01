@@ -1,6 +1,6 @@
 # Leporello.js
 
-Leporello.js is an interactive functional programming environment for JavaScript.
+Leporello.js is an interactive JavaScript environment with a time-travel debugger
 
 [<img src="docs/images/video_cover.png" width="600px">](https://vimeo.com/845773267)
 
@@ -13,11 +13,8 @@ Support us on [Github Sponsors](https://github.com/sponsors/leporello-js) and be
 
 ## Features
 
-### Interactive
+### Going beyond the REPL
 Your code is executed instantly as you type, with the results displayed next to it. No need to set breakpoints for debugging. Just move the cursor to any line and see what's happening.
-
-### Designed for functional programming
-Supercharge your functional code with unprecedented developer tooling.
 
 ### Next level debugging capabilities
 Visualise and navigate a dynamic call graph of your program in a time-travel manner.
@@ -41,7 +38,7 @@ The `if` / `else` statements can only contain blocks of code and not single stat
 
 Both traditional functions and arrow functions, with block bodies and concise bodies, are supported. Method definitions, however, are not currently supported.
 
-Classes are not supported at the moment. There is a possibility of supporting some form of immutable classes in the future. The `this` keyword is not currently supported, but the `new` operator can be used for instantiating built-in classes.
+Classes are not supported at the moment. The `this` keyword is not currently supported. The `new` operator can be used for instantiating built-in classes or classes imported from [third-party](#importing-third-party-libs) libs.
 
 `switch` statements will be supported in future updates.
 
@@ -61,25 +58,25 @@ Some operators are not supported at the moment, including:
   - `in`
   - `void`
   - Comma operator
-
-Certain operators that are not supported are by design, as they are not purely functional. These include:
   - Increment and decrement
   - `delete`
 
 ## Importing third-party libs
 
-Sometimes you want to import third party library that uses imperative language constructs. You may want to use it to perform side-effects or maybe it mutates data inside but still provides functional interface (does not mutate function arguments). Good example of such library is [bignumber.js](https://github.com/MikeMcl/bignumber.js/) - it makes a lot of mutating assignments inside, but `BigNumber` instances are immutable.
-
-To use `bignumber.js` you add an `external pragma` before the import:
+To enable its comprehensive functionalities, Leporello.js parses and instruments your source code. Should you wish to import a module as a black box, preventing the ability to step into its functions, you can utilize the `external` pragma. For instance:
 
 ```
 /* external */
-import BigNumber from './path/to/bignumber.mjs';
+import {Foo} from './path/to/foo.js';
 ```
 
-`external pragma` is just a comment that contains only the literal string `external` (both styles for comments and extra whitespaces are allowed). Now the module is imported as a black box - you cannot debug `BigNumber` methods.
+`external` pragma is just a comment that contains only the literal string `external` (both styles for comments and extra whitespaces are allowed).
+
+If a module path is a non-local path including a protocol and a host then it is always imported as an external module. Example:
 
 ![External import](docs/images/external_import.png)
+
+Now the module is imported as a black box - you cannot debug `BigNumber` methods.
 
 Currently every external is loaded once and cached until Leporello is restarted
 (TODO change path to modules every time it changed on disk, since modules are
@@ -221,6 +218,5 @@ run tests in leporello itself:
 
 ## Roadmap
 
-* Use production level JS parser, probably TypeScript parser (so it will be
-  possible to program in pure functional subset of TypeScript)
+* Use production level JS parser, probably TypeScript parser
 * Implement VSCode plugin

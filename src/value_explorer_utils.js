@@ -134,6 +134,11 @@ export const stringify_for_header = (v, no_toJSON = false) => {
   }
 }
 
+export const short_header = value => 
+  Array.isArray(value)
+    ? 'Array(' + value.length + ')'
+    : ''
+
 const header_object = object => {
   const prefix = 
     (object.constructor?.name == null || object.constructor?.name == 'Object')
