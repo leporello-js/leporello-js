@@ -5226,13 +5226,7 @@ const y = x()`
 
   test('mutability quicksort', () => {
     const code = `
-      const loop = new Function('action', \`
-        while(true) {
-          if(action()) {
-            return
-          }
-        }
-      \`)
+      const loop = new Function('action', 'while(true) { if(action()) { return } }')
 
       function partition(arr, begin, end) {
         const pivot = arr[begin]
