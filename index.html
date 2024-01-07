@@ -5,12 +5,12 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Leporello.js</title>
     
-     <!--speedup loading-->
-     <link rel="modulepreload" href="/src/launch.js">
 
     <script src='ace/ace.js'></script>
     <script src='ace/keybinding-vim.js'></script>
     <script src='ace/ext-language_tools.js'></script>
+
+    <script type='module' src="./src/launch.js"></script>
 
     <style>
 
@@ -461,14 +461,6 @@
 
     </style>
 
-    <script type='module'>
-      // Shortcut for log(...) instead of console.log(...)
-      window.log = console.log
-
-      if(new URLSearchParams(window.location.search).get('leporello') == null) {
-        await import('./src/launch.js');
-      }
-    </script>
   </head>
 
   <body>
