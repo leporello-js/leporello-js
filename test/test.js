@@ -192,6 +192,22 @@ export const tests = [
     assert_equal(frame.children[1].result.value, 1)
   }),
 
+  
+  //  foo() call fails when tries to get closed variables, because
+  //  NOT_INITIALIZED is not initialized at the moment `foo` is called
+  //  TODO fix later
+
+  //  test('closure bug', () => {
+  //    test_initial_state(`
+  //      foo()
+  //      const NOT_INITIALIZED = 1
+  //      function foo(){
+  //        return NOT_INITIALIZED
+  //      }
+  //    `)
+  //  }),
+
+
   test('member access', () => {
     assert_code_evals_to(
       'const foo = {bar: {baz: 2}};foo.bar.baz;',
