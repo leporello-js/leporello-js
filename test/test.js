@@ -4848,6 +4848,63 @@ const y = x()`
     assert_value_explorer(moved, 2)
   }),
 
+  test('let_versions bug access before init', () => {
+    const code = `
+      Object.assign({})
+      const x = {}
+      x.y = 1
+      let result = 0
+      function() {
+        result = 1
+      }
+    `
+    const i = test_initial_state(code, code.indexOf('let result'))
+    assert_value_explorer(i, 0)
+  }),
+
+  test('let_versions bug version counter', () => {
+    const code = `
+      let i = 0
+      const x = {value: 1}
+      function unused() {
+        i = 1
+      }
+      i = 2
+      x.value = 2
+      x /*result*/
+    `
+    const i = test_initial_state(code, code.indexOf('x /*result*/'))
+    assert_value_explorer(i, {value: 2})
+  }),
+
+  test('let_versions bug version counter 2', () => {
+    const code = `
+      let i = 0
+      function unused() {
+        i = 1
+      }
+      i = 1
+      i /*result*/
+      i = 2
+    `
+    const i = test_initial_state(code, code.indexOf('i /*result*/'))
+    assert_value_explorer(i, 1)
+  }),
+
+  test('let_versions bug version counter multiple assignments', () => {
+    const code = `
+      let i = 0, j = 0
+      function unused() {
+        i = 1
+      }
+      i = 1, j = 1
+      i /*result*/
+      i = 2
+    `
+    const i = test_initial_state(code, code.indexOf('i /*result*/'))
+    assert_value_explorer(i, 1)
+  }),
+
   test('mutability array', () => {
     const code = `
       const arr = [2,1]

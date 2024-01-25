@@ -668,6 +668,9 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
       value = globalThis.app_window[node.value]
     } else {
       value = eval_cxt.scope[symbol_for_identifier(node, frame_cxt)]
+      if(value instanceof LetMultiversion) {
+        value = value.get_version(eval_cxt.version_number)
+      }
     }
     return {
       ok: true,
@@ -756,28 +759,6 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
         throw new Error('illegal state')
       }
 
-      // TODO refactor. let vars in scope should be Multiversions, not values
-      // Unwrap them to values inside idenitifer handler
-      // So here should be no logic for extracting Multiversion values
-  
-      const closure = frame_cxt.calltree_node.fn?.__closure
-      const closure_let_vars = closure == null
-        ? null
-        : Object.fromEntries(
-            Object.entries(closure)
-              .filter(([k,value]) => value instanceof LetMultiversion)
-              .map(([k,value]) => [symbol_for_closed_let_var(k), value])
-          )
-
-      const let_vars = {
-        ...frame_cxt.calltree_node.let_vars, 
-        ...closure_let_vars,
-      }
-
-      const updated_let_scope = map_object(let_vars, (name, v) => 
-        v.get_version(call.last_version_number)
-      )
-
       return {
         ok: call.ok, 
         call,
@@ -788,7 +769,6 @@ const do_eval_frame_expr = (node, eval_cxt, frame_cxt) => {
         eval_cxt: {
           ...next_eval_cxt, 
           call_index: next_eval_cxt.call_index + 1,
-          scope: {...next_eval_cxt.scope, ...updated_let_scope},
           version_number: call.last_version_number,
         },
       }
@@ -1005,7 +985,7 @@ const eval_frame_expr = (node, eval_cxt, frame_cxt) => {
   }
 }
 
-const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
+const eval_decl_pair = (s, eval_cxt, frame_cxt, is_assignment) => {
   // TODO default values for destructuring can be function calls
 
   const {node, eval_cxt: next_eval_cxt} 
@@ -1035,23 +1015,49 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
     {...next_eval_cxt.scope, __value: node.result.value}
   )
 
-  const next_scope = Object.fromEntries(name_nodes.map(n => 
-    [symbol_for_identifier(n, frame_cxt), values[n.value]]
-  ))
+  const next_scope = Object.fromEntries(
+    name_nodes.map(n => {
+      const prev_value = next_eval_cxt.scope[symbol_for_identifier(n, frame_cxt)]
+      const next_value = prev_value instanceof LetMultiversion
+        ? prev_value
+        : values[n.value]
+      return [
+        symbol_for_identifier(n, frame_cxt), 
+        next_value,
+      ]
+    })
+  )
+ 
+  const assignment_count = name_nodes.filter(n => {
+    const value = next_eval_cxt.scope[symbol_for_identifier(n, frame_cxt)]
+    return value instanceof LetMultiversion
+  }).length
 
   // TODO fine-grained destructuring error, only for identifiers that failed
   // destructuring
   const name_node_with_result = map_tree(
     map_destructuring_identifiers(
       s.name_node,
-      node => ({...node, 
-        result: {
-          ok, 
-          error: ok  ? null : error,
-          value: !ok ? null : next_scope[symbol_for_identifier(node, frame_cxt)],
-          version_number: next_eval_cxt.version_number,
+      node => {
+        let result
+        if(!ok) {
+          result = {
+            ok, 
+            error,
+          }
+        } else {
+          let value = next_scope[symbol_for_identifier(node, frame_cxt)]
+          if(value instanceof LetMultiversion) {
+            value = value.get_version(next_eval_cxt.version_number)
+          }
+          result = {
+            ok, 
+            value,
+            version_number: next_eval_cxt.version_number,
+          }
         }
-      })
+        return {...node, result}
+      }
     ),
     n => 
       // TODO this should set result for default values in destructuring
@@ -1082,6 +1088,9 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt) => {
     eval_cxt: {
       ...next_eval_cxt,
       scope: {...next_eval_cxt.scope, ...next_scope},
+      version_number: is_assignment
+        ? next_eval_cxt.version_number + assignment_count
+        : next_eval_cxt.version_number,
     }
   }
 }
@@ -1228,18 +1237,18 @@ const eval_statement = (s, eval_cxt, frame_cxt) => {
           return {ok, eval_cxt, children: [...children, s]}
         } 
         if(stmt.type == 'let' && s.type == 'identifier') {
+          // Just bare let declaration without initial value
           const value = undefined
           const node = {...s, result: {ok: true, value, version_number: eval_cxt.version_number}}
-          const scope = {...eval_cxt.scope, [symbol_for_identifier(s, frame_cxt)]: value}
           return {
             ok, 
             children: [...children, node], 
-            eval_cxt: {...eval_cxt, scope},
+            eval_cxt,
           }
         }
         let result
         if(s.type == 'decl_pair') {
-          result = eval_decl_pair(s, eval_cxt, frame_cxt)
+          result = eval_decl_pair(s, eval_cxt, frame_cxt, stmt.type == 'assignment')
         } else if(s.type == 'assignment_pair') {
           result = eval_assignment_pair(s, eval_cxt, frame_cxt)
         } else {
@@ -1444,7 +1453,7 @@ export const eval_frame = (calltree_node, modules, rt_cxt) => {
       node,
       {
         __eval_cxt_marker: true,
-        scope: {},
+        scope: calltree_node.let_vars,
         call_index: 0,
         version_number: calltree_node.version_number,
       },
@@ -1457,19 +1466,13 @@ export const eval_frame = (calltree_node, modules, rt_cxt) => {
   } else {
     // TODO default values for destructuring can be function calls
 
-    const closure = map_object(calltree_node.fn.__closure, (_key, value) => {
-      return value instanceof LetMultiversion
-        ? value.get_version(calltree_node.version_number)
-        : value
-    })
-
     const version_number = calltree_node.version_number
 
     const args_scope_result = {
       ...get_args_scope(
         node, 
         calltree_node.args,
-        closure
+        calltree_node.fn.__closure
       ),
       version_number,
     }
@@ -1512,14 +1515,17 @@ export const eval_frame = (calltree_node, modules, rt_cxt) => {
       }
     }
 
-    const closure_scope = Object.fromEntries(
-      Object.entries(closure).map(([key, value]) => {
-        return [
-          symbol_for_closed_let_var(key),
-          value,
-        ]
-      })
-    )
+    const closure_scope = {
+      ...Object.fromEntries(
+        Object.entries(calltree_node.fn.__closure).map(([key, value]) => {
+          return [
+            symbol_for_closed_let_var(key),
+            value,
+          ]
+        })
+      ),
+      ...calltree_node.let_vars,
+    }
 
     const scope = {...closure_scope, ...args_scope_result.value}
 
