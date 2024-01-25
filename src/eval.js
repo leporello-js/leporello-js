@@ -1027,11 +1027,17 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt, is_assignment) => {
       ]
     })
   )
- 
+
+  // Currently assignment_count is always zero or one, because we do not allow
+  // destructuring assignment of let vars like `({foo, bar} = something)`
   const assignment_count = name_nodes.filter(n => {
     const value = next_eval_cxt.scope[symbol_for_identifier(n, frame_cxt)]
     return value instanceof LetMultiversion
   }).length
+
+  const next_version_number = is_assignment
+    ? next_eval_cxt.version_number + assignment_count
+    : next_eval_cxt.version_number
 
   // TODO fine-grained destructuring error, only for identifiers that failed
   // destructuring
@@ -1048,12 +1054,12 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt, is_assignment) => {
         } else {
           let value = next_scope[symbol_for_identifier(node, frame_cxt)]
           if(value instanceof LetMultiversion) {
-            value = value.get_version(next_eval_cxt.version_number)
+            value = value.get_version(next_version_number)
           }
           result = {
             ok, 
             value,
-            version_number: next_eval_cxt.version_number,
+            version_number: next_version_number,
           }
         }
         return {...node, result}
@@ -1088,9 +1094,7 @@ const eval_decl_pair = (s, eval_cxt, frame_cxt, is_assignment) => {
     eval_cxt: {
       ...next_eval_cxt,
       scope: {...next_eval_cxt.scope, ...next_scope},
-      version_number: is_assignment
-        ? next_eval_cxt.version_number + assignment_count
-        : next_eval_cxt.version_number,
+      version_number: next_version_number,
     }
   }
 }

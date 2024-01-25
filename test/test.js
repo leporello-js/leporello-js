@@ -4320,6 +4320,18 @@ const y = x()`
     )
   }),
 
+  test('let_versions assign to let variable', () => {
+    const code = `
+      let result = 0
+      function unused() {
+        result = 2
+      }
+      result = 1
+    `
+    const i = test_initial_state(code, code.indexOf('result = 1'))
+    assert_value_explorer(i, 1)
+  }),
+
   test('let_versions', () => {
     const code = `
       let x
