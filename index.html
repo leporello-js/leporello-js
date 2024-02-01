@@ -17,6 +17,7 @@
 
       :root {
         --shadow_color: rgb(171 200 214);
+        --active_color: rgb(173, 228, 253);
       }
 
       html, body, .app {
@@ -156,7 +157,7 @@
       }
 
       .logs .log.active {
-        background-color: rgb(225, 244, 253);
+        background-color: var(--active_color);
       }
 
       .tab_content {
@@ -168,7 +169,7 @@
         margin-left: 1em;
       }
       .callnode .active {
-        background-color: rgb(225, 244, 253);
+        background-color: var(--active_color);
       }
       .call_el {
         cursor: pointer;
@@ -229,7 +230,7 @@
       }
 
       .files .file_title.active {
-        background-color: rgb(225, 244, 253);
+        background-color: var(--active_color);
       }
 
       .files .file_title .select_entrypoint {
