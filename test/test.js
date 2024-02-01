@@ -487,14 +487,13 @@ export const tests = [
     )
   }),
 
-  test('ASI_restrited', () => {
-    // Currently we forbid bare return statement, TODO
+  test('ASI_restricted', () => {
     assert_equal(
       do_parse(`
         return
         1
       `).ok,
-      false
+      true
     )
     assert_equal(
       do_parse(`
@@ -943,6 +942,23 @@ export const tests = [
     const x = find_node(frame, n => n.string == 'x')
     assert_equal(x.result.value, 1)
     assert_equal(x.result.version_number, 0)
+  }),
+
+  test('bare return statement', () => {
+    const code = `
+      function test() {
+        return
+      }
+      test() /*call*/
+    `
+    assert_value_explorer(
+      test_initial_state(code, code.indexOf('test() /*call*/')),
+      undefined,
+    )
+    assert_value_explorer(
+      test_initial_state(code, code.indexOf('return')),
+      undefined,
+    )
   }),
 
   test('array spread not iterable', () => {

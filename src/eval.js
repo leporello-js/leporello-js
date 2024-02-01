@@ -192,7 +192,11 @@ const codegen = (node, node_cxt) => {
         ''
       )
   } else if(node.type == 'return') {
-    return 'return ' + do_codegen(node.expr) + ';'
+    if(node.expr == null) {
+      return 'return ;'
+    } else {
+      return 'return ' + do_codegen(node.expr) + ';'
+    }
   } else if(node.type == 'throw') {
     return 'throw ' + do_codegen(node.expr) + ';'
   } else if(node.type == 'if') {
@@ -1277,6 +1281,15 @@ const eval_statement = (s, eval_cxt, frame_cxt) => {
       eval_cxt: next_eval_cxt,
     }
   } else if(s.type == 'return') {
+
+    if(s.expr == null) {
+      return {
+        ok: true,
+        returned: true,
+        node: {...s, result: {ok: true}},
+        eval_cxt,
+      }
+    }
 
     const {node, eval_cxt: next_eval_cxt} = 
       eval_frame_expr(s.expr, eval_cxt, frame_cxt)

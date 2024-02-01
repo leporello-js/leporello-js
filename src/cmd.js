@@ -624,7 +624,12 @@ const get_stmt_value_explorer = (state, stmt) => {
 
   if(stmt.result.ok) {
     if(stmt.type == 'return') {
-      result = stmt.children[0].result
+      if(stmt.expr == null) {
+        // add fake version number
+        result = {ok: true, value: undefined, version_number: 0}
+      } else {
+        result = stmt.children[0].result
+      }
     } else if(['let', 'const', 'assignment'].includes(stmt.type)) {
 
       if(stmt.children.find(c => c.type == 'assignment_pair') != null) {

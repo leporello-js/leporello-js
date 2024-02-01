@@ -1225,15 +1225,10 @@ const assignment = if_ok(
 )
 
 
-const return_statement =
+const return_statement = either(
+  // return expr
   if_ok(
     seq_select(1, [
-
-      // We forbid bare return statement
-      // TODO bare return statement
-      // TODO implement bare return statement compatible with ASI
-      // see https://riptutorial.com/javascript/example/15248/rules-of-automatic-semicolon-insertion
-      // see ASI_restrited unit test
       not_followed_by(
         literal('return'),
         newline,
@@ -1245,7 +1240,19 @@ const return_statement =
       type: 'return',
       children: [value],
     })
-  )
+  ),
+
+  // bare return statement 
+  if_ok(
+    literal('return'),
+    node => ({
+      ...node,
+      type: 'return',
+      children: [],
+      value: null,
+    })
+  ),
+)
 
 const if_branch = if_ok(
   seq_select(1, [
