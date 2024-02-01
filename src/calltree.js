@@ -236,7 +236,7 @@ const expand_calltree_node = (state, node) => {
   }
 }
 
-const jump_calltree_node = (_state, _current_calltree_node) => {
+const jump_calltree_node = (_state, _current_calltree_node, do_not_set_location = false) => {
   const {state, node: current_calltree_node} = expand_calltree_node(
     _state, _current_calltree_node
   )
@@ -295,11 +295,13 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
     }
   }
 
-  const with_location = next.current_calltree_node.toplevel
-    ? {...next, current_module: loc.module}
-    // TODO: better jump not start of function (arguments), but start
-    // of body?
-    : set_location(next, loc)
+  const with_location = do_not_set_location
+    ? next
+    : next.current_calltree_node.toplevel
+      ? {...next, current_module: loc.module}
+      // TODO: better jump not start of function (arguments), but start
+      // of body?
+      : set_location(next, loc)
 
   const with_selected_calltree_node = set_selected_calltree_node_by_loc(
     with_location,
@@ -352,6 +354,10 @@ const jump_calltree_node = (_state, _current_calltree_node) => {
       ? null
       : {node: callsite_node}
   }
+}
+
+const show_value_explorer = state => {
+  return jump_calltree_node(state, state.current_calltree_node, true)
 }
 
 export const path_to_root = (root, child) => {
@@ -950,4 +956,5 @@ export const calltree_commands = {
   select_error,
   navigate_logs_position,
   navigate_logs_increment,
+  show_value_explorer,
 }

@@ -791,6 +791,8 @@ const get_value_explorer = (state, index) => {
 }
 
 const do_move_cursor = (state, index) => {
+  // TODO: if value explorer is null, show current fn return value and args?
+
   const value_explorer = get_value_explorer(state, index)  
   if(
     value_explorer != null

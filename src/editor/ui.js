@@ -205,6 +205,10 @@ export class UI {
     if(!skip_focus) {
       this.debugger[tab_id].focus()
     }
+
+    if(tab_id == 'calltree' && !skip_focus) {
+      exec('calltree.show_value_explorer')
+    }
   }
 
   open_app_window() {
