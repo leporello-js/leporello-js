@@ -1761,7 +1761,7 @@ export const tests = [
     )
 
     const x_call = root_calltree_node(initial).children[0]
-    const step_into = COMMANDS.calltree.click(initial, x_call.id)
+    const step_into = COMMANDS.calltree.select_and_toggle_expanded(initial, x_call.id)
     assert_equal(
       color_file(step_into, '').sort((a,b) => a.index - b.index),
       [
@@ -1815,7 +1815,7 @@ export const tests = [
       x()`
     const initial = test_initial_state(code)
     const x_call = root_calltree_node(initial).children[0]
-    const step_into = COMMANDS.calltree.click(initial, x_call.id)
+    const step_into = COMMANDS.calltree.select_and_toggle_expanded(initial, x_call.id)
 
     assert_equal(
       color_file(step_into, '').sort((c1, c2) => c1.index - c2.index),
@@ -1979,7 +1979,7 @@ const y = x()`
       x(2);
     `)
 
-    const s2 = COMMANDS.calltree.click(
+    const s2 = COMMANDS.calltree.select_and_toggle_expanded(
       s, 
       root_calltree_node(s).children[0].id,
     )
@@ -2161,7 +2161,7 @@ const y = x()`
     `)
     const first = root_calltree_node(s).children[0]
     assert_equal(first.value, 10)
-    const s2 = COMMANDS.calltree.click(s, first.id)
+    const s2 = COMMANDS.calltree.select_and_toggle_expanded(s, first.id)
     const first2 = root_calltree_node(s2).children[0]
     assert_equal(first2.children[0].value, 9)
     assert_equal(first2.code, first2.children[0].code)
@@ -2176,7 +2176,7 @@ const y = x()`
     `
     const s = test_initial_state(code)
     const new_call = root_calltree_node(s).children.at(-1)
-    const expanded_new_call = COMMANDS.calltree.click(s, new_call.id)
+    const expanded_new_call = COMMANDS.calltree.select_and_toggle_expanded(s, new_call.id)
     const x_call = root_calltree_node(expanded_new_call)
       .children.at(-1)
       .children[0]
@@ -2186,7 +2186,7 @@ const y = x()`
   test('expand_calltree_node native', () => {
     const s = test_initial_state(`[1,2,3].map(x => x + 1)`)
     const map = root_calltree_node(s).children[0]
-    const s2 = COMMANDS.calltree.click(s, map.id)
+    const s2 = COMMANDS.calltree.select_and_toggle_expanded(s, map.id)
     const map_expanded = root_calltree_node(s2).children[0]
     assert_equal(map_expanded.children.length, 3)
   }),
@@ -2198,7 +2198,7 @@ const y = x()`
 
       foo(1, {y: 2})
     `)
-    const expanded = COMMANDS.calltree.click(i, root_calltree_node(i).children[0].id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, root_calltree_node(i).children[0].id)
     const args = expanded.value_explorer.result.value['*arguments*']
     assert_equal(args, {value: {x: 1, y: 2}})
   }),
@@ -2207,7 +2207,7 @@ const y = x()`
     const s = test_initial_state(`Object.fromEntries([])`)
     const index = 0 // Where call starts
     const call = root_calltree_node(s).children[0]
-    const state = COMMANDS.calltree.click(s, call.id)
+    const state = COMMANDS.calltree.select_and_toggle_expanded(s, call.id)
     assert_equal(current_cursor_position(state), index)
     assert_equal(
       state.value_explorer,
@@ -2291,7 +2291,7 @@ const y = x()`
     `
     const s = test_initial_state(code)
     const call_fn = root_calltree_node(s).children[0].children[0]
-    const s2 = COMMANDS.calltree.click(s, call_fn.id)
+    const s2 = COMMANDS.calltree.select_and_toggle_expanded(s, call_fn.id)
     const good = s2.current_calltree_node.children[0]
     assert_equal(good.code.index, code.indexOf('() => {/*good'))
   }),
@@ -3200,7 +3200,7 @@ const y = x()`
     const i = test_initial_state(code, code.indexOf('label'))
     assert_equal(i.active_calltree_node.args[0], 1)
     // select second call
-    const second = COMMANDS.calltree.click(i, root_calltree_node(i).children[1].id)
+    const second = COMMANDS.calltree.select_and_toggle_expanded(i, root_calltree_node(i).children[1].id)
     assert_equal(second.active_calltree_node.args[0], 2)
   }),
 
@@ -3220,7 +3220,7 @@ const y = x()`
     const i = test_initial_state(code)
     const first_call_id = root_calltree_node(i).children[0].id
     // explicitly select first call
-    const selected = COMMANDS.calltree.click(i, first_call_id)
+    const selected = COMMANDS.calltree.select_and_toggle_expanded(i, first_call_id)
     // implicitly select second call by moving cursor
     const moved = COMMANDS.move_cursor(selected, code.indexOf('false'))
     const finish = COMMANDS.move_cursor(moved, code.indexOf('finish'))
@@ -3265,7 +3265,7 @@ const y = x()`
     assert_equal(call.value, 2)
 
     // Expand call
-    const expanded = COMMANDS.calltree.click(state, call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(state, call.id)
     const moved = COMMANDS.move_cursor(expanded, code.indexOf('return arg'))
     assert_equal(moved.active_calltree_node.value, 2)
   }),
@@ -3394,7 +3394,7 @@ const y = x()`
     assert_equal(call.args, [10])
 
     // Expand call
-    const expanded = COMMANDS.calltree.click(state, call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(state, call.id)
     assert_equal(get_deferred_calls(expanded)[0].children[0].fn.name, 'fn2')
 
     // Navigate logs
@@ -3568,7 +3568,7 @@ const y = x()`
 
     const state = on_deferred_call(i)
     const call = get_deferred_calls(state)[0]
-    const expanded = COMMANDS.calltree.click(state, call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(state, call.id)
     // Make deferred call again. There was a runtime error
     expanded.modules[''].fn(10)
   }),
@@ -4417,7 +4417,7 @@ const y = x()`
     const i = test_initial_state(code)
     const second_foo_call = root_calltree_node(i).children[1]
     assert_equal(second_foo_call.has_more_children, true)
-    const expanded = COMMANDS.calltree.click(i, second_foo_call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, second_foo_call.id)
     const bar_call = root_calltree_node(expanded).children[1].children[0]
     assert_equal(bar_call.fn.name, 'bar')
     assert_equal(bar_call.args, [11])
@@ -4445,7 +4445,7 @@ const y = x()`
     const i = test_initial_state(code)
     const second_deep_call = root_calltree_node(i).children[1]
     assert_equal(second_deep_call.has_more_children, true)
-    const expanded = COMMANDS.calltree.click(i, second_deep_call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, second_deep_call.id)
     const moved = COMMANDS.move_cursor(expanded, code.indexOf('y /*y*/'))
     assert_equal(moved.value_explorer.result.value, 11)
   }),
@@ -4469,7 +4469,7 @@ const y = x()`
     const i = test_initial_state(code)
     const second_x_call = root_calltree_node(i).children[1]
     assert_equal(second_x_call.has_more_children, true)
-    const expanded = COMMANDS.calltree.click(i, second_x_call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, second_x_call.id)
     const moved = COMMANDS.move_cursor(expanded, code.indexOf('y /*result*/'))
     assert_equal(moved.value_explorer.result.value, 1)
   }),
@@ -4494,11 +4494,11 @@ const y = x()`
     const i = test_initial_state(code, code.indexOf('holder.get'))
     assert_equal(i.value_explorer.result.value, 9)
 
-    const map_expanded = COMMANDS.calltree.click(
+    const map_expanded = COMMANDS.calltree.select_and_toggle_expanded(
       i, 
       root_calltree_node(i).children[2].id
     )
-    const expanded = COMMANDS.calltree.click(
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(
       map_expanded, 
       root_calltree_node(map_expanded).children[2].children[5].id
     )
@@ -4689,7 +4689,7 @@ const y = x()`
   //   `
   //   const i = test_initial_state(code)
   //   const second_y_call = root_calltree_node(i).children[0].children[1]
-  //   const selected = COMMANDS.calltree.click(i, second_y_call.id)
+  //   const selected = COMMANDS.calltree.select_and_toggle_expanded(i, second_y_call.id)
   //   const moved = COMMANDS.move_cursor(selected, code.indexOf('x /*x*/'))
   //   assert_equal(moved.value_explorer.result.value, 1)
   // }),
@@ -4737,7 +4737,7 @@ const y = x()`
     const i =  test_initial_state(code)
     const second_map_call = i.calltree.children[0].children[1]
     assert_equal(second_map_call.has_more_children, true)
-    const expanded = COMMANDS.calltree.click(i, second_map_call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, second_map_call.id)
     const second_map_call_exp = expanded.calltree.children[0].children[1]
     assert_equal(second_map_call.id == second_map_call_exp.id, true)
     assert_equal(second_map_call_exp.children[0].id == second_map_call_exp.id + 1, true)
@@ -4763,14 +4763,14 @@ const y = x()`
     const test_call = root_calltree_node(i).children[1]
     assert_equal(test_call.has_more_children , true)
 
-    const expanded = COMMANDS.calltree.click(i, test_call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, test_call.id)
     const test2_call = root_calltree_node(expanded).children[1].children[0]
     assert_equal(test2_call.has_more_children, true)
 
-    const expanded2 = COMMANDS.calltree.click(expanded, test2_call.id)
+    const expanded2 = COMMANDS.calltree.select_and_toggle_expanded(expanded, test2_call.id)
     const foo_call = root_calltree_node(expanded2).children[1].children[0].children[0]
 
-    const expanded3 = COMMANDS.calltree.click(expanded2, foo_call.id)
+    const expanded3 = COMMANDS.calltree.select_and_toggle_expanded(expanded2, foo_call.id)
 
     const moved = COMMANDS.move_cursor(expanded3, code.indexOf('x /*x*/'))
     assert_equal(moved.value_explorer.result.value, 1)
@@ -4803,7 +4803,7 @@ const y = x()`
     // first arrow rights selects do_inc call, second steps into it
     const expanded = COMMANDS.calltree.arrow_right(
       COMMANDS.calltree.arrow_right(
-        COMMANDS.calltree.click(state, call.id)
+        COMMANDS.calltree.select_and_toggle_expanded(state, call.id)
       )
     )
     // Move cursor
@@ -4836,7 +4836,7 @@ const y = x()`
     const second_set_call = root_calltree_node(i).children[1]
     assert_equal(second_set_call.has_more_children, true)
 
-    const exp = COMMANDS.calltree.click(i, second_set_call.id)
+    const exp = COMMANDS.calltree.select_and_toggle_expanded(i, second_set_call.id)
     assert_equal(exp.modules[''].get(), 3)
   }),
 
@@ -5175,7 +5175,7 @@ const y = x()`
       }
       sort(array)
     `)
-    const selected = COMMANDS.calltree.click(i, root_calltree_node(i).children[0].id)
+    const selected = COMMANDS.calltree.select_and_toggle_expanded(i, root_calltree_node(i).children[0].id)
 
     const args = selected.value_explorer.result.value['*arguments*']
     assert_versioned_value(i, args, {array: [3,2,1]})
@@ -5268,7 +5268,7 @@ const y = x()`
     const i = test_initial_state(code)
     const second_foo_call = root_calltree_node(i).children[1]
     assert_equal(second_foo_call.has_more_children, true)
-    const expanded = COMMANDS.calltree.click(i, second_foo_call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, second_foo_call.id)
     const bar_call = root_calltree_node(expanded).children[1].children[0]
     assert_equal(bar_call.fn.name, 'bar')
     const moved = COMMANDS.move_cursor(expanded, code.indexOf('y /*y*/'))
@@ -5296,14 +5296,14 @@ const y = x()`
     const test_call = root_calltree_node(i).children[1]
     assert_equal(test_call.has_more_children , true)
 
-    const expanded = COMMANDS.calltree.click(i, test_call.id)
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(i, test_call.id)
     const test2_call = root_calltree_node(expanded).children[1].children[0]
     assert_equal(test2_call.has_more_children, true)
 
-    const expanded2 = COMMANDS.calltree.click(expanded, test2_call.id)
+    const expanded2 = COMMANDS.calltree.select_and_toggle_expanded(expanded, test2_call.id)
     const foo_call = root_calltree_node(expanded2).children[1].children[0].children[0]
 
-    const expanded3 = COMMANDS.calltree.click(expanded2, foo_call.id)
+    const expanded3 = COMMANDS.calltree.select_and_toggle_expanded(expanded2, foo_call.id)
 
     const moved = COMMANDS.move_cursor(expanded3, code.indexOf('x /*x*/'))
     assert_equal(moved.value_explorer.result.value, {value: 1 })

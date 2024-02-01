@@ -67,8 +67,12 @@ export class CallTree {
 
   }
 
-  on_click_node(id) {
-    exec('calltree.click', id)
+  on_click_node(ev, id) {
+    if(ev.target.classList.contains('expand_icon')) {
+      exec('calltree.select_and_toggle_expanded', id)
+    } else {
+      exec('calltree.select_node', id)
+    }
   }
 
   clear_calltree(){
@@ -83,11 +87,11 @@ export class CallTree {
     const result = el('div', 'callnode',
       el('div', {
         'class': 'call_el',
-        click: () => this.on_click_node(n.id),
+        click: e => this.on_click_node(e, n.id),
       },
         !is_expandable(n)
           ? '\xa0'
-          : is_expanded ? '▼' : '▶',
+          : el('span', 'expand_icon', is_expanded ? '▼' : '▶'),
         n.toplevel
         ? el('span', '',
             el('i', '', 

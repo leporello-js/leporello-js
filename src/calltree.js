@@ -551,7 +551,12 @@ export const toggle_expanded = (state, is_exp) => {
   )
 }
 
-const click = (state, id) => {
+const select_node = (state, id) => {
+  const node = find_node(state.calltree, n => n.id == id)
+  return jump_calltree_node(state, node)
+}
+
+const select_and_toggle_expanded = (state, id) => {
   const node = find_node(state.calltree, n => n.id == id)
   const nextstate = jump_calltree_node(state, node)
   if(is_expandable(node)) {
@@ -950,7 +955,8 @@ export const calltree_commands = {
   arrow_up, 
   arrow_left, 
   arrow_right, 
-  click,
+  select_node,
+  select_and_toggle_expanded,
   select_return_value,
   select_arguments,
   select_error,
