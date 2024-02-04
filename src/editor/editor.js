@@ -172,22 +172,22 @@ export class Editor {
   }
 
   unembed_value_explorer() {
-    if(this.widget == null) {
+    if(this.value_explorer == null) {
       return
     }
 
     const session = this.ace_editor.getSession()
-    const widget_bottom = this.widget.el.getBoundingClientRect().bottom
-    session.widgetManager.removeLineWidget(this.widget) 
+    const widget_bottom = this.value_explorer.el.getBoundingClientRect().bottom
+    session.widgetManager.removeLineWidget(this.value_explorer) 
 
-    if(this.widget.is_dom_el) {
+    if(this.value_explorer.is_dom_el) {
       /*
-        if cursor moves below widget, then ace editor first adjusts scroll,
-        and then widget gets remove, so scroll jerks. We have to set scroll
+        if cursor moves below value_explorer, then ace editor first adjusts scroll,
+        and then value_explorer gets remove, so scroll jerks. We have to set scroll
         back
       */
       // distance travelled by cursor
-      const distance = session.selection.getCursor().row - this.widget.row
+      const distance = session.selection.getCursor().row - this.value_explorer.row
       if(distance > 0) {
         const line_height = this.ace_editor.renderer.lineHeight
         const scroll = widget_bottom - this.editor_container.getBoundingClientRect().bottom
@@ -198,11 +198,11 @@ export class Editor {
       }
     }
 
-    this.widget = null
+    this.value_explorer = null
   }
 
   update_value_explorer_margin() {
-    if(this.widget != null) {
+    if(this.value_explorer != null) {
       const session = this.ace_editor.getSession()
 
       // Calculate left margin in such way that value explorer does not cover
@@ -211,7 +211,7 @@ export class Editor {
       const lines_count = session.getLength()
       let margin = 0
       for(
-        let i = this.widget.row; 
+        let i = this.value_explorer.row; 
         i <= this.ace_editor.renderer.getLastVisibleRow();
         i++
       ) {
@@ -221,7 +221,7 @@ export class Editor {
       // Next line sets margin based on whole file
       //const margin = this.ace_editor.getSession().getScreenWidth() 
 
-      this.widget.content.style.marginLeft = (margin + 1) + 'ch'
+      this.value_explorer.content.style.marginLeft = (margin + 1) + 'ch'
     }
   }
 
@@ -248,7 +248,7 @@ export class Editor {
     const container = el('div', {'class': 'embed_value_explorer_container'},
       el('div', {'class': 'embed_value_explorer_wrapper'},
         content = el('div', {
-          // Ace editor cannot render widget before the first line. So we
+          // Ace editor cannot render value_explorer before the first line. So we
           // render in on the next line and apply translate
           'class': 'embed_value_explorer_content', 
           tabindex: 0
@@ -263,10 +263,10 @@ export class Editor {
         // restore scroll
         session.setScrollTop(initial_scroll_top)
       }
-      if(this.widget.return_to == null) {
+      if(this.value_explorer.return_to == null) {
         this.focus()
       } else {
-        this.widget.return_to.focus()
+        this.value_explorer.return_to.focus()
       }
       // TODO select root in value explorer
     }
@@ -341,7 +341,7 @@ export class Editor {
       content.appendChild(el('span', 'eval_error', stringify_for_header(error)))
     }
 
-    const widget = this.widget = {
+    const value_explorer = this.value_explorer = {
       node,
       row: is_dom_el
        ? session.doc.indexToPosition(index + length).row
@@ -361,14 +361,14 @@ export class Editor {
 
     if(is_dom_el) {
       container.classList.add('is_dom_el')
-      session.widgetManager.addLineWidget(widget) 
+      session.widgetManager.addLineWidget(value_explorer) 
     } else {
       container.classList.add('is_not_dom_el')
       const line_height = this.ace_editor.renderer.lineHeight
       content.style.transform = `translate(0px, -${line_height}px)`
       // hide element before margin applied to avoid jitter
       container.style.display = 'none'
-      session.widgetManager.addLineWidget(widget) 
+      session.widgetManager.addLineWidget(value_explorer) 
       // update_value_explorer_margin relies on getLastVisibleRow which can be
       // incorrect because it may be executed right after set_cursor_position
       // which is async in ace_editor. Use setTimeout
@@ -381,9 +381,9 @@ export class Editor {
   }
 
   focus_value_explorer(return_to) {
-    if(this.widget != null) {
-      this.widget.return_to = return_to
-      this.widget.content.focus({preventScroll: true})
+    if(this.value_explorer != null) {
+      this.value_explorer.return_to = return_to
+      this.value_explorer.content.focus({preventScroll: true})
     }
   }
 
@@ -402,8 +402,8 @@ export class Editor {
     // Intercept Enter to execute step_into if function_call selected
     this.ace_editor.keyBinding.addKeyboardHandler(($data, hashId, keyString, keyCode, e) => {
       if(keyString == 'return') {
-        if(this.widget?.node?.type == 'function_call') {
-          exec('step_into', this.widget.node.index)
+        if(this.value_explorer?.node?.type == 'function_call') {
+          exec('step_into', this.value_explorer.node.index)
           return {command: "null"} // to stop other handlers
         }
       }
