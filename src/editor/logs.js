@@ -1,4 +1,4 @@
-import {el, scrollIntoViewIfNeeded} from './domutils.js'
+import {el, scrollIntoViewIfNeeded, value_to_dom_el, join} from './domutils.js'
 import {exec} from '../index.js'
 import {header} from '../value_explorer_utils.js'
 import {with_version_number_of_log} from '../cmd.js'
@@ -72,10 +72,9 @@ export class Logs {
             + ':'
           ),
           ' ',
-          with_version_number_of_log(state, log, () =>
-            // TODO fn_link, for function args, like in ./calltree.js
-            log.args.map(a => header(a)).join(', ')
-          )
+          ...join(with_version_number_of_log(state, log, () =>
+            log.args.map(a => value_to_dom_el(a))
+          ))
         )
       )
     }

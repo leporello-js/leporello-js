@@ -3,7 +3,7 @@
 // TODO fns as clickable links (jump to definition), both for header and for
 // content
 
-import {el, stringify, scrollIntoViewIfNeeded} from './domutils.js'
+import {el, scrollIntoViewIfNeeded} from './domutils.js'
 import {with_code_execution} from '../index.js'
 // TODO remove is_expandble, join with displayed entries
 import {header, short_header, is_expandable, displayed_entries} from '../value_explorer_utils.js'

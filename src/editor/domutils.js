@@ -1,3 +1,6 @@
+import {exec} from '../index.js'
+import {stringify_for_header} from '../value_explorer_utils.js'
+
 export function el(tag, className, ...children){
   const result = document.createElement(tag)
   if(typeof(className) == 'string'){
@@ -38,38 +41,40 @@ export function el(tag, className, ...children){
   return result
 }
 
-export function stringify(val){
-  function fn_to_str(fn){
-    // TODO if name is 'anonymous', then change name for code
-    return fn.__location == null 
-      ? `<span>${fn.name}</span>`
-      : `<a 
-          href='javascript:void(0)' 
-          data-location=${JSON.stringify(fn.__location)}
-         ><i>fn</i> ${fn.name}</a>`
-  }
-  if(typeof(val) == 'undefined') {
-    return 'undefined'
-  } else if(typeof(val) == 'function'){
-    return fn_to_str(val)
-  } else {
-    return JSON.stringify(val, (key, value) => {
-      if(typeof(value) == 'function'){
-        return fn_to_str(value)
-      } else {
-        return value
-      }
-    })
-  }
-}
-
-export function fn_link(fn){
-  const str = stringify(fn)
+function fn_link(fn){
+  // TODO if name is empty or 'anonymous', then show its source code instead
+  // of name
+  const str = fn.__location == null 
+    ? `<span>${fn.name}</span>`
+    : `<a href='javascript:void(0)'><i>fn</i> ${fn.name}</a>`
   const c = document.createElement('div')
   c.innerHTML = str
-  return c.children[0]
+  const el = c.children[0]
+  if(fn.__location != null) {
+    el.addEventListener('click', e => {
+      e.stopPropagation()
+      exec('goto_location',fn.__location)
+    })
+  }
+  return el
 }
 
+export function value_to_dom_el(value) {
+  return typeof(value) == 'function'
+    ? fn_link(value)
+    : stringify_for_header(value)
+}
+
+export function join(arr, separator = ', ') {
+  const result = []
+  for(let i = 0; i < arr.length; i++) {
+    result.push(arr[i])
+    if(i != arr.length - 1) {
+      result.push(separator)
+    }
+  }
+  return result
+}
 
 
 // Idea is borrowed from:

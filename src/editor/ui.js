@@ -171,21 +171,6 @@ export class UI {
     this.logs = new Logs(this, this.debugger.logs)
     this.io_trace = new IO_Trace(this, this.debugger.io_trace)
 
-    // TODO jump to another module
-    // TODO use exec
-    const jump_to_fn_location = (e) => {
-      let loc
-      if((loc = e.target.dataset.location) != null){
-        loc = JSON.parse(loc)
-        this.editor.set_cursor_position(loc.index)
-        this.editor.focus()
-      }
-    }
-
-    // TODO when click in calltree, do not jump to location, navigateCallTree
-    // instead
-    this.debugger.calltree.addEventListener('click', jump_to_fn_location)
-
     this.render_current_module(state.current_module)
 
     this.set_active_tab('calltree', true)

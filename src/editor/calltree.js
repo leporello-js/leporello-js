@@ -1,18 +1,10 @@
 import {exec} from '../index.js'
-import {el, stringify, fn_link, scrollIntoViewIfNeeded} from './domutils.js'
+import {el, scrollIntoViewIfNeeded, value_to_dom_el, join} from './domutils.js'
 import {stringify_for_header} from '../value_explorer_utils.js'
 import {find_node} from '../ast_utils.js'
 import {with_version_number} from '../runtime/runtime.js'
 import {is_expandable, root_calltree_node, get_deferred_calls, has_error} 
   from '../calltree.js'
-
-// TODO perf - quadratic difficulty
-const join = arr => arr.reduce(
-  (acc, el) => acc.length == 0 
-                  ? [el]
-                  : [...acc, ',', el],
-  [],
-)
 
 export class CallTree {
   constructor(ui, container) {
@@ -111,11 +103,7 @@ export class CallTree {
              ...join(
                // for arguments, use n.version_number - last version before call
                with_version_number(this.state.rt_cxt, n.version_number, () =>
-                 n.args.map(
-                   a => typeof(a) == 'function'
-                    ? fn_link(a)
-                    : stringify_for_header(a)
-                 )
+                 n.args.map(a => value_to_dom_el(a))
                )
              ),
             ')' ,
@@ -124,7 +112,9 @@ export class CallTree {
             // for return value, use n.last_version_number - last version that was
             // created during call
             with_version_number(this.state.rt_cxt, n.last_version_number, () => 
-              (n.ok ? stringify_for_header(n.value) : stringify_for_header(n.error)) 
+              n.ok 
+                ? value_to_dom_el(n.value) 
+                : stringify_for_header(n.error)
             )
           ),
       ),

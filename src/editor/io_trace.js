@@ -55,7 +55,6 @@ export class IO_Trace {
             + (is_used ? '' : 'native '),
           item.name,
           '(' ,
-          // TODO fn_link, like in ./calltree.js
           item.args.map(a => header(a)).join(', '),
           '): ' ,
           (item.ok ? stringify_for_header(item.value) : item.error.toString()) 

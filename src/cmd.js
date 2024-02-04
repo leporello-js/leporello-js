@@ -534,6 +534,13 @@ const change_html_file = (state, html_file) => {
   return {...state, html_file}
 }
 
+const goto_location = (state, loc) => {
+  return {
+    state: move_cursor(set_location(state, loc), loc.index),
+    effects: {type: 'set_focus'},
+  }
+}
+
 const goto_definition = (state, index) => {
   if(!state.parse_result.ok){
     return {state, effects: {type: 'set_status', args: ['unresolved syntax errors']}}
@@ -569,12 +576,7 @@ const goto_definition = (state, index) => {
         } else {
           loc = {module: state.current_module, index: d.index}
         }
-        return {
-          state: move_cursor(
-            {...state, current_module: loc.module}, 
-            loc.index,
-          )
-        }
+        return goto_location(state, loc)
       }
     }
   }
@@ -950,6 +952,7 @@ export const COMMANDS = {
   change_current_module,
   change_entrypoint,
   change_html_file,
+  goto_location,
   goto_definition,
   goto_problem,
   move_cursor,
