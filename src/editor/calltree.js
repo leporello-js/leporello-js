@@ -13,9 +13,6 @@ export class CallTree {
 
     this.container.addEventListener('keydown', (e) => {
 
-      // Do not scroll
-      e.preventDefault()
-
       if(e.key == 'Escape') {
         this.ui.editor.focus()
       }
@@ -41,18 +38,26 @@ export class CallTree {
       }
 
       if(e.key == 'ArrowDown' || e.key == 'j'){
+        // Do not scroll
+        e.preventDefault()
         exec('calltree.arrow_down')
       }
 
       if(e.key == 'ArrowUp' || e.key == 'k'){
+        // Do not scroll
+        e.preventDefault()
         exec('calltree.arrow_up')
       }
 
       if(e.key == 'ArrowLeft' || e.key == 'h'){
+        // Do not scroll
+        e.preventDefault()
         exec('calltree.arrow_left')
       }
 
       if(e.key == 'ArrowRight' || e.key == 'l'){
+        // Do not scroll
+        e.preventDefault()
         exec('calltree.arrow_right')
       }
     })
