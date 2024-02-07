@@ -926,6 +926,9 @@ const open_app_window = (state, globals) => {
     external_imports_cache: null,
     // Bust parse result cache because list of globals may change
     parse_result: null,
+    // Clear io trace because promises in io_trace become invalid after their
+    // window close
+    io_trace: null,
   })
 }
 
