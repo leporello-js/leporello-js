@@ -1,6 +1,5 @@
 import {find_error_origin_node} from '../src/ast_utils.js'
 import {parse, print_debug_node, load_modules} from '../src/parse_js.js'
-import {eval_modules} from '../src/eval.js'
 import {active_frame, pp_calltree, version_number_symbol} from '../src/calltree.js'
 import {COMMANDS} from '../src/cmd.js'
 

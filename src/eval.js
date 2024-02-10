@@ -414,7 +414,6 @@ export const eval_modules = (
   on_deferred_call,
   calltree_changed_token,
   io_trace,
-  location
 ) => {
   // TODO gensym __cxt, __trace, __trace_call, __calltree_node_by_loc,
   // __do_await, __Multiversion, __create_array, __create_object

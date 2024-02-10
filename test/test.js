@@ -1,6 +1,6 @@
 import {find_leaf, ancestry, find_node} from '../src/ast_utils.js'
 import {print_debug_node} from '../src/parse_js.js'
-import {eval_frame, eval_modules} from '../src/eval.js'
+import {eval_frame} from '../src/eval.js'
 import {COMMANDS, with_version_number_of_log} from '../src/cmd.js'
 import {header} from '../src/value_explorer_utils.js'
 import {
@@ -833,15 +833,11 @@ export const tests = [
   }),
 
   test('eval_frame modules', () => {
-    const parsed = parse_modules(
-      'b',
-      {
-        'a'  : 'export const a = 1;',
-        'b'  : 'import {a} from "a"; export const b = a*2;',
-      }
-    )
-    const {calltree, modules} = eval_modules(parsed);
-    const frame = eval_frame(calltree, modules)
+    const i = test_initial_state({
+      ''  : 'import {a} from "a"; export const b = a*2;',
+      'a'  : 'export const a = 1;',
+    })
+    const frame = active_frame(i)
     assert_equal(frame.children[1].result, {ok: true})
     assert_equal(
       find_node(frame, n => n.string == 'b').result.value,
@@ -1022,19 +1018,17 @@ export const tests = [
   }),
 
   test('modules', () => {
-    const parsed = parse_modules(
-      'd',
+    const i = test_initial_state(
       {
         'a'  : 'export const a = 1;',
         'b'  : 'import {a} from "a"; export const b = a*2;',
         'c1' : 'import {b} from "b"; import {a} from "a"; export const c1 = b*2;',
         'c2' : 'import {b} from "b"; import {a} from "a"; export const c2 = b*2;',
-        'd'  : 'import {c1} from "c1"; import {c2} from "c2"; export const d = c1 + c2;',
+        ''  : 'import {c1} from "c1"; import {c2} from "c2"; export const result = c1 + c2;',
       }
     )
-    assert_equal(parsed.sorted, ['a', 'b', 'c1', 'c2', 'd'])
-    const modules = eval_modules(parsed).modules;
-    assert_equal(modules.d.d, 8)
+    assert_equal(i.parse_result.sorted, ['a', 'b', 'c1', 'c2', ''])
+    assert_equal(i.modules[''].result, 8)
   }),
 
   test('module loaded just once', () => {
@@ -1042,10 +1036,9 @@ export const tests = [
         root -> intermediate1 -> leaf
         root -> intermediate2 -> leaf
     */
-    const parsed = parse_modules(
-      'root',
+    const i = test_initial_state(
       {
-        'root'  : `
+        ''  : `
             import {l1} from "intermediate1"; 
             import {l2} from "intermediate2";
             export const is_eq = l1 == l2;
@@ -1055,10 +1048,9 @@ export const tests = [
         'leaf'  : 'export const leaf = {}',
       }
     )
-    const mods = eval_modules(parsed).modules
     // Check that the same symbol improted through different paths gives the
     // same result
-    assert_equal(mods.root.is_eq, true)
+    assert_equal(i.modules[''].is_eq, true)
   }),
 
   test('modules empty import', () => {
