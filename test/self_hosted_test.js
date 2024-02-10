@@ -70,12 +70,19 @@ console.time('run')
 const i = test_initial_state(
   {}, // files
   undefined,
-  {project_dir: dir},
-  {entrypoint: 'test/run.js'},
+  {
+    project_dir: dir,
+    entrypoint: 'test/run.js',
+  }
 )
 
 if(!i.parse_result.ok) {
   console.error('Parse errors:', i.parse_result.problems)
+  i.parse_result.problems.forEach(p => {
+    if(p.index != null) {
+      console.error(p.module + ': ' + p.message + ' at ' + i.files[p.module].slice(p.index, p.index + 80))
+    }
+  })
   throw new Error('parse error')
 }
 

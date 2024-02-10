@@ -3320,9 +3320,7 @@ const y = x()`
         'x' : `export const x = () => 1; x()`,
       },
       undefined,
-      undefined,
       {
-        entrypoint: '',
         current_module: 'x',
       }
     )

@@ -98,20 +98,27 @@ export const assert_code_error_async = async (codestring, error) => {
   assert_equal(result.error, error)
 }
 
-export const test_initial_state = (code, cursor_pos, other, entrypoint_settings) => {
+export const test_initial_state = (code, cursor_pos, options = {}) => {
   if(cursor_pos < 0) {
     throw new Error('illegal cursor_pos')
   }
+  const {
+    //entrypoint = '',
+    current_module,
+    project_dir,
+    on_deferred_call,
+  } = options
+  const entrypoint = options.entrypoint ?? ''
   return COMMANDS.open_app_window(
     COMMANDS.get_initial_state(
       {
         files: typeof(code) == 'object' ? code : { '' : code},
-        ...other
+        project_dir,
+        on_deferred_call,
       },
       {
-        entrypoint: '',
-        current_module: '',
-        ...entrypoint_settings,
+        entrypoint,
+        current_module: current_module ?? '',
       },
       cursor_pos
     ),
