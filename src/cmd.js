@@ -267,9 +267,6 @@ const input = (state, code, index) => {
 }
 
 const can_evaluate_node = (parent, node) => {
-  // TODO also can evaluate in top level even if stepped into (and evaluate in
-  // any stack frame that was before current one)
-
   const anc = ancestry(node, parent)
   if(anc == null){
     return {ok: false, message: 'out of scope'}
@@ -281,7 +278,7 @@ const can_evaluate_node = (parent, node) => {
 
   if(intermediate_fn != null){
     // TODO check if identifier is defined in current scope, and eval
-    return {ok: false, message: 'cannot eval inside function: first step into it'}
+    return {ok: false, message: 'code was not reached during program execution'}
   }
 
   return {ok: true}

@@ -2408,7 +2408,7 @@ const y = x()`
       s6.effects, 
       {
         type: 'set_status', 
-        args: ['cannot eval inside function: first step into it']
+        args: ['code was not reached during program execution']
       }
     )
 
