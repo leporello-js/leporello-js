@@ -35,6 +35,9 @@ export const displayed_entries = object => {
   } else if((object[Symbol.toStringTag]) == 'Module') {
     return Object.entries(object)
   } else if(isPromise(object)) {
+    if(object.status == null) {
+      return []
+    }
     return displayed_entries(
       object.status.ok ? object.status.value : object.status.error
     )
