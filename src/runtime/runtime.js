@@ -99,7 +99,8 @@ const do_run = function*(module_fns, cxt, io_trace){
         calltree_node_by_loc.get(module),
         __trace, 
         __trace_call, 
-        __do_await, 
+        __await_start, 
+        __await_finish,
         __save_ct_node_for_path,
         LetMultiversion,
         create_array,
@@ -250,9 +251,7 @@ export const do_eval_expand_calltree_node = (cxt, node) => {
   }
 }
 
-
-
-const __do_await = async (cxt, value) => {
+const __await_start = (cxt, promise) => {
   // children is an array of child calls for current function call. But it
   // can be null to save one empty array allocation in case it has no child
   // calls. Allocate array now, so we can have a reference to this array
@@ -261,20 +260,33 @@ const __do_await = async (cxt, value) => {
     cxt.children = []
   }
   const children_copy = cxt.children
-  if(value instanceof cxt.window.Promise) {
-    value.__original_then(
-      v => {
-        value.status = {ok: true, value: v}
+  const result = {children_copy, promise}
+
+  if(promise instanceof cxt.window.Promise) {
+    result.promise = promise.then(
+      (value) => {
+        result.status = {ok: true, value}
+        // We do not return value on purpose - it will be return in
+        // __await_finish
       },
-      e => {
-        value.status = {ok: false, error: e}
-      }
+      (error) => {
+        result.status = {ok: false, error}
+        // We do not throw error on purpose
+      },
     )
+  } else {
+    result.status = {ok: true, value: promise}
   }
-  try {
-    return await value
-  } finally {
-    cxt.children = children_copy
+
+  return result
+}
+
+const __await_finish = (__cxt, await_state) => {
+  __cxt.children = await_state.children_copy
+  if(await_state.status.ok) {
+    return await_state.status.value
+  } else {
+    throw await_state.status.error
   }
 }
 

@@ -3695,6 +3695,18 @@ const y = x()`
     )
   }),
 
+  test('async/await await rejected Promise fn call', async () => {
+    await assert_code_error_async(
+      `
+        async function test() {
+          await Promise.reject('boom')
+        }
+        await test()
+      `,
+      'boom'
+    )
+  }),
+
   test('async/await promise rejected with null', async () => {
     await assert_code_error_async(
       `await Promise.reject()`,
@@ -3870,6 +3882,19 @@ const y = x()`
       `,
       1
     )
+  }),
+
+  test('async/await await bug', async () => {
+    const code = `
+      const x = () => {}
+      const test = async () => {
+        await 1
+        x()
+      }
+      await Promise.all([test(), test()])
+    `
+    const i = await test_initial_state_async(code, code.indexOf('await 1'))
+    assert_value_explorer(i ,1)
   }),
 
   test('async/await edit', async () => {

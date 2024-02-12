@@ -81,6 +81,11 @@ const codegen_function_expr = (node, node_cxt) => {
   const prolog = 
     '{const __call_id = __cxt.call_counter;' 
     + (
+        node.is_async
+        ? 'let __await_state;'
+        : ''
+      )
+    + (
         node.has_versioned_let_vars
         ? 'const __let_vars = __cxt.let_vars;'
         : ''
@@ -346,7 +351,9 @@ const codegen = (node, node_cxt) => {
       + ']'
   } else if(node.type == 'unary') {
     if(node.operator == 'await') {
-      return `(await __do_await(__cxt, ${do_codegen(node.expr)}))`
+      return `(__await_state = __await_start(__cxt, ${do_codegen(node.expr)}),` +
+             `await __await_state.promise,` +
+             `__await_finish(__cxt, __await_state))`
     } else {
       return '(' + node.operator + ' ' + do_codegen(node.expr) + ')'
     }
@@ -416,7 +423,7 @@ export const eval_modules = (
   io_trace,
 ) => {
   // TODO gensym __cxt, __trace, __trace_call, __calltree_node_by_loc,
-  // __do_await, __Multiversion, __create_array, __create_object
+  // __await_start, __await_finish, __Multiversion, __create_array, __create_object
 
   // TODO bug if module imported twice, once as external and as regular
 
@@ -446,7 +453,8 @@ export const eval_modules = (
         '__calltree_node_by_loc',
         '__trace',
         '__trace_call',
-        '__do_await',
+        '__await_start',
+        '__await_finish',
         '__save_ct_node_for_path',
         '__Multiversion',
         '__create_array',
@@ -457,6 +465,7 @@ export const eval_modules = (
          * because we dont want to codegen differently for if statements in
          * toplevel and if statements within functions*/
         'const __call_id = __cxt.call_counter;' + 
+        'let __await_state;' +
         code
       )
     }
