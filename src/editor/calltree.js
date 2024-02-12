@@ -87,7 +87,7 @@ export class CallTree {
         click: e => this.on_click_node(e, n.id),
       },
         !is_expandable(n)
-          ? '\xa0'
+          ? el('span', 'expand_icon_placeholder', '\xa0')
           : el('span', 'expand_icon', is_expanded ? '▼' : '▶'),
         n.toplevel
         ? el('span', '',
