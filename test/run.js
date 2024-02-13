@@ -1,4 +1,6 @@
 import {tests} from './test.js'
-import {run} from './utils.js'
+
+// external
+import {run} from './run_utils.js'
 
 await run(tests)
