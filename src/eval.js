@@ -460,12 +460,15 @@ export const eval_modules = (
         '__create_array',
         '__create_object',
 
+        '"use strict";\n' + 
+
         /* Add dummy __call_id for toplevel. It does not make any sence
          * (toplevel is executed only once unlike function), we only add it
          * because we dont want to codegen differently for if statements in
          * toplevel and if statements within functions*/
+
         'const __call_id = __cxt.call_counter;' + 
-        'let __await_state;' +
+        'let __await_state, __obj, __fn;' +
         code
       )
     }
