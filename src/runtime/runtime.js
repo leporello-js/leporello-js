@@ -1,4 +1,4 @@
-import {set_current_context} from './record_io.js'
+import {apply_io_patches} from './record_io.js'
 import {LetMultiversion} from './let_multiversion.js'
 import {defineMultiversionArray, create_array, wrap_array} from './array.js'
 import {create_object} from './object.js'
@@ -73,7 +73,7 @@ const do_run = function*(module_fns, cxt, io_trace){
 
   defineMultiversion(cxt.window)
   apply_promise_patch(cxt)
-  set_current_context(cxt)
+  apply_io_patches(cxt)
 
   for(let i = 0; i < module_fns.length; i++) {
     const {module, fn} = module_fns[i]

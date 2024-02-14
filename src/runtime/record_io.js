@@ -1,28 +1,7 @@
 import {set_record_call} from './runtime.js'
 
-// Current context for current execution of code
-let cxt
-
-const label = Symbol('io_patches_applied')
-
-export const set_current_context = _cxt => {
-  cxt = _cxt
-  // When we develop leporello.js inside itself, patches may be applied twice,
-  // once for host leporello, and another for leporello under development. This
-  // module would be loaded twice, once from host window, another time from
-  // app_window. Every module will have its own 'label', so we can apply
-  // patches twice
-  if(cxt.window.__io_patched_by == null) {
-    cxt.window.__io_patched_by = new Set()
-  }
-  if(!cxt.window.__io_patched_by.has(label)) {
-    apply_io_patches()
-    cxt.window.__io_patched_by.add(label)
-  }
-}
-
-const io_patch = (path, use_context = false) => {
-  let obj = cxt.window
+const io_patch = (window, path, use_context = false) => {
+  let obj = window
   for(let i = 0; i < path.length - 1; i++) {
     obj = obj[path[i]]
   }
@@ -35,13 +14,16 @@ const io_patch = (path, use_context = false) => {
 
   const original = obj[method]
 
-  obj[method] = make_patched_method(original, name, use_context)
+  obj[method] = make_patched_method(window, original, name, use_context)
 
   obj[method].__original = original
 }
 
-const make_patched_method = (original, name, use_context) => {
+const make_patched_method = (window, original, name, use_context) => {
   const method = function(...args) {
+
+    const cxt = window.__cxt
+
     if(cxt.io_trace_is_replay_aborted) {
       // Try to finish fast
       const error = new Error('io replay was aborted')
@@ -243,10 +225,10 @@ const make_patched_method = (original, name, use_context) => {
   return method
 }
 
-const patch_Date = () => {
-  const Date = cxt.window.Date
-  const Date_patched = make_patched_method(Date, 'Date', false)
-  cxt.window.Date = function(...args) {
+const patch_Date = (window) => {
+  const Date = window.Date
+  const Date_patched = make_patched_method(window, Date, 'Date', false)
+  window.Date = function(...args) {
     if(args.length == 0) {
       // return current Date, IO operation
       if(new.target != null) {
@@ -263,28 +245,40 @@ const patch_Date = () => {
       }
     }
   }
-  cxt.window.Date.__original = Date
+  window.Date.__original = Date
 
-  cxt.window.Date.parse = Date.parse
-  cxt.window.Date.now =   Date.now
-  cxt.window.Date.UTC =   Date.UTC
-  io_patch(['Date', 'now'])
+  window.Date.parse = Date.parse
+  window.Date.now =   Date.now
+  window.Date.UTC =   Date.UTC
+  io_patch(window, ['Date', 'now'])
 }
 
-export const apply_io_patches = () => {
-  io_patch(['Math', 'random'])
+export const apply_io_patches = (cxt) => {
+  const window = cxt.window
 
-  io_patch(['setTimeout'])
+  // set current context
+  window.__cxt = cxt
+
+  if(cxt.window.__io_patched) {
+    // Patches already applied, do nothing
+    return
+  } else {
+    cxt.window.__io_patched = true
+  }
+
+  io_patch(window, ['Math', 'random'])
+
+  io_patch(window, ['setTimeout'])
   // TODO if call setTimeout and then clearTimeout, trace it and remove call of
   // clearTimeout, and make only setTimeout, then it would never be called when
   // replaying from trace
-  io_patch(['clearTimeout'])
+  io_patch(window, ['clearTimeout'])
 
   // TODO patch setInterval to only cleanup all intervals on finish
 
-  patch_Date()
+  patch_Date(window)
 
-  io_patch(['fetch'])
+  io_patch(window, ['fetch'])
   // Check if Response is defined, for node.js
   if(cxt.window.Response != null) {
     const Response_methods = [
@@ -295,7 +289,7 @@ export const apply_io_patches = () => {
       'text',
     ]
     for(let key of Response_methods) {
-      io_patch(['Response', 'prototype', key], true)
+      io_patch(window, ['Response', 'prototype', key], true)
     }
   }
 }
