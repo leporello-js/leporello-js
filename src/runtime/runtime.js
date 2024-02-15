@@ -71,9 +71,10 @@ const do_run = function*(module_fns, cxt, io_trace){
       io_trace_abort_replay,
     }
 
-  defineMultiversion(cxt.window)
+  // Set current context
+  cxt.window.__cxt = cxt
+
   apply_promise_patch(cxt)
-  apply_io_patches(cxt)
 
   for(let i = 0; i < module_fns.length; i++) {
     const {module, fn} = module_fns[i]
@@ -140,6 +141,12 @@ const do_run = function*(module_fns, cxt, io_trace){
 }
 
 export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
+  if(!cxt.window.__is_initialized) {
+    defineMultiversion(cxt.window)
+    apply_io_patches(cxt.window)
+    cxt.window.__is_initialized = true
+  }
+
   const result = yield* do_run(module_fns, cxt, io_trace)
 
   if(result.rt_cxt.io_trace_is_replay_aborted) {
@@ -400,10 +407,6 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versione
 }
 
 const defineMultiversion = window => {
-  if(window.defineMultiversionDone) {
-    return
-  }
-  window.defineMultiversionDone = true
   defineMultiversionArray(window)
   defineMultiversionSet(window)
   defineMultiversionMap(window)

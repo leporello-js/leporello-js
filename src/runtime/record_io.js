@@ -253,19 +253,7 @@ const patch_Date = (window) => {
   io_patch(window, ['Date', 'now'])
 }
 
-export const apply_io_patches = (cxt) => {
-  const window = cxt.window
-
-  // set current context
-  window.__cxt = cxt
-
-  if(cxt.window.__io_patched) {
-    // Patches already applied, do nothing
-    return
-  } else {
-    cxt.window.__io_patched = true
-  }
-
+export const apply_io_patches = (window) => {
   io_patch(window, ['Math', 'random'])
 
   io_patch(window, ['setTimeout'])
@@ -280,7 +268,7 @@ export const apply_io_patches = (cxt) => {
 
   io_patch(window, ['fetch'])
   // Check if Response is defined, for node.js
-  if(cxt.window.Response != null) {
+  if(window.Response != null) {
     const Response_methods = [
       'arrayBuffer',
       'blob',
