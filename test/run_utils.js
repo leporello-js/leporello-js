@@ -1,3 +1,13 @@
+/*
+  For node.js tests
+
+  It forces node.js to load Response (which is loaded lazily)
+
+  Without this, `Response` loading code would be executed in record_io.js and
+  break test by calling `now()`
+*/
+globalThis.Response
+
 export const run = tests => {
   // Runs test, return failure or null if not failed
   const run_test = t => {

@@ -75,7 +75,7 @@ const make_patched_method = (window, original, name, use_context) => {
           ? new original(...args)
           : original.apply(this, args)
 
-        if(value instanceof cxt.window.Promise) {
+        if(value?.[Symbol.toStringTag] == 'Promise') {
           // TODO use __original_then, not finally which calls
           // patched 'then'?
           value = value.finally(() => {

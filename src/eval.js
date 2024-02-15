@@ -515,7 +515,8 @@ export const eval_modules = (
   }
 
   if(is_async) {
-    return result.__original_then(make_result)
+    // convert app_window.Promise to host Promise
+    return Promise.resolve(result).then(make_result)
   } else {
     return make_result(result)
   }

@@ -1059,7 +1059,7 @@ export const tests = [
       'a': 'Object.assign(globalThis, {test_import: true})',
     })
     assert_equal(i.active_calltree_node.ok, true)
-    assert_equal(globalThis.test_import, true)
+    assert_equal(globalThis.app_window.test_import, true)
   }),
 
   test('modules bare import', () => {
@@ -1068,7 +1068,7 @@ export const tests = [
       'a': 'Object.assign(globalThis, {test_import: true})',
     })
     assert_equal(i.active_calltree_node.ok, true)
-    assert_equal(globalThis.test_import, true)
+    assert_equal(globalThis.app_window.test_import, true)
   }),
 
   test('bug parser pragma external', () => {

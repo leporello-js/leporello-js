@@ -181,7 +181,7 @@ export const apply_side_effects = (prev, next, ui) => {
     next.eval_modules_state != null
   ) {
     const s = next.eval_modules_state
-    s.promise.__original_then(result => {
+    s.promise.then(result => {
       exec('eval_modules_finished', 
         next, /* becomes prev_state */
         result, 

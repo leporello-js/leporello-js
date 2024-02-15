@@ -262,7 +262,7 @@ const __await_start = (cxt, promise) => {
   const children_copy = cxt.children
   const result = {children_copy, promise}
 
-  if(promise instanceof cxt.window.Promise) {
+  if(promise?.[Symbol.toStringTag] == 'Promise') {
     result.promise = promise.then(
       (value) => {
         result.status = {ok: true, value}

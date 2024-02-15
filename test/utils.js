@@ -11,12 +11,17 @@ Object.assign(globalThis,
     // for convenince, to type just `log` instead of `console.log`
     log: console.log,
 
-    // For test env, set globalThis.app_window to just globalThis
-    app_window: globalThis,
   }
 )
 
 export const patch_builtin = new Function(`
+if(globalThis.process != null ) {
+  globalThis.app_window = globalThis
+} else {
+  const iframe = globalThis.document.createElement('iframe')
+  globalThis.document.body.appendChild(iframe)
+  globalThis.app_window = iframe.contentWindow
+}
   let originals = globalThis.app_window.__builtins_originals
   let patched = globalThis.app_window.__builtins_patched
   if(originals == null) {
@@ -170,9 +175,9 @@ export const test_deferred_calls_state = code => {
 
 export const stringify = val => 
   JSON.stringify(val, (key, value) => {
-    if(value instanceof Set){
+    if(value?.[Symbol.toStringTag] == 'Set'){
       return [...value]
-    } else if (value instanceof Map) {
+    } else if(value?.[Symbol.toStringTag] == 'Map'){
       return Object.fromEntries([...value.entries()])
     } else if(value instanceof Error) {
       return {message: value.message}
