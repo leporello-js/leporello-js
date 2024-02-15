@@ -1659,8 +1659,9 @@ const do_deduce_fn_names = (node, parent) => {
         name = parent.name_node.value
       }
     } else if(parent?.type == 'key_value_pair') {
-      // unwrap quotes with JSON.parse
-      name = JSON.parse(parent.key.value)
+      const str = parent.key.value
+      // unwrap quotes
+      name = str.substr(1, str.length - 2)
     } else {
       name = 'anonymous'
     }
