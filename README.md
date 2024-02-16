@@ -162,7 +162,7 @@ You can add javascript libraries by including `script` tag to HTML file. If the 
 ## Run and debug UI code in separate window
 
 By default your code is run in invisible iframe. If you want to run and debug
-UI code then you can open separate browser window. Click "(Re)open run window"
+UI code then you can open separate browser window. Click "(Re)open app window"
 in statusbar or press corresponding hotkey. New browser window will be opened
 and your code will be run in that window.
 
@@ -171,7 +171,7 @@ are recorded. You can inspect and debug them.
 
 To try live example, grant file system access to
 [./docs/examples/preact](./docs/examples/preact) folder. Then select `index.js`
-as an entrypoint and click "(Re)open run window". You will see the app where
+as an entrypoint and click "(Re)open app window". You will see the app where
 you can calculate Fibonacci numbers:
 
 ![Entrypoint module](docs/images/fib_ui.png)
@@ -187,7 +187,7 @@ them:
 - Check out Leporello.js repo and grant local filesystem access to root project directory
 - Select `src/launch.js` as an entrypoint
 - Select `index.html` as html file
-- Click "(Re)open run window"
+- Click "(Re)open app window"
 
 New instance of Leporello.js will be opened in new browser tab.
 
