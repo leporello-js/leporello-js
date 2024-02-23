@@ -1,4 +1,4 @@
-import {exec, get_state} from '../index.js'
+import {exec, get_state, exec_and_reload_app_window} from '../index.js'
 import {ValueExplorer} from './value_explorer.js'
 import {stringify_for_header} from '../value_explorer_utils.js'
 import {el} from './domutils.js'
@@ -98,7 +98,7 @@ export class Editor {
     normalize_events(this.ace_editor, {
       on_change: () => {
         try {
-          exec('input', this.ace_editor.getValue(), this.get_cursor_position())
+          exec_and_reload_app_window('input', this.ace_editor.getValue(), this.get_cursor_position())
         } catch(e) {
           // Do not throw Error to ACE because it breaks typing
           console.error(e)

@@ -10,6 +10,9 @@ export const set_push = (x,y) => new Set([...x, y])
 
 export const set_union = (x,y) => new Set([...x, ...y])
 
+export const set_is_eq = (a, b) =>
+  a.size === b.size && [...a].every(value => b.has(value))
+
 export const set_diff = (x,y) => {
   return new Set([...x].filter(el => !y.has(el)))
 }

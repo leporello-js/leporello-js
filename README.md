@@ -78,10 +78,6 @@ If a module path is a non-local path including a protocol and a host then it is 
 
 Now the module is imported as a black box - you cannot debug `BigNumber` methods.
 
-Currently every external is loaded once and cached until Leporello is restarted
-(TODO change path to modules every time it changed on disk, since modules are
-served from service workers).
-
 ## IO
 
 To enhance the interactive experience, Leporello.js traces the calls made to IO functions within your application. This trace can be replayed later, enabling you to program iteratively by making incremental changes to your code and promptly receiving feedback.
@@ -197,6 +193,41 @@ allows to share localStorage between host Leporello.js instance and window
 where code is run)
 -->
 
+## Saving state between page reloads
+
+Leporello.js allows preserving the state of the application between page reloads. To achieve this, Leporello.js provides a special API:
+
+```javascript
+window.leporello.storage.get(key: string)
+window.leporello.storage.set(key: string, value: any)
+```
+
+Unlike localStorage and sessionStorage, these functions allow saving and retrieving non-serializable objects.
+
+The storage can be cleared using the "(Re)open app window" button.
+
+You can try the online demo [here](https://app.leporello.tech/?example=todos-preact). Create TODO items, then edit the code, and you will observe that your TODOs are preserved.
+
+The code for interacting with the Leporello API is in the file `app.js`. When `app.js` module initializes, it checks whether Leporello.js API is present and loads app state:
+
+```javascript
+let state
+
+if(globalThis.leporello) {
+  // Get initial state from Leporello storage
+  state = globalThis.leporello.storage.get('state')
+}
+```
+
+Later, when state changes, it saves it back to the storage:
+
+```javascript
+// on state change
+if(globalThis.leporello) {
+  // Save state to Leporello storage to load it after page reload
+  globalThis.leporello.storage.set('state', state)
+}
+```
 
 ## Run Leporello locally
 To run it locally, you need to clone repo to local folder and serve it via HTTPS protocol (HTTPS is required by [File System Access API](https://developer.mozilla.org/en-US/docs/Web/API/File_System_Access_API)). See [How to use HTTPS for local development](https://web.dev/how-to-use-local-https/)

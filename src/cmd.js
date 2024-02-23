@@ -1,5 +1,5 @@
-import {map_object, map_find, filter_object, collect_nodes_with_parents, uniq} 
-  from './utils.js'
+import {map_object, map_find, filter_object, collect_nodes_with_parents, uniq, 
+  set_is_eq} from './utils.js'
 import {
   is_eq, is_child, ancestry, ancestry_inc, map_tree,
   find_leaf, find_fn_by_location, find_node, find_error_origin_node,
@@ -69,14 +69,19 @@ const apply_eval_result = (state, eval_result) => {
   }
 }
 
-const run_code = (s, dirty_files) => {
+const run_code = (s, globals) => {
+  const is_globals_eq = s.globals == null
+    ? globals == null
+    : set_is_eq(s.globals, globals) 
 
   const parse_result = load_modules(s.entrypoint, module => {
-    if(dirty_files != null && dirty_files.includes(module)) {
+    if(s.dirty_files != null && s.dirty_files.has(module)) {
       return s.files[module]
     }
 
-    if(s.parse_result != null) {
+    // If globals change, then errors for using undeclared identifiers may be
+    // no longer valid. Do not use cache
+    if(is_globals_eq) {
       const result = s.parse_result.cache[module]
       if(result != null) {
         return result
@@ -87,10 +92,18 @@ const run_code = (s, dirty_files) => {
       return s.files[module]
     }
 
-  }, s.globals)
+  }, globals)
+
+  const dirty_files = new Set(
+    [...(s.dirty_files ?? new Set())].filter(file => 
+      parse_result.modules[file] == null
+    )
+  )
 
   const state = {
     ...s,
+    dirty_files,
+    globals,
     parse_result,
     calltree: null,
     modules: null,
@@ -121,15 +134,7 @@ const run_code = (s, dirty_files) => {
       .map(i => i.node.full_import_path)
   )
 
-  if(
-    external_imports.length != 0
-    &&
-    (
-      state.external_imports_cache == null
-      ||
-      external_imports.some(i => state.external_imports_cache[i] == null)
-    )
-  ) {
+  if(external_imports.length != 0) {
     // Trigger loading of external modules
     return {...state, 
       loading_external_imports_state: {
@@ -138,18 +143,8 @@ const run_code = (s, dirty_files) => {
     }
   } else {
     // Modules were loaded and cached, proceed
-    return external_imports_loaded(
-      state, 
-      state, 
-      state.external_imports_cache == null
-      ? null
-      : filter_object(
-          state.external_imports_cache,
-          (module_name, module) => external_imports.includes(module_name)
-        ),
-    )
+    return external_imports_loaded(state, state)
   }
-
 }
 
 const external_imports_loaded = (
@@ -168,7 +163,6 @@ const external_imports_loaded = (
 
   const state = {
     ...s,
-    external_imports_cache: external_imports,
     loading_external_imports_state: null
   }
 
@@ -204,6 +198,7 @@ const external_imports_loaded = (
     state.on_deferred_call,
     state.calltree_changed_token,
     state.io_trace,
+    state.storage,
   )
 
   if(result.then != null) {
@@ -252,10 +247,12 @@ const eval_modules_finished = (state, prev_state, result) => {
 
 const input = (state, code, index) => {
   const files = {...state.files, [state.current_module]: code}
-  const next = run_code(
-    set_cursor_position({...state, files}, index),
-    [state.current_module]
-  )
+  const with_files = {
+    ...state, 
+    files,
+    dirty_files: new Set([...(state.dirty_files ?? []), state.current_module])
+  }
+  const next = set_cursor_position(with_files, index)
   const effect_save = {
     type: 'write', 
     args: [
@@ -519,12 +516,10 @@ const change_current_module = (state, current_module) => {
 }
 
 const change_entrypoint = (state, entrypoint, current_module = entrypoint) => {
-  return run_code(
-    {...state, 
-      entrypoint,
-      current_module,
-    }
-  )
+  return {...state, 
+    entrypoint,
+    current_module,
+  }
 }
 
 const change_html_file = (state, html_file) => {
@@ -852,7 +847,7 @@ const on_deferred_call = (state, call, calltree_changed_token, logs) => {
 }
 
 const clear_io_trace = state => {
-  return run_code({...state, io_trace: null})
+  return {...state, io_trace: null}
 }
 
 const load_files = (state, dir) => {
@@ -892,7 +887,7 @@ const apply_entrypoint_settings = (state, entrypoint_settings) => {
 const load_dir = (state, dir, has_file_system_access, entrypoint_settings) => {
   // Clear parse cache and rerun code
   const with_dir = load_files(state, dir)
-  return run_code({
+  return {
     ...(
       entrypoint_settings == null
         ? with_dir
@@ -904,30 +899,15 @@ const load_dir = (state, dir, has_file_system_access, entrypoint_settings) => {
     // remove cache. We have to clear cache because imports of modules that are
     // not available because project_dir is not available have errors and the
     // errors are cached
-    parse_result: null,
-
-    external_imports_cache: null,
-  })
+    parse_result: {...state.parse_result, cache: {}},
+  }
 }
 
 const create_file = (state, dir, current_module) => {
   return {...load_dir(state, dir, true), current_module}
 }
 
-const open_app_window = (state, globals) => {
-  // After we reopen run window, we should reload external modules in the
-  // context of new window. Clear external_imports_cache
-  return run_code({
-    ...state,
-    globals,
-    external_imports_cache: null,
-    // Bust parse result cache because list of globals may change
-    parse_result: null,
-    // Clear io trace because promises in io_trace become invalid after their
-    // window close
-    io_trace: null,
-  })
-}
+const open_app_window = state => ({...state, storage: new Map()})
 
 const get_initial_state = (state, entrypoint_settings, cursor_pos = 0) => {
   const with_files = state.project_dir == null
@@ -938,6 +918,7 @@ const get_initial_state = (state, entrypoint_settings, cursor_pos = 0) => {
 
   return {
     ...with_settings,
+    storage: new Map(),
     cursor_position_by_file: {[with_settings.current_module]: cursor_pos},
   }
 }
@@ -945,6 +926,7 @@ const get_initial_state = (state, entrypoint_settings, cursor_pos = 0) => {
 export const COMMANDS = {
   get_initial_state,
   input, 
+  run_code,
   open_app_window,
   load_dir,
   create_file,

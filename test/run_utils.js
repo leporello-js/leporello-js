@@ -8,61 +8,47 @@
 */
 globalThis.Response
 
-export const run = tests => {
-  // Runs test, return failure or null if not failed
-  const run_test = t => {
-    return Promise.resolve().then(t.test)
-      .then(() => null)
-      .catch(e => {
-        if(globalThis.process != null) {
-          // In node.js runner, fail fast
-          console.error('Failed: ' + t.message)
-          throw e
-        } else {
-          return e
-        }
-      })
-  }
+if(globalThis.process != null) {
+  globalThis.NodeVM = await import('node:vm')
+}
 
-  // If not run in node, then dont apply filter
-  const filter = globalThis.process && globalThis.process.argv[2]
+let iframe
 
-  if(filter == null) {
+export function create_app_window() {
+  if(globalThis.process != null) {
+    // We are in node.js
+    // `NodeVM` was preloaded earlier
 
-    const only = tests.find(t => t.only)
-    const tests_to_run = only == null ? tests : [only]
+    const context = globalThis.NodeVM.createContext({
 
-    // Exec each test. After all tests are done, we rethrow first error if
-    // any. So we will mark root calltree node if one of tests failed
-    return tests_to_run.reduce(
-      (failureP, t) => 
-        Promise.resolve(failureP).then(failure => 
-          run_test(t).then(next_failure => failure ?? next_failure)
-        )
-      ,
-      null
-    ).then(failure => {
+      process,
 
-      if(failure != null) {
-        throw failure
-      } else {
-        if(globalThis.process != null) {
-          console.log('Ok')
-        }
-      }
+      // for some reason URL is not available inside VM
+      URL,
 
+      console,
+      setTimeout,
+      // break fetch because we dont want it to be accidentally called in unit test
+      fetch: () => {
+        console.error('Error! fetch called')
+      },
     })
+    const get_global_object = globalThis.NodeVM.compileFunction(
+      'return this', 
+      [], // args
+      {parsingContext: context}
+    )
+
+    return get_global_object()
 
   } else {
-    const test = tests.find(t => t.message.includes(filter))
-    if(test == null) {
-      throw new Error('test not found')
-    } else {
-      return run_test(test).then(() => {
-        if(globalThis.process != null) {
-          console.log('Ok')
-        }
-      })
+    // We are in browser
+    if(iframe != null) {
+      globalThis.document.body.removeChild(iframe)
     }
+    iframe = globalThis.document.createElement('iframe')
+    document.body.appendChild(iframe)
+    return iframe.contentWindow
   }
 }
+

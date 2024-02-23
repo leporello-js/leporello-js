@@ -23,12 +23,12 @@ import {
   assert_code_error, assert_code_error_async,
   assert_versioned_value, assert_value_explorer, assert_selection,
   parse_modules,
+  run_code,
   test_initial_state, test_initial_state_async,
   test_deferred_calls_state,
   print_debug_ct_node,
-  command_input_async,
-  patch_builtin,
-  original_setTimeout,
+  input,
+  input_async,
 } from './utils.js'
 
 export const tests = [
@@ -1012,7 +1012,8 @@ export const tests = [
     const spoil_file = {...s, files: {...s.files, 'c': ',,,'}}
 
     // change module ''
-    const {state: s2} = COMMANDS.input(spoil_file, 'import {c} from "c"', 0)
+    const {state: s2} = input(spoil_file, 'import {c} from "c"', 0)
+    assert_equal(s2.dirty_files, new Set())
 
     assert_equal(s2.parse_result.ok, true)
   }),
@@ -1110,7 +1111,7 @@ export const tests = [
 
     const index = edited.indexOf('foo_var')
 
-    const {state, effects} = COMMANDS.input(
+    const {state, effects} = input(
       initial, 
       edited, 
       index
@@ -1164,39 +1165,6 @@ export const tests = [
     )
   }),
 
-  test('module external cache', () => {
-    const code = `
-      // external
-      import {foo_var} from 'foo.js'
-      console.log(foo_var)
-    `
-    const initial = test_initial_state(code)
-
-    const next = COMMANDS.external_imports_loaded(initial, initial, {
-      'foo.js': {
-        ok: true,
-        module: {
-          'foo_var': 'foo_value'
-        },
-      }
-    })
-
-    const edited = `
-      // external
-      import {foo_var} from 'foo.js'
-      foo_var
-    `
-
-    const {state} = COMMANDS.input(
-      next, 
-      edited, 
-      edited.lastIndexOf('foo_var'),
-    )
-
-    // If cache was not used then effects will be `load_external_imports`
-    assert_equal(state.value_explorer.result.value, 'foo_value')
-  }),
-
   test('module external cache error bug', () => {
     const code = `
       // external
@@ -1221,7 +1189,7 @@ export const tests = [
     `
 
     // edit code
-    const {state} = COMMANDS.input(
+    const {state} = input(
       next, 
       edited, 
       edited.lastIndexOf('foo_var'),
@@ -1259,7 +1227,7 @@ export const tests = [
     const edited = ``
 
     // edit code
-    const {state, effects} = COMMANDS.input(
+    const {state, effects} = input(
       next, 
       edited, 
       0,
@@ -2000,7 +1968,7 @@ const y = x()`
 
       x(2);
     `
-    const s3 = COMMANDS.input(s2, invalid, invalid.indexOf('return')).state
+    const s3 = input(s2, invalid, invalid.indexOf('return')).state
 
     const edited = `
       const x = foo => {
@@ -2010,7 +1978,7 @@ const y = x()`
       x(2);
     `
 
-    const n = COMMANDS.input(s3, edited, edited.indexOf('return')).state
+    const n = input(s3, edited, edited.indexOf('return')).state
 
     const res = find_leaf(active_frame(n), edited.indexOf('*'))
 
@@ -2044,7 +2012,7 @@ const y = x()`
       [1,2,3].map(x)
     `
 
-    const e = COMMANDS.input(s4, edited, edited.indexOf('2')).state
+    const e = input(s4, edited, edited.indexOf('2')).state
 
     const active = active_frame(e)
 
@@ -2070,7 +2038,7 @@ const y = x()`
         }
       `
 
-    const {state: s2} = COMMANDS.input(s1, edited, edited.indexOf('1'))
+    const {state: s2} = input(s1, edited, edited.indexOf('1'))
     const s3 = COMMANDS.move_cursor(s2, edited.indexOf('import'))
     assert_equal(s3.value_explorer.result.value.x, 1)
   }),
@@ -2098,7 +2066,7 @@ const y = x()`
       x()
     `
 
-    const e = COMMANDS.input(s3, edited, edited.indexOf('123')).state
+    const e = input(s3, edited, edited.indexOf('123')).state
 
     assert_equal(e.active_calltree_node.toplevel, true)
   }),
@@ -2111,7 +2079,7 @@ const y = x()`
       }),
       'x'
     )
-    const e = COMMANDS.input(s1, 'export const x = 2', 0).state
+    const e = input(s1, 'export const x = 2', 0).state
     assert_equal(e.current_calltree_node.module, '')
     assert_equal(e.active_calltree_node, null)
   }),
@@ -2143,7 +2111,7 @@ const y = x()`
     `
 
     const moved = COMMANDS.move_cursor(s3, code.indexOf('2'))
-    const e = COMMANDS.input(moved, edited, edited.indexOf('3')).state
+    const e = input(moved, edited, edited.indexOf('3')).state
     assert_equal(e.active_calltree_node, null)
     assert_equal(e.current_calltree_node.toplevel, true)
   }),
@@ -2156,7 +2124,7 @@ const y = x()`
       x()
     `
     const i = test_initial_state(code)
-    const edited = COMMANDS.input(i, code.replace('1', '100'), code.indexOf('1')).state
+    const edited = input(i, code.replace('1', '100'), code.indexOf('1')).state
     const left = COMMANDS.calltree.arrow_left(edited)
     assert_equal(left.active_calltree_node.toplevel, true)
   }),
@@ -3550,12 +3518,12 @@ const y = x()`
     `
     const {state: i, on_deferred_call} = test_deferred_calls_state(code)
 
-    const input = COMMANDS.input(i, code, 0).state
+    const state = input(i, code, 0).state
 
     // Make deferred call, calling fn from previous code
     i.modules[''].fn(1)
 
-    const result = on_deferred_call(input)
+    const result = on_deferred_call(state)
 
     // deferred calls must be null, because deferred calls from previous executions
     // must be discarded
@@ -3911,7 +3879,7 @@ const y = x()`
       }
       await f()
     `
-    const next = await command_input_async(i, code2, code2.indexOf('1'))
+    const next = await input_async(i, code2, code2.indexOf('1'))
     assert_equal(next.active_calltree_node.fn.name, 'f')
     assert_equal(next.value_explorer.result.value, 1)
   }),
@@ -3955,22 +3923,21 @@ const y = x()`
     `
     const {state: i, on_deferred_call} = test_deferred_calls_state(code)
 
-    await i.eval_modules_state.promise.__original_then(result => {
-      const s = COMMANDS.eval_modules_finished(
-        i, 
-        i,
-        result, 
-        i.eval_modules_state.node, 
-        i.eval_modules_state.toplevel
-      )
+    const result = await i.eval_modules_state.promise
 
-      // Make deferred call
-      s.modules[''].fn()
-      const state = on_deferred_call(s)
-      assert_equal(get_deferred_calls(state).length, 1)
-      assert_equal(get_deferred_calls(state)[0].value, 1)
-    })
+    const s = COMMANDS.eval_modules_finished(
+      i, 
+      i,
+      result, 
+      i.eval_modules_state.node, 
+      i.eval_modules_state.toplevel
+    )
 
+    // Make deferred call
+    s.modules[''].fn()
+    const state = on_deferred_call(s)
+    assert_equal(get_deferred_calls(state).length, 1)
+    assert_equal(get_deferred_calls(state)[0].value, 1)
   }),
 
   test('async/await await argument bug', async () => {
@@ -3991,101 +3958,94 @@ const y = x()`
   }),
 
   test('record io', () => {
-    // Patch Math.random to always return 1
-    patch_builtin('random', () => 1)
+    let app_window_patches
 
-    const initial = test_initial_state(`
-      const x = Math.random()
-    `)
+    // Patch Math.random to always return 1
+    app_window_patches = {'Math.random': () => 1}
+
+    const initial = test_initial_state(`const x = Math.random()`, undefined, {
+      app_window_patches
+    })
     
     // Now call to Math.random is cached, break it to ensure it was not called
     // on next run
-    patch_builtin('random', () => { throw 'fail' })
+    app_window_patches = {'Math.random': () => { throw 'fail' }}
 
-    const next = COMMANDS.input(initial, `const x = Math.random()*2`, 0).state
+    const next = input(initial, `const x = Math.random()*2`, 0, {app_window_patches}).state
     assert_equal(next.value_explorer.result.value, 2)
     assert_equal(next.rt_cxt.io_trace_index, 1)
 
     // Patch Math.random to return 2. 
     // TODO The first call to Math.random() is cached with value 1, and the
     // second shoud return 2
-    patch_builtin('random', () => 2)
-    const replay_failed = COMMANDS.input(
+    app_window_patches = {'Math.random': () => 2}
+    const replay_failed = input(
       initial, 
       `const x = Math.random() + Math.random()`, 
-      0
+      0,
+      {app_window_patches}
     ).state
 
     // TODO must reuse first cached call?
     assert_equal(replay_failed.value_explorer.result.value, 4)
-
-    // Remove patch
-    patch_builtin('random', null)
   }),
-
 
   test('record io trace discarded if args does not match', async () => {
     // Patch fetch
-    patch_builtin('fetch', async () => 'first')
+    let app_window_patches
+    app_window_patches = {fetch: async () => 'first'}
 
     const initial = await test_initial_state_async(`
       console.log(await fetch('url', {method: 'GET'}))
-    `)
+    `, undefined,  {app_window_patches})
     assert_equal(initial.logs.logs[0].args[0], 'first')
 
     // Patch fetch again
-    patch_builtin('fetch', async () => 'second')
+    app_window_patches = {fetch: async () => 'second'}
 
-    const cache_discarded = await command_input_async(initial, `
+    const cache_discarded = await input_async(initial, `
       console.log(await fetch('url', {method: 'POST'}))
-    `, 0)
+    `, 0, {app_window_patches})
     assert_equal(cache_discarded.logs.logs[0].args[0], 'second')
-
-    // Remove patch
-    patch_builtin('fetch', null)
   }),
 
   test('record io fetch rejects', async () => {
     // Patch fetch
-    patch_builtin('fetch', () => Promise.reject('fail'))
+    let app_window_patches
+    app_window_patches = {fetch: () => globalThis.app_window.Promise.reject('fail')}
 
     const initial = await test_initial_state_async(`
       await fetch('url', {method: 'GET'})
-    `)
+    `, undefined, {app_window_patches})
     assert_equal(root_calltree_node(initial).error, 'fail')
 
     // Patch fetch again
-    patch_builtin('fetch', () => async () => 'result')
+    app_window_patches = {fetch: () => async () => 'result'}
 
-    const with_cache = await command_input_async(initial, `
+    const with_cache = await input_async(initial, `
       await fetch('url', {method: 'GET'})
-    `, 0)
+    `, 0, {app_window_patches})
     assert_equal(root_calltree_node(initial).error, 'fail')
-
-    // Remove patch
-    patch_builtin('fetch', null)
   }),
 
   test('record io preserve promise resolution order', async () => {
     // Generate fetch function which calls get resolved in reverse order
-    const {fetch, resolve} = new Function(`
-      const calls = []
-      return {
-        fetch(...args) {
-          let resolver
-          const promise = new Promise(r => resolver = r)
-          calls.push({resolver, promise, args})
-          return promise
-        },
+    const calls = []
+    function fetch(...args) {
+      let resolver
+      const promise = new (globalThis.app_window.Promise)(r => {resolver = r})
+      calls.push({resolver, promise, args})
+      return promise
+    }
 
-        resolve() {
-          [...calls].reverse().forEach(call => call.resolver(...call.args))
-        },
-      }
-    `)()
+    function resolve() {
+      [...calls].reverse().forEach(call => call.resolver(...call.args))
+    }
+
+    let app_window_patches
 
     // Patch fetch
-    patch_builtin('fetch', fetch)
+    app_window_patches = {fetch}
 
     const code = `
       await Promise.all(
@@ -4096,7 +4056,7 @@ const y = x()`
       )
     `
 
-    const initial_promise = test_initial_state_async(code)
+    const initial_promise = test_initial_state_async(code, undefined, {app_window_patches})
 
     resolve()
 
@@ -4106,56 +4066,54 @@ const y = x()`
     assert_equal(initial.logs.logs.map(l => l.args[0]), [3,2,1])
 
     // Break fetch to ensure it is not get called anymore
-    patch_builtin('fetch', () => {throw 'broken'})
+    app_window_patches = {fetch: () => {throw 'broken'}}
 
-    const with_cache = await command_input_async(
+    const with_cache = await input_async(
       initial, 
       code,
-      0
+      0,
+      {app_window_patches}
     )
 
     // cached calls to fetch should be resolved in the same (reverse) order as
     // on the first run, so first call wins
     assert_equal(with_cache.logs.logs.map(l => l.args[0]), [3,2,1])
-
-    // Remove patch
-    patch_builtin('fetch', null)
   }),
 
   test('record io setTimeout', async () => {
+    let app_window_patches
     // Patch fetch to return result in 10ms
-    patch_builtin(
-      'fetch', 
-      () => new Promise(resolve => original_setTimeout(resolve, 10))
-    )
+    app_window_patches = {
+      fetch: () => new (globalThis.app_window.Promise)(resolve => setTimeout(resolve, 10))
+    }
 
     const code = `
       setTimeout(() => console.log('timeout'), 0)
       await fetch().then(() => console.log('fetch'))
     `
 
-    const i = await test_initial_state_async(code)
+    const i = await test_initial_state_async(code, undefined, {app_window_patches})
 
     // First executed setTimeout, then fetch
     assert_equal(i.logs.logs.map(l => l.args[0]), ['timeout', 'fetch'])
 
     // Break fetch to ensure it would not be called
-    patch_builtin('fetch', async () => {throw 'break'})
+    app_window_patches = {
+      fetch: async () => {throw 'break'}
+    }
 
-    const with_cache = await command_input_async(i, code, 0)
+    const with_cache = await input_async(i, code, 0, {app_window_patches})
 
     // Cache must preserve resolution order
     assert_equal(with_cache.logs.logs.map(l => l.args[0]), ['timeout', 'fetch'])
-
-    patch_builtin('fetch', null)
   }),
 
   test('record io clear io trace', async () => {
     const s1 = test_initial_state(`Math.random()`)
     const rnd = s1.value_explorer.result.value
-    const s2 = COMMANDS.input(s1, `Math.random() + 1`, 0).state
+    const s2 = input(s1, `Math.random() + 1`, 0).state
     assert_equal(s2.value_explorer.result.value, rnd + 1)
-    const cleared = COMMANDS.clear_io_trace(s2)
+    const cleared = input(COMMANDS.clear_io_trace(s2), `Math.random() + 1`).state
     assert_equal(
       cleared.value_explorer.result.value == rnd + 1,
       false
@@ -4185,8 +4143,8 @@ const y = x()`
     const rnd = i.active_calltree_node.children[0].value
 
     // Run two versions of code in parallel
-    const next = COMMANDS.input(i, `await Promise.resolve()`, 0)
-    const next2 = COMMANDS.input(i, `Math.random(1)`, 0).state
+    const next = input(i, `await Promise.resolve()`, 0)
+    const next2 = input(i, `Math.random(1)`, 0).state
     const next_rnd = i.active_calltree_node.children[0].value
     assert_equal(rnd, next_rnd)
   }),
@@ -4211,10 +4169,10 @@ const y = x()`
   }),
 
   test('record io hangs bug', async () => {
-    patch_builtin(
-      'fetch', 
-      () => new Promise(resolve => original_setTimeout(resolve, 0))
-    )
+    let app_window_patches
+    app_window_patches = {
+      fetch: () => new (globalThis.app_window.Promise)(resolve => setTimeout(resolve, 0))
+    }
 
     const code = `
       const p = fetch('')
@@ -4222,22 +4180,20 @@ const y = x()`
       await p
     `
 
-    const i = await test_initial_state_async(code)
+    const i = await test_initial_state_async(code, undefined, {app_window_patches})
 
     assert_equal(i.io_trace.length, 3)
 
     const next_code = `await fetch('')`
 
-    const state = await command_input_async(i, next_code, 0)
+    const state = await input_async(i, next_code, 0, {app_window_patches})
     assert_equal(state.io_trace.length, 2)
-
-    patch_builtin('fetch', null)
   }),
 
   test('record io logs recorded twice bug', () => {
     const code = `Math.random()`
     const i = test_initial_state(code)
-    const second = COMMANDS.input(
+    const second = input(
       i, 
       `console.log(1); Math.random(); Math.random()`, 
       0
@@ -5400,5 +5356,20 @@ const y = x()`
     const expected = [ 0,  2,  3,  3,  9, 12, 13, 14, 15, 18 ]
     assert_value_explorer(i, expected)
 
+  }),
+
+  test('leporello storage API', () => {
+    const i = test_initial_state(`
+      const value = leporello.storage.get('value')
+      if(value == null) {
+        leporello.storage.set('value', 1)
+      }
+    `)
+    const with_storage = input(i, 'leporello.storage.get("value")', 0).state
+    assert_value_explorer(with_storage, 1)
+    const with_cleared_storage = run_code(
+      COMMANDS.open_app_window(with_storage)
+    )
+    assert_value_explorer(with_cleared_storage, undefined)
   }),
 ]

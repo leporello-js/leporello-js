@@ -6,7 +6,7 @@ import {
   exec, 
   get_state, 
   open_directory, 
-  reload_app_window,
+  exec_and_reload_app_window,
   close_directory,
 } from '../index.js'
 
@@ -20,16 +20,14 @@ export class Files {
     this.render(get_state())
   }
 
-  change_entrypoint(e) {
-    const file = e.target.value
-    exec('change_entrypoint', file)
+  change_entrypoint(entrypoint, current_module) {
+    exec_and_reload_app_window('change_entrypoint', entrypoint, current_module)
     this.ui.editor.focus()
   }
 
   change_html_file(e) {
     const html_file = e.target.value
-    exec('change_html_file', html_file)
-    reload_app_window(get_state())
+    exec_and_reload_app_window('change_html_file', html_file)
   }
 
 
@@ -119,7 +117,7 @@ export class Files {
           name: 'js_entrypoint', 
           value: file.path,
           checked: state.entrypoint == file.path,
-          change: e => this.change_entrypoint(e),
+          change: e => this.change_entrypoint(e.target.value),
           click: e => e.stopPropagation(),
         })
       )
@@ -210,9 +208,9 @@ export class Files {
     // Reload all files for simplicity
     open_dir(false).then(dir => {
       if(is_dir) {
-        exec('load_dir', dir, true)
+        exec_and_reload_app_window('load_dir', dir, true)
       } else {
-        exec('create_file', dir, path)
+        exec_and_reload_app_window('create_file', dir, path)
       }
     })
   }
@@ -229,7 +227,7 @@ export class Files {
       if(file.path == null) {
         // root of examples dir, do nothing
       } else if(file.path == '') {
-        exec('change_entrypoint', '')
+        this.change_entrypoint('')
       } else {
         const find_node = n => 
           n.path == file.path 
@@ -244,8 +242,7 @@ export class Files {
         // in examples mode, on click file we also change entrypoint for
         // simplicity
         const example = examples.find(e => e.path == example_dir.path)
-        exec(
-          'change_entrypoint', 
+        this.change_entrypoint(
           example.entrypoint, 
           file.kind == 'directory' ? undefined : file.path
         )

@@ -1,4 +1,4 @@
-import {exec, get_state, open_app_window} from '../index.js'
+import {exec, get_state, open_app_window, exec_and_reload_app_window} from '../index.js'
 import {Editor} from './editor.js'
 import {Files} from './files.js'
 import {CallTree} from './calltree.js'
@@ -73,7 +73,7 @@ export class UI {
           el('a', {
             'class': 'statusbar_action first',
             href: 'javascript: void(0)',
-            click: () => exec('clear_io_trace')
+            click: () => this.clear_io_trace(),
           },
             'Clear IO trace (F6)'
           ),
@@ -194,6 +194,10 @@ export class UI {
     if(tab_id == 'calltree' && !skip_focus) {
       exec('calltree.show_value_explorer')
     }
+  }
+
+  clear_io_trace() {
+    exec_and_reload_app_window('clear_io_trace')
   }
 
   open_app_window() {

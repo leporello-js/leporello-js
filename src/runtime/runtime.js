@@ -19,9 +19,8 @@ const gen_to_promise = gen_fn => {
       if(result.done){
         return result.value
       } else {
-        // If promise
-        if(result.value?.then != null) {
-          return result.value.__original_then(
+        if(result.value?.[Symbol.toStringTag] == 'Promise') {
+          return result.value.then(
             value => next(gen.next(value)),
             error => next(gen.throw(error)),
           )
@@ -36,7 +35,7 @@ const gen_to_promise = gen_fn => {
 
 const make_promise_with_rejector = cxt => {
   let rejector
-  const p = new cxt.window.Promise(r => rejector = r)
+  const p = new Promise(r => rejector = r)
   return [p, rejector]
 }
 
@@ -107,8 +106,8 @@ const do_run = function*(module_fns, cxt, io_trace){
         create_array,
         create_object,
       )
-      if(result instanceof cxt.window.Promise) {
-        yield cxt.window.Promise.race([replay_aborted_promise, result])
+      if(result?.[Symbol.toStringTag] == 'Promise') {
+        yield Promise.race([replay_aborted_promise, result])
       } else {
         yield result
       }
@@ -144,7 +143,10 @@ export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
   if(!cxt.window.__is_initialized) {
     defineMultiversion(cxt.window)
     apply_io_patches(cxt.window)
+    inject_leporello_api(cxt)
     cxt.window.__is_initialized = true
+  } else {
+    throw new Error('illegal state')
   }
 
   const result = yield* do_run(module_fns, cxt, io_trace)
@@ -154,14 +156,21 @@ export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
     result.rt_cxt.is_recording_deferred_calls = false
 
     // run again without io trace
+    // TODO reload app_window before second run
     return yield* do_run(module_fns, cxt, null)
   } else {
     return result
   }
 })
 
+const inject_leporello_api = cxt => {
+  cxt.window.leporello = { storage: cxt.storage }
+}
 
 const apply_promise_patch = cxt => {
+  if(cxt.window.Promise.prototype.__original_then != null) {
+    throw new Error('illegal state')
+  }
   const original_then = cxt.window.Promise.prototype.then
   cxt.window.Promise.prototype.__original_then = cxt.window.Promise.prototype.then
 
@@ -197,6 +206,7 @@ const apply_promise_patch = cxt => {
 
 const remove_promise_patch = cxt => {
   cxt.window.Promise.prototype.then = cxt.window.Promise.prototype.__original_then
+  delete cxt.window.Promise.prototype.__original_then
 }
 
 export const set_record_call = cxt => {
@@ -339,7 +349,7 @@ const __trace = (cxt, fn, name, argscount, __location, get_closure, has_versione
     try {
       value = fn(...args)
       ok = true
-      if(value instanceof cxt.window.Promise) {
+      if(value?.[Symbol.toStringTag] == 'Promise') {
         set_record_call(cxt)
       }
       return value
@@ -485,7 +495,7 @@ const __trace_call = (cxt, fn, context, args, errormessage, is_new = false) => {
       value = undefined
     }
     ok = true
-    if(value instanceof cxt.window.Promise) {
+    if(value?.[Symbol.toStringTag] == 'Promise') {
       set_record_call(cxt)
     }
 

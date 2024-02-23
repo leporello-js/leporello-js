@@ -80,6 +80,8 @@ const add_trivial_definition = node => {
  * will be assigned by the time the closures would be called
  */
 
+const DEFAULT_GLOBALS = new Set(['leporello']) // Leporello.js API
+
 export const find_definitions = (ast, globals, scope = {}, closure_scope = {}, module_name) => {
   
   // sanity check
@@ -94,7 +96,7 @@ export const find_definitions = (ast, globals, scope = {}, closure_scope = {}, m
     } else {
       const definition = scope[ast.value]
       if(definition == null){
-        if(globals.has(ast.value)) {
+        if(globals.has(ast.value) || DEFAULT_GLOBALS.has(ast.value)) {
           return {node: {...ast, definition: 'global'}, undeclared: null, closed: new Set()}
         } else {
           return {node: ast, undeclared: [ast], closed: new Set()}

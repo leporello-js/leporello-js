@@ -52,7 +52,7 @@ const get_html_url = state => {
 const on_window_load = w => {
   init_window_service_worker(w)
   exec(
-    'open_app_window', 
+    'run_code', 
     new Set(Object.getOwnPropertyNames(w))
   )
 }
@@ -78,6 +78,7 @@ const open_run_iframe = (state) => {
 export const open_app_window = state => {
   // TODO set_error_handler? Or we dont need to set_error_handler for child
   // window because error is always caught by parent window handler?
+  exec('open_app_window')
   globalThis.app_window.close()
   globalThis.app_window = open(get_html_url(state))
   init_app_window(globalThis.app_window)
@@ -139,10 +140,8 @@ const init_app_window = w => {
   add_load_handler()
 }
 
-export const reload_app_window = state => {
-  // TODO after window location reload, open_app_window command will be fired.
-  // Maybe we should have separate commands for open_app_window and
-  // reload_app_window?
+const reload_app_window = state => {
+  // after window location reload, `run_code` command will be fired.
   globalThis.app_window.location = get_html_url(state)
 }
 
@@ -154,19 +153,23 @@ const get_entrypoint_settings = () => {
   }
 }
 
+export const exec_and_reload_app_window = (...exec_args) => {
+  exec(...exec_args)
+  reload_app_window(get_state())
+}
 
 export const open_directory = () => {
   if(globalThis.showDirectoryPicker == null) {
     throw new Error('Your browser is not supporting File System Access API')
   }
   open_dir(true).then(dir => {
-    exec('load_dir', dir, true, get_entrypoint_settings())
+    exec_and_reload_app_window('load_dir', dir, true, get_entrypoint_settings())
   })
 }
 
 export const close_directory = async () => {
   close_dir()
-  exec('load_dir', await examples_dir_promise, false, get_entrypoint_settings())
+  exec_and_reload_app_window('load_dir', await examples_dir_promise, false, get_entrypoint_settings())
 }
 
 

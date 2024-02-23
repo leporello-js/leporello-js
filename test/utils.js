@@ -4,59 +4,21 @@ import {active_frame, pp_calltree, version_number_symbol} from '../src/calltree.
 import {COMMANDS} from '../src/cmd.js'
 
 // external
+import {create_app_window} from './run_utils.js'
+
+// external
 import {with_version_number} from '../src/runtime/runtime.js'
 
 Object.assign(globalThis, 
   {
-    // for convenince, to type just `log` instead of `console.log`
+    // for convenience, to type just `log` instead of `console.log`
     log: console.log,
-
   }
 )
 
-export const patch_builtin = new Function(`
-if(globalThis.process != null ) {
-  globalThis.app_window = globalThis
-} else {
-  const iframe = globalThis.document.createElement('iframe')
-  globalThis.document.body.appendChild(iframe)
-  globalThis.app_window = iframe.contentWindow
-}
-  let originals = globalThis.app_window.__builtins_originals
-  let patched = globalThis.app_window.__builtins_patched
-  if(originals == null) {
-    globalThis.app_window.__original_setTimeout = globalThis.setTimeout
-    // This code can execute twice when tests are run in self-hosted mode.
-    // Ensure that patches will be applied only once
-    originals = globalThis.app_window.__builtins_originals = {}
-    patched = globalThis.app_window.__builtins_patched = {}
-
-    const patch = (obj, name) => {
-      originals[name] = obj[name]
-      obj[name] = (...args) => {
-        return patched[name] == null
-        ? originals[name].apply(null, args)
-        : patched[name].apply(null, args)
-      }
-    }
-
-    // Substitute some builtin functions: fetch, setTimeout, Math.random to be
-    // able to patch them in tests
-    patch(globalThis.app_window, 'fetch')
-    patch(globalThis.app_window, 'setTimeout')
-    patch(globalThis.app_window.Math, 'random')
-  }
-
-  return (name, fn) => {
-    patched[name] = fn
-  }
-`)()
-
-export const original_setTimeout = globalThis.app_window.__original_setTimeout
-
 export const do_parse = code => parse(
   code, 
-  new Set(Object.getOwnPropertyNames(globalThis.app_window))
+  new Set(Object.getOwnPropertyNames(globalThis))
 )
 
 export const parse_modules = (entry, modules) => 
@@ -102,18 +64,48 @@ export const assert_code_error_async = async (codestring, error) => {
   assert_equal(result.error, error)
 }
 
+function patch_app_window(app_window_patches) {
+  Object.entries(app_window_patches).forEach(([path, value]) => {
+    let obj = globalThis.app_window
+    const path_arr = path.split('.')
+    path_arr.forEach((el, i) => {
+      if(i == path_arr.length - 1) {
+        return
+      }
+      obj = obj[el]
+    })
+    const prop = path_arr.at(-1)
+    obj[prop] = value
+  })
+}
+
+export const run_code = (state, app_window_patches) => {
+  globalThis.app_window = create_app_window()
+  if(app_window_patches != null) {
+    patch_app_window(app_window_patches)
+  }
+  return COMMANDS.run_code(
+    state, 
+    state.globals ?? new Set(Object.getOwnPropertyNames(globalThis.app_window))
+  )
+}
+
 export const test_initial_state = (code, cursor_pos, options = {}) => {
   if(cursor_pos < 0) {
     throw new Error('illegal cursor_pos')
   }
+  if(typeof(options) != 'object') {
+    throw new Error('illegal state')
+  }
   const {
-    //entrypoint = '',
     current_module,
     project_dir,
     on_deferred_call,
+    app_window_patches,
   } = options
   const entrypoint = options.entrypoint ?? ''
-  return COMMANDS.open_app_window(
+
+  return run_code(
     COMMANDS.get_initial_state(
       {
         files: typeof(code) == 'object' ? code : { '' : code},
@@ -126,7 +118,7 @@ export const test_initial_state = (code, cursor_pos, options = {}) => {
       },
       cursor_pos
     ),
-    new Set(Object.getOwnPropertyNames(globalThis.app_window))
+    app_window_patches,
   )
 }
 
@@ -141,8 +133,19 @@ export const test_initial_state_async = async (code, ...args) => {
   )
 }
 
-export const command_input_async = async (...args) => {
-  const after_input = COMMANDS.input(...args).state
+export const input = (s, code, index, options = {}) => {
+  if(typeof(options) != 'object') {
+    throw new Error('illegal state')
+  }
+  const {state, effects} = COMMANDS.input(s, code, index)
+  return {
+    state: run_code(state, options.app_window_patches),
+    effects,
+  }
+}
+
+export const input_async = async (...args) => {
+  const after_input = input(...args).state
   const result = await after_input.eval_modules_state.promise
   return COMMANDS.eval_modules_finished(
     after_input, 
@@ -239,3 +242,69 @@ export const test = (message, test, only = false) => {
 }
 
 export const test_only = (message, t) => test(message, t, true)
+
+// Create `run` function like this because we do not want its internals to be
+// present in calltree
+export const run = new Function('create_app_window', `
+return function run(tests) {
+  // create app window for simple tests, that do not use 'test_initial_state'
+  globalThis.app_window = create_app_window()
+
+  // Runs test, return failure or null if not failed
+  const run_test = t => {
+    return Promise.resolve().then(t.test)
+      .then(() => null)
+      .catch(e => {
+        if(globalThis.process != null) {
+          // In node.js runner, fail fast
+          console.error('Failed: ' + t.message)
+          throw e
+        } else {
+          return e
+        }
+      })
+  }
+
+  // If not run in node, then dont apply filter
+  const filter = globalThis.process && globalThis.process.argv[2]
+
+  if(filter == null) {
+
+    const only = tests.find(t => t.only)
+    const tests_to_run = only == null ? tests : [only]
+
+    // Exec each test. After all tests are done, we rethrow first error if
+    // any. So we will mark root calltree node if one of tests failed
+    return tests_to_run.reduce(
+      (failureP, t) => 
+        Promise.resolve(failureP).then(failure => 
+          run_test(t).then(next_failure => failure ?? next_failure)
+        )
+      ,
+      null
+    ).then(failure => {
+
+      if(failure != null) {
+        throw failure
+      } else {
+        if(globalThis.process != null) {
+          console.log('Ok')
+        }
+      }
+
+    })
+
+  } else {
+    const test = tests.find(t => t.message.includes(filter))
+    if(test == null) {
+      throw new Error('test not found')
+    } else {
+      return run_test(test).then(() => {
+        if(globalThis.process != null) {
+          console.log('Ok')
+        }
+      })
+    }
+  }
+}
+`)(create_app_window)

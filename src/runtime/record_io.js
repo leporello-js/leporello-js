@@ -76,18 +76,25 @@ const make_patched_method = (window, original, name, use_context) => {
           : original.apply(this, args)
 
         if(value?.[Symbol.toStringTag] == 'Promise') {
-          // TODO use __original_then, not finally which calls
-          // patched 'then'?
-          value = value.finally(() => {
-            if(cxt_copy != cxt) {
-              return
-            }
-            if(cxt.io_trace_is_replay_aborted) {
-              // Non necessary
-              return
-            }
-            cxt.io_trace.push({type: 'resolution', index})
-          })
+          value = value
+            .then(val => {
+              value.status = {ok: true, value: val}
+              return val
+            })
+            .catch(error => {
+              value.status = {ok: true, error}
+              throw error
+            })
+            .finally(() => {
+              if(cxt_copy != cxt) {
+                return
+              }
+              if(cxt.io_trace_is_replay_aborted) {
+                // Non necessary
+                return
+              }
+              cxt.io_trace.push({type: 'resolution', index})
+            })
         }
 
         ok = true
@@ -150,10 +157,11 @@ const make_patched_method = (window, original, name, use_context) => {
         )
 
         if(next_resolution != null && !cxt.io_trace_resolver_is_set) {
-          const original_setTimeout = cxt.window.setTimeout.__original
           cxt.io_trace_resolver_is_set = true
 
-          original_setTimeout(() => {
+          // use setTimeout function from host window (because this module was
+          // loaded as `external` by host window)
+          setTimeout(() => {
             if(cxt_copy != cxt) {
               return
             }
@@ -180,14 +188,22 @@ const make_patched_method = (window, original, name, use_context) => {
                 cxt.io_trace[cxt.io_trace_index].type == 'resolution'
               ) {
                 const resolution = cxt.io_trace[cxt.io_trace_index]
-                const resolver = cxt.io_trace_resolvers.get(resolution.index)
+                const {resolve, reject} = cxt.io_trace_resolvers.get(resolution.index)
 
                 cxt.io_trace_index++
 
                 if(cxt.io_trace[resolution.index].name == 'setTimeout') {
-                  resolver()
+                  resolve()
                 } else {
-                  resolver(cxt.io_trace[resolution.index].value)
+                  const promise = cxt.io_trace[resolution.index].value
+                  if(promise.status == null) {
+                    throw new Error('illegal state')
+                  }
+                  if(promise.status.ok) {
+                    resolve(promise.status.value)
+                  } else {
+                    reject(promise.status.error)
+                  }
                 }
               }
             }
@@ -203,12 +219,12 @@ const make_patched_method = (window, original, name, use_context) => {
           // trace) and instanceof would not work
           if(call.value?.[Symbol.toStringTag] == 'Promise') {
             // Always make promise originate from app_window
-            return new cxt.window.Promise(resolve => {
-              cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, resolve)
+            return new cxt.window.Promise((resolve, reject) => {
+              cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, {resolve, reject})
             })
           } else if(name == 'setTimeout') {
             const timeout_cb = args[0]
-            cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, timeout_cb)
+            cxt.io_trace_resolvers.set(cxt.io_trace_index - 1, {resolve: timeout_cb})
             return call.value
           } else {
             return call.value

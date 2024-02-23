@@ -421,6 +421,7 @@ export const eval_modules = (
   on_deferred_call,
   calltree_changed_token,
   io_trace,
+  storage,
 ) => {
   // TODO gensym __cxt, __trace, __trace_call, __calltree_node_by_loc,
   // __await_start, __await_finish, __Multiversion, __create_array, __create_object
@@ -498,6 +499,8 @@ export const eval_modules = (
     is_toplevel_call: true,
 
     window: globalThis.app_window,
+
+    storage,
   }
 
   const result = run(module_fns, cxt, io_trace)

@@ -11,8 +11,7 @@ const isError = object =>
   ||
   object instanceof globalThis.app_window.Error
 
-const isPromise = object =>
-  object instanceof globalThis.app_window.Promise
+const isPromise = object => object?.[Symbol.toStringTag] == 'Promise'
 
 // Override behaviour for Date, becase Date has toJSON defined
 const isDate = object => 
