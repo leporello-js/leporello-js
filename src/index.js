@@ -61,7 +61,7 @@ const on_window_load = w => {
 // By default run code in hidden iframe, until user explicitly opens visible
 // window
 let iframe
-const open_run_iframe = (state) => {
+const open_app_iframe = (state) => {
   iframe = document.createElement('iframe')
   iframe.src = get_html_url(state)
   iframe.setAttribute('hidden', '')
@@ -247,7 +247,7 @@ export const init = async (container, _COMMANDS) => {
 
   render_initial_state(ui, state, example)
 
-  open_run_iframe(state)
+  open_app_iframe(state)
 }
 
 export const get_state = () => state
