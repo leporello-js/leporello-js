@@ -157,7 +157,7 @@ export class UI {
       }
 
       if(e.key == 'F6'){
-        exec('clear_io_trace')
+        this.clear_io_trace()
       }
 
       if(e.key == 'F7'){
