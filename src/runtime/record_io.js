@@ -242,9 +242,9 @@ const make_patched_method = (window, original, name, use_context) => {
 }
 
 const patch_Date = (window) => {
-  const Date = window.Date
-  const Date_patched = make_patched_method(window, Date, 'Date', false)
-  window.Date = function(...args) {
+  const Date_original = window.Date
+  const Date_patched = make_patched_method(window, Date_original, 'Date', false)
+  window.Date = function Date(...args) {
     if(args.length == 0) {
       // return current Date, IO operation
       if(new.target != null) {
@@ -255,14 +255,12 @@ const patch_Date = (window) => {
     } else {
       // pure function
       if(new.target != null) {
-        return new Date(...args)
+        return new Date_original(...args)
       } else {
-        return Date(...args)
+        return Date_original(...args)
       }
     }
   }
-  window.Date.__original = Date
-
   window.Date.parse = Date.parse
   window.Date.now =   Date.now
   window.Date.UTC =   Date.UTC

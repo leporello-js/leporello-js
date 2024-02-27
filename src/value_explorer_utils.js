@@ -13,12 +13,6 @@ const isError = object =>
 
 const isPromise = object => object?.[Symbol.toStringTag] == 'Promise'
 
-// Override behaviour for Date, becase Date has toJSON defined
-const isDate = object => 
-  object instanceof globalThis.app_window.Date
-  ||
-  object instanceof globalThis.app_window.Date.__original
-
 // Workaround try/catch is not implemented currently
 const toJSON_safe = new Function('object', `
   try {
@@ -108,8 +102,6 @@ export const stringify_for_header = (v, no_toJSON = false) => {
           return `Promise<rejected: ${stringify_for_header(v.status.error)}>`
         }
       }
-    } else if (isDate(v)) {
-      return v.toString()
     } else if(isError(v)) {
       return v.toString()
     } else if(Array.isArray(v)) {
@@ -181,8 +173,6 @@ export const header = (object, no_toJSON = false) => {
           return `Promise<rejected: ${header(object.status.error)}>`
         }
       }
-    } else if(isDate(object)) {
-      return object.toString()
     } else if(isError(object)) {
       return object.toString()
     } else if(Array.isArray(object)) {
