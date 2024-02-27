@@ -216,7 +216,7 @@ export class UI {
     this.debugger_loading_message.innerText = 
       state.loading_external_imports_state != null
         ? 'Loading external modules...'
-        : 'Waiting...'
+        : 'Executing code...'
   }
 
   render_debugger(state) {
