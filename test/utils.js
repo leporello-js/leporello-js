@@ -122,15 +122,19 @@ export const test_initial_state = (code, cursor_pos, options = {}) => {
   )
 }
 
-export const test_initial_state_async = async (code, ...args) => {
-  const s = test_initial_state(code, ...args)
-  assert_equal(s.eval_modules_state != null, true)
-  const result = await s.eval_modules_state.promise
+const wait_for_result = async state => {
+  assert_equal(state.eval_modules_state != null, true)
+  const result = await state.eval_modules_state.promise
   return COMMANDS.eval_modules_finished(
-    s, 
-    s,
+    state, 
+    state,
     result, 
   )
+}
+
+export const test_initial_state_async = async (code, ...args) => {
+  const s = test_initial_state(code, ...args)
+  return wait_for_result(s)
 }
 
 export const input = (s, code, index, options = {}) => {
@@ -138,20 +142,28 @@ export const input = (s, code, index, options = {}) => {
     throw new Error('illegal state')
   }
   const {state, effects} = COMMANDS.input(s, code, index)
-  return {
-    state: run_code(state, options.app_window_patches),
-    effects,
+  const nextstate = run_code(state, options.app_window_patches)
+  if(nextstate.rt_cxt?.io_trace_is_replay_aborted) {
+    const with_clear_trace = run_code(
+      COMMANDS.clear_io_trace(nextstate), 
+      options.app_window_patches
+    )
+    return { state: with_clear_trace, effects }
+  } else {
+    return { state: nextstate, effects }
   }
 }
 
-export const input_async = async (...args) => {
-  const after_input = input(...args).state
-  const result = await after_input.eval_modules_state.promise
-  return COMMANDS.eval_modules_finished(
-    after_input, 
-    after_input,
-    result, 
-  )
+export const input_async = async (s, code, index, options) => {
+  const after_input = input(s, code, index, options).state
+  const state = await wait_for_result(after_input)
+  if(state.rt_cxt?.io_trace_is_replay_aborted) {
+    return wait_for_result(
+      run_code(COMMANDS.clear_io_trace(state), options.app_window_patches)
+    )
+  } else {
+    return state
+  }
 }
 
 export const test_deferred_calls_state = code => {

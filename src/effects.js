@@ -7,7 +7,7 @@ import {
   get_deferred_calls
 } from './calltree.js'
 import {current_cursor_position} from './calltree.js'
-import {exec, FILES_ROOT} from './index.js'
+import {exec, reload_app_window, FILES_ROOT} from './index.js'
 
 // Imports in the context of `app_window`, so global variables in loaded
 // modules refer to that window's context 
@@ -209,7 +209,9 @@ export const apply_side_effects = (prev, next, ui) => {
         next.loading_external_imports_state != null
         ||
         next.eval_modules_state != null
-      if(is_loading) {
+      if(next.rt_cxt?.io_trace_is_replay_aborted) {
+        reload_app_window()
+      } else if(is_loading) {
         ui.calltree.clear_calltree()
         clear_coloring(ui)
         ui.render_debugger_loading(next)

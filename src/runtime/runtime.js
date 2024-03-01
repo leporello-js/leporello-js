@@ -39,7 +39,16 @@ const make_promise_with_rejector = cxt => {
   return [p, rejector]
 }
 
-const do_run = function*(module_fns, cxt, io_trace){
+export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
+  if(!cxt.window.__is_initialized) {
+    defineMultiversion(cxt.window)
+    apply_io_patches(cxt.window)
+    inject_leporello_api(cxt)
+    cxt.window.__is_initialized = true
+  } else {
+    throw new Error('illegal state')
+  }
+
   let calltree
 
   const calltree_node_by_loc = new Map(
@@ -136,30 +145,6 @@ const do_run = function*(module_fns, cxt, io_trace){
     logs: _logs,
     rt_cxt: cxt,
     calltree_node_by_loc,
-  }
-}
-
-export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
-  if(!cxt.window.__is_initialized) {
-    defineMultiversion(cxt.window)
-    apply_io_patches(cxt.window)
-    inject_leporello_api(cxt)
-    cxt.window.__is_initialized = true
-  } else {
-    throw new Error('illegal state')
-  }
-
-  const result = yield* do_run(module_fns, cxt, io_trace)
-
-  if(result.rt_cxt.io_trace_is_replay_aborted) {
-    // TODO test next line
-    result.rt_cxt.is_recording_deferred_calls = false
-
-    // run again without io trace
-    // TODO reload app_window before second run
-    return yield* do_run(module_fns, cxt, null)
-  } else {
-    return result
   }
 })
 

@@ -129,7 +129,7 @@ const init_app_window = w => {
           // If by that time w.closed was set to true, then page was
           // closed. Get back to using iframe
           globalThis.app_window = iframe.contentWindow
-          reload_app_window(get_state())
+          reload_app_window()
         } else {
           add_load_handler()
         }
@@ -140,7 +140,7 @@ const init_app_window = w => {
   add_load_handler()
 }
 
-const reload_app_window = state => {
+export const reload_app_window = (state = get_state()) => {
   // after window location reload, `run_code` command will be fired.
   globalThis.app_window.location = get_html_url(state)
 }
@@ -155,7 +155,7 @@ const get_entrypoint_settings = () => {
 
 export const exec_and_reload_app_window = (...exec_args) => {
   exec(...exec_args)
-  reload_app_window(get_state())
+  reload_app_window()
 }
 
 export const open_directory = () => {

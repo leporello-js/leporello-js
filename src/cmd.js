@@ -216,6 +216,11 @@ const eval_modules_finished = (state, prev_state, result) => {
     return state
   }
 
+  if(result.rt_cxt.io_trace_is_replay_aborted) {
+    // execution was discarded, return state to execute `run_code` without io_trace
+    return clear_io_trace({...state, rt_cxt: result.rt_cxt})
+  }
+
   const next = find_call(
     apply_eval_result(state, result),
     current_cursor_position(state)
