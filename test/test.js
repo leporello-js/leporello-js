@@ -4776,7 +4776,9 @@ const y = x()`
       inc()
     `
 
-    const {state: i, on_deferred_call} = test_deferred_calls_state(code)
+    const {state: i, on_deferred_call} = test_deferred_calls_state(code, code.indexOf('let x'))
+
+    assert_value_explorer(i, 0)
 
     // Make deferred call
     i.modules[''].inc()

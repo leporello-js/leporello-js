@@ -545,6 +545,8 @@ const __save_ct_node_for_path = (cxt, __calltree_node_by_loc, index, __call_id) 
   }
 }
 
+let ct_expansion_id_gen = 0
+
 export const with_version_number = (rt_cxt, version_number, action) => {
   if(rt_cxt.logs == null) {
     // check that argument is rt_cxt
@@ -559,12 +561,12 @@ export const with_version_number = (rt_cxt, version_number, action) => {
   rt_cxt.is_expanding_calltree_node = true
   const version_counter_copy = rt_cxt.version_counter 
   rt_cxt.version_counter = version_number
-  rt_cxt.ct_expansion_id = rt_cxt.ct_expansion_id == null
-    ? 0
-    : rt_cxt.ct_expansion_id + 1
+  const ct_expansion_id = rt_cxt.ct_expansion_id
+  rt_cxt.ct_expansion_id = ct_expansion_id_gen++
   try {
     return action()
   } finally {
+    rt_cxt.ct_expansion_id = ct_expansion_id
     rt_cxt.is_expanding_calltree_node = false
     rt_cxt.version_counter = version_counter_copy
   }

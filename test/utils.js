@@ -166,7 +166,7 @@ export const input_async = async (s, code, index, options) => {
   }
 }
 
-export const test_deferred_calls_state = code => {
+export const test_deferred_calls_state = (code, index) => {
   const {get_deferred_call, on_deferred_call} = (new Function(`
     let args
     return {
@@ -179,7 +179,7 @@ export const test_deferred_calls_state = code => {
     }
   `))()
 
-  const state = test_initial_state(code, null, { on_deferred_call })
+  const state = test_initial_state(code, index, { on_deferred_call })
 
   return {
     state, 
