@@ -74,35 +74,14 @@ const run_code = (s, globals) => {
     ? globals == null
     : set_is_eq(s.globals, globals) 
 
-  const parse_result = load_modules(s.entrypoint, module => {
-    if(s.dirty_files != null && s.dirty_files.has(module)) {
-      return s.files[module]
-    }
-
-    // If globals change, then errors for using undeclared identifiers may be
-    // no longer valid. Do not use cache
-    if(is_globals_eq) {
-      const result = s.parse_result.cache[module]
-      if(result != null) {
-        return result
-      } else {
-        return s.files[module]
-      }
-    } else {
-      return s.files[module]
-    }
-
-  }, globals)
-
-  const dirty_files = new Set(
-    [...(s.dirty_files ?? new Set())].filter(file => 
-      parse_result.modules[file] == null
-    )
-  )
+  // If globals change, then errors for using undeclared identifiers may be
+  // no longer valid. Do not use cache
+  const parse_cache = is_globals_eq ? s.parse_result.cache : {}
+  const loader = module => s.files[module]
+  const parse_result = load_modules(s.entrypoint, loader, parse_cache, globals)
 
   const state = {
     ...s,
-    dirty_files,
     globals,
     parse_result,
     calltree: null,
@@ -255,7 +234,14 @@ const input = (state, code, index) => {
   const with_files = {
     ...state, 
     files,
-    dirty_files: new Set([...(state.dirty_files ?? []), state.current_module])
+    parse_result: state.parse_result == null 
+      ? null
+      : {
+          ...state.parse_result, 
+          cache: filter_object(state.parse_result.cache, module =>
+            module != state.current_module
+          )
+        }
   }
   const next = set_cursor_position(with_files, index)
   const effect_save = {

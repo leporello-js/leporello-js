@@ -1013,7 +1013,6 @@ export const tests = [
 
     // change module ''
     const {state: s2} = input(spoil_file, 'import {c} from "c"', 0)
-    assert_equal(s2.dirty_files, new Set())
 
     assert_equal(s2.parse_result.ok, true)
   }),

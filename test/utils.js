@@ -25,6 +25,7 @@ export const parse_modules = (entry, modules) =>
   load_modules(
     entry, 
     module_name => modules[module_name],
+    {},
     new Set(Object.getOwnPropertyNames(globalThis.app_window))
   )
 

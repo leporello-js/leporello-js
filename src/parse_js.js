@@ -1774,16 +1774,16 @@ export const print_debug_node = node => {
   return stringify(do_print_debug_node(node))
 }
 
-const do_load_modules = (module_names, loader, already_loaded, globals) => {
+const do_load_modules = (module_names, loader, already_loaded, parse_cache, globals) => {
   const parsed = module_names
     .filter(module_name => already_loaded[module_name] == null)
     .map(module_name => {
+      if(parse_cache[module_name] != null) {
+        return [module_name, parse_cache[module_name]]
+      }
       const m = loader(module_name)
       if(m == null) {
         return [module_name, {ok: false, problems: [{is_load_error: true}]}]
-      } else if(typeof(m) == 'object' && m.ok != null) {
-        // Allows cache parse result
-        return [module_name, m]
       } else if(typeof(m) == 'string') {
         return [module_name, parse(m, globals, true, module_name)]
       } else {
@@ -1831,6 +1831,7 @@ const do_load_modules = (module_names, loader, already_loaded, globals) => {
     deps, 
     loader, 
     {...already_loaded, ...modules}, 
+    parse_cache,
     globals
   )
   if(loaded_deps.ok) {
@@ -1874,11 +1875,11 @@ const do_load_modules = (module_names, loader, already_loaded, globals) => {
   }
 }
 
-export const load_modules = (entry_module, loader, globals) => {
+export const load_modules = (entry_module, loader, parse_cache, globals) => {
   // TODO check_imports. detect cycles while modules are loading, in
   // do_load_modules
 
-  const result = do_load_modules([entry_module], loader, {}, globals)
+  const result = do_load_modules([entry_module], loader, {}, parse_cache, globals)
   if(!result.ok) {
     return result
   } else {
