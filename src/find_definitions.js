@@ -60,7 +60,7 @@ const add_trivial_definition = node => {
   } else if (node.type == 'decl_pair') {
     return {
       ...node, 
-      children: node.children.with(0, add_trivial_definition(node.children[0]))
+      children: [add_trivial_definition(node.children[0]), ...node.children.slice(1)]
     }
   } else {
     console.error(node)
