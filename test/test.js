@@ -4200,6 +4200,24 @@ const y = x()`
     assert_equal(second.state.logs.logs.length, 1)
   }),
 
+  test('record io expand_calltree_node bug', () => {
+    const code = `
+      function x(i) {
+        return i == 0 ? Math.random() : x(i - 1)
+      }
+      x(2)
+      x(2)
+    `
+    const i = test_initial_state(code)
+    const with_trace = run_code(i)
+    const second_call = root_calltree_node(with_trace).children[1]
+    assert_equal(second_call.fn.name, 'x')
+    const expanded = COMMANDS.calltree.select_and_toggle_expanded(with_trace, second_call.id)
+    const second_call_2 = root_calltree_node(expanded).children[1]
+    assert_equal(second_call_2.ok, true)
+    assert_equal(second_call.value, second_call_2.value)
+  }),
+
   test('value_explorer Set', () => {
     assert_equal(
       header(new Set(['foo', 'bar'])),

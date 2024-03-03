@@ -31,6 +31,12 @@ const make_patched_method = (window, original, name, use_context) => {
       throw error
     }
 
+    // save call, so on expand_call and find_call IO functions would not be
+    // called. 
+    // TODO: we have a problem when IO function is called from third-party
+    // lib and async context is lost
+    set_record_call(cxt)
+
     const has_new_target = new.target != null
 
     if(cxt.is_recording_deferred_calls) {
@@ -45,12 +51,6 @@ const make_patched_method = (window, original, name, use_context) => {
     if(cxt.io_trace_is_recording) {
       let ok, value, error
       try {
-        // save call, so on expand_call and find_call IO functions would not be
-        // called. 
-        // TODO: we have a problem when IO function is called from third-party
-        // lib and async context is lost
-        set_record_call(cxt)
-
         const index = cxt.io_trace.length
 
         if(name == 'setTimeout') {
