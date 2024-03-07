@@ -171,9 +171,13 @@ export class Editor {
     })
   }
 
+  has_value_explorer() {
+    return this.value_explorer != null
+  }
+
   unembed_value_explorer() {
-    if(this.value_explorer == null) {
-      return
+    if(!this.has_value_explorer()) {
+      return null
     }
 
     const session = this.ace_editor.getSession()

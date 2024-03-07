@@ -566,19 +566,26 @@ const select_and_toggle_expanded = (state, id) => {
   }
 }
 
-export const expand_path = (state, node) => ({
-  ...state,
-  calltree_node_is_expanded: {
-    ...state.calltree_node_is_expanded, 
-    ...Object.fromEntries(
-        path_to_root(state.calltree, node)
-          .map(n => [n.id, true])
-      ),
-    // Also expand node, since it is not included in
-    // path_to_root
-    [node.id]: true,
+export const expand_path = (state, node) => {
+  if(state.calltree_node_is_expanded?.[node.id]) {
+    return state
   }
-})
+
+
+  return {
+    ...state,
+    calltree_node_is_expanded: {
+      ...state.calltree_node_is_expanded, 
+      ...Object.fromEntries(
+          path_to_root(state.calltree, node)
+            .map(n => [n.id, true])
+        ),
+      // Also expand node, since it is not included in
+      // path_to_root
+      [node.id]: true,
+    }
+  }
+}
 
 export const initial_calltree_node = state => {
   const root = root_calltree_node(state)

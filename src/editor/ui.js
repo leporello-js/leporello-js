@@ -6,6 +6,7 @@ import {Logs} from './logs.js'
 import {IO_Trace} from './io_trace.js'
 import {ShareDialog} from './share_dialog.js'
 import {el} from './domutils.js'
+import {redraw_canvas} from '../canvas.js'
 
 export class UI {
   constructor(container, state){
@@ -174,6 +175,27 @@ export class UI {
     this.render_current_module(state.current_module)
 
     this.set_active_tab('calltree', true)
+
+    container.addEventListener('focusin', e => {
+      const active = document.activeElement
+      let is_focus_in_editor
+      if(this.editor_container.contains(document.activeElement)) {
+        if(this.editor.has_value_explorer()) {
+          // depends on if we come to value explorer from editor or from debugger
+          is_focus_in_editor = !this.debugger_container.contains(
+            this.editor.value_explorer.return_to
+          )
+        } else {
+          is_focus_in_editor = true
+        }
+      } else {
+        is_focus_in_editor = false
+      }
+      if(this.prev_is_focus_in_editor != is_focus_in_editor) {
+        this.prev_is_focus_in_editor= is_focus_in_editor
+        redraw_canvas(get_state(), is_focus_in_editor)
+      }
+    })
   }
 
   set_active_tab(tab_id, skip_focus = false) {

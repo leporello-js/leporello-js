@@ -31,6 +31,22 @@ export const examples = [
     path: 'plot',
     entrypoint: 'plot/index.js',
   },
+
+  {
+    path: 'fractal_tree',
+    entrypoint: 'fractal_tree/fractal_tree.js',
+    with_app_window: true,
+  },
+  {
+    path: 'animated_fractal_tree',
+    entrypoint: 'animated_fractal_tree/animated_fractal_tree.js',
+    with_app_window: true,
+  },
+  {
+    path: 'canvas_animation_bubbles',
+    entrypoint: 'canvas_animation_bubbles/bubbles.js',
+    with_app_window: true,
+  },
 ].map(e => ({...e, entrypoint: e.entrypoint ?? e.path}))
 
 const files_list = examples

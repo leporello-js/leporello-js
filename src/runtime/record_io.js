@@ -19,32 +19,60 @@ const io_patch = (window, path, use_context = false) => {
   obj[method].__original = original
 }
 
+export const abort_replay = (cxt) => {
+  cxt.io_trace_is_replay_aborted = true
+  cxt.io_trace_abort_replay()
+  // throw error to prevent further code execution. It
+  // is not necesseary, because execution would not have
+  // any effects anyway
+  const error = new Error('io replay aborted')
+  error.__ignore = true
+  throw error
+}
+
+const patched_method_prolog = (window, original, that, has_new_target, args) => {
+  const cxt = window.__cxt
+
+  if(cxt.io_trace_is_replay_aborted) {
+    // Try to finish fast
+    const error = new Error('io replay was aborted')
+    error.__ignore = true
+    throw error
+  }
+
+  // save call, so on expand_call and find_call IO functions would not be
+  // called. 
+  // TODO: we have a problem when IO function is called from third-party
+  // lib and async context is lost
+  set_record_call(cxt)
+
+  if(cxt.is_recording_deferred_calls) {
+    // TODO record trace on deferred calls?
+    const value = has_new_target 
+      ? new original(...args)
+      : original.apply(that, args)
+    return {is_return: true, value}
+  }
+
+  return {is_return: false}
+}
+
 const make_patched_method = (window, original, name, use_context) => {
   const method = function(...args) {
-
-    const cxt = window.__cxt
-
-    if(cxt.io_trace_is_replay_aborted) {
-      // Try to finish fast
-      const error = new Error('io replay was aborted')
-      error.__ignore = true
-      throw error
-    }
-
-    // save call, so on expand_call and find_call IO functions would not be
-    // called. 
-    // TODO: we have a problem when IO function is called from third-party
-    // lib and async context is lost
-    set_record_call(cxt)
-
     const has_new_target = new.target != null
 
-    if(cxt.is_recording_deferred_calls) {
-      // TODO record trace on deferred calls?
-      return has_new_target 
-        ? new original(...args)
-        : original.apply(this, args)
+    const {value, is_return} = patched_method_prolog(
+      window, 
+      original, 
+      this,
+      has_new_target, 
+      args
+    )
+    if(is_return) {
+      return value
     }
+
+    const cxt = window.__cxt
 
     const cxt_copy = cxt
 
@@ -142,14 +170,7 @@ const make_patched_method = (window, original, name, use_context) => {
             )
            )
       ){
-        cxt.io_trace_is_replay_aborted = true
-        cxt.io_trace_abort_replay()
-        // throw error to prevent further code execution. It
-        // is not necesseary, becuase execution would not have
-        // any effects anyway
-        const error = new Error('io replay aborted')
-        error.__ignore = true
-        throw error
+        abort_replay(cxt)
       } else {
 
         const next_resolution = cxt.io_trace.find((e, i) => 
@@ -179,6 +200,7 @@ const make_patched_method = (window, original, name, use_context) => {
 
             const next_event = cxt.io_trace[cxt.io_trace_index]
             if(next_event.type == 'call') {
+              // TODO use abort_replay
               cxt.io_trace_is_replay_aborted = true
               cxt.io_trace_abort_replay()
             } else {
@@ -267,6 +289,41 @@ const patch_Date = (window) => {
   io_patch(window, ['Date', 'now'])
 }
 
+const patch_interval = (window, name) => {
+  const original = window[name]
+
+  window[name] = function(...args) {
+    const has_new_target = new.target != null
+    const {value, is_return} = patched_method_prolog(
+      window, 
+      original, 
+      this,
+      has_new_target, 
+      args
+    )
+    if(is_return) {
+      return value
+    }
+
+    const cxt = window.__cxt
+
+    if(!cxt.io_trace_is_recording) {
+      /* 
+        Discard io_trace. Run code without IO trace because it is not clear
+        how it should work with io trace
+      */
+      abort_replay(cxt)
+    }
+
+    return has_new_target 
+      ? new original(...args)
+      : original.apply(this, args)
+  }
+
+  Object.defineProperty(window[name], 'name', {value: name})
+}
+
+
 export const apply_io_patches = (window) => {
   io_patch(window, ['Math', 'random'])
 
@@ -276,7 +333,8 @@ export const apply_io_patches = (window) => {
   // replaying from trace
   io_patch(window, ['clearTimeout'])
 
-  // TODO patch setInterval to only cleanup all intervals on finish
+  patch_interval(window, 'setInterval')
+  patch_interval(window, 'clearInterval')
 
   patch_Date(window)
 

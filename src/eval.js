@@ -501,6 +501,8 @@ export const eval_modules = (
     window: globalThis.app_window,
 
     storage,
+
+    canvas_ops: {ops: [], contexts: new Set()},
   }
 
   const result = run(module_fns, cxt, io_trace)

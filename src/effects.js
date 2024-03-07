@@ -8,6 +8,7 @@ import {
 } from './calltree.js'
 import {current_cursor_position} from './calltree.js'
 import {exec, reload_app_window, FILES_ROOT} from './index.js'
+import {redraw_canvas} from './canvas.js'
 
 // Imports in the context of `app_window`, so global variables in loaded
 // modules refer to that window's context 
@@ -139,7 +140,7 @@ export const render_initial_state = (ui, state, example) => {
   }
 }
 
-export const apply_side_effects = (prev, next, ui) => {
+export const apply_side_effects = (prev, next, ui, cmd) => {
   if(prev.project_dir != next.project_dir) {
     ui.files.render(next)
   }
@@ -156,7 +157,6 @@ export const apply_side_effects = (prev, next, ui) => {
   if(prev.entrypoint != next.entrypoint) {
     localStorage.entrypoint = next.entrypoint
   }
-
   if(prev.html_file != next.html_file) {
     localStorage.html_file = next.html_file
   }
@@ -167,7 +167,8 @@ export const apply_side_effects = (prev, next, ui) => {
     ui.editor.switch_session(next.current_module)
   }
 
-  if(current_cursor_position(next) != ui.editor.get_cursor_position()) {
+  // Do not set cursor position on_deferred_call, because editor may be in the middle of the edition operation
+  if(current_cursor_position(next) != ui.editor.get_cursor_position() && cmd != 'on_deferred_call') {
     ui.editor.set_cursor_position(current_cursor_position(next))
   }
 
@@ -205,6 +206,9 @@ export const apply_side_effects = (prev, next, ui) => {
       ||
       prev.calltree_changed_token != next.calltree_changed_token
     ) {
+
+      // code finished executing
+
       const is_loading = 
         next.loading_external_imports_state != null
         ||
@@ -233,6 +237,8 @@ export const apply_side_effects = (prev, next, ui) => {
 
     } else {
 
+      // code was already executed before current action
+
       if(get_deferred_calls(prev) == null && get_deferred_calls(next) != null) {
         ui.calltree.render_deferred_calls(next)
       }
@@ -256,6 +262,16 @@ export const apply_side_effects = (prev, next, ui) => {
       }
 
       ui.logs.render_logs(next, prev.logs, next.logs)
+
+
+      // Redraw canvas
+      if(
+        prev.current_calltree_node != next.current_calltree_node
+        ||
+        prev.calltree_node_is_expanded != next.calltree_node_is_expanded
+      ) {
+        redraw_canvas(next, ui.is_focus_in_editor)
+      }
     }
   }
 

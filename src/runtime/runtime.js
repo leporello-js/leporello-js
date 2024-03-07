@@ -4,6 +4,7 @@ import {defineMultiversionArray, create_array, wrap_array} from './array.js'
 import {create_object} from './object.js'
 import {defineMultiversionSet} from './set.js'
 import {defineMultiversionMap} from './map.js'
+import {apply_canvas_patches} from '../canvas.js'
 
 /*
 Converts generator-returning function to promise-returning function. Allows to
@@ -44,6 +45,7 @@ export const run = gen_to_promise(function*(module_fns, cxt, io_trace) {
     defineMultiversion(cxt.window)
     apply_io_patches(cxt.window)
     inject_leporello_api(cxt)
+    apply_canvas_patches(cxt.window)
     cxt.window.__is_initialized = true
   } else {
     throw new Error('illegal state')

@@ -150,10 +150,13 @@ export class CallTree {
     }
     this.state = state
     this.render_active(this.state.current_calltree_node, true)
-    scrollIntoViewIfNeeded(
-      this.container, 
-      this.node_to_el.get(this.state.current_calltree_node.id).getElementsByClassName('call_el')[0]
-    )
+    if(prev?.current_calltree_node != state.current_calltree_node) {
+      // prevent scroll on adding deferred call
+      scrollIntoViewIfNeeded(
+        this.container, 
+        this.node_to_el.get(this.state.current_calltree_node.id).getElementsByClassName('call_el')[0]
+      )
+    }
   }
 
   render_expand_node(prev_state, state) {
