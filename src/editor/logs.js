@@ -28,10 +28,14 @@ export class Logs {
       }
 
       if(e.key == 'ArrowDown' || e.key == 'j'){
+        // prevent scroll
+        e.preventDefault()
         exec('calltree.navigate_logs_increment', 1)
       }
 
       if(e.key == 'ArrowUp' || e.key == 'k'){
+        // prevent scroll
+        e.preventDefault()
         exec('calltree.navigate_logs_increment', -1)
       }
     })
