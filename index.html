@@ -5,8 +5,6 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Leporello.js</title>
 
-    <!--PRELOADS_PLACEHOLDER-->
-
     <script src='ace/ace.js'></script>
     <script src='ace/keybinding-vim.js'></script>
     <script src='ace/ext-language_tools.js'></script>
@@ -18,6 +16,8 @@
       :root {
         --shadow_color: rgb(171 200 214);
         --active_color: rgb(173, 228, 253);
+        --error-color: #ff000024;
+        --warn-color: #fff6d5;
       }
 
       html, body, .app {
@@ -26,6 +26,25 @@
 
       body {
         margin: 0px;
+      }
+
+      .spinner {
+        display: inline-block;
+        height: 0.8em;
+        width: 0.8em;
+        min-width: 0.8em;
+        border-radius: 50%;
+        border-top: none !important;
+        border: 2px solid;
+        animation: rotate 0.6s linear infinite;
+      }
+      @keyframes rotate {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
       }
 
       .app {
@@ -81,6 +100,7 @@
       .selection {
         position: absolute;
         background-color: #ff00ff;
+        z-index: 1; /* make it on top of evaluated_ok and evaluated_error */
       }
 
       .evaluated_ok {
@@ -89,7 +109,7 @@
       }
       .evaluated_error {
         position: absolute;
-        background-color: #ff000024;
+        background-color: var(--error-color);
       }
       .error-code {
         /*
@@ -157,7 +177,19 @@
       }
 
       .logs .log.active {
-        background-color: var(--active_color);
+        background-color: var(--active_color) !important;
+      }
+
+      .logs .log.error {
+        background-color: var(--error-color);
+        color: black !important; /* override red color that is set for calltree */
+        &.native {
+          color: grey !important;
+        }
+      }
+
+      .logs .log.warn {
+        background-color: var(--warn-color);
       }
 
       .tab_content {
@@ -166,12 +198,25 @@
       }
 
       .callnode {
+        /* This makes every callnode be the size of the the longest one, so
+         * every callnode is clickable anywhere in the calltree view, and
+         * background for active callnodes is as wide as the entire container.
+         * Useful when scrolling very wide call trees */
+        min-width: fit-content;
         margin-left: 1em;
       }
       .callnode .active {
         background-color: var(--active_color);
       }
       .call_el {
+        /*
+          Make active callnode background start from the left of the calltree
+          view
+        */
+        margin-left: -1000vw;
+        padding-left: 1000vw;
+        width: 100%;
+
         cursor: pointer;
         display: inline-block;
       }
@@ -179,6 +224,7 @@
         padding-left: 5px;
         padding-right: 2px;
       }
+
       .call_header {
         white-space: nowrap;
       }
@@ -187,7 +233,6 @@
       }
       .call_header.error.native {
         color: red;
-        opacity: 0.5;
       }
       .call_header.native {
         font-style: italic;
@@ -318,7 +363,13 @@
       }
 
       .value_explorer_header {
+        display: inline-block;
+        padding-right: 1em;
         cursor: pointer;
+      }
+
+      .value_explorer_header .expand_icon {
+        padding: 5px;
       }
 
       .value_explorer_header.active {
@@ -340,6 +391,11 @@
         align-items: center;
         justify-content: flex-start;
       }
+
+      .statusbar .spinner {
+        margin-right: 0.5em;
+      }
+
       .status, .current_file {
         font-size: 1.5em;
       }

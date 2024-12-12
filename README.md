@@ -1,6 +1,6 @@
 # Leporello.js
 
-Leporello.js is an interactive JavaScript environment with a time-travel debugger
+Leporello.js is a next-level online JavaScript debugger and REPL
 
 [<img src="docs/images/video_cover.png" width="600px">](https://vimeo.com/845773267)
 
@@ -32,7 +32,7 @@ Leporello.js source code is developed within Leporello.js itself
 
 Variables are declared using the `const` or 'let' declaration. The use of `var` is not supported.
 
-Loops of any kind are not supported. Instead, consider using recursion or array functions as alternatives.
+Currently the only supported loop type is `while`. Other loop types (for loop, for-of loop, for-in loop, do-while loop) will be supported in future.
 
 The `if` / `else` statements can only contain blocks of code and not single statements (TODO).
 

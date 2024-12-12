@@ -50,7 +50,7 @@ const serve_response_from_dir = async event => {
   let file
 
   if(path == '__leporello_blank.html') {
-    file = ''
+    file = '<!doctype html>'
   } else if(dir_handle != null) {
     file = await read_file(dir_handle, path)
   } else {
