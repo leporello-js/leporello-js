@@ -8,6 +8,15 @@
     <script src='ace/ace.js'></script>
     <script src='ace/keybinding-vim.js'></script>
     <script src='ace/ext-language_tools.js'></script>
+    <script src="./typescript/typescript.js"></script>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "typescript": "./src/typescript-module.js"
+        }
+      }
+    </script>
 
     <script type='module' src="./src/launch.js"></script>
 
@@ -116,12 +125,13 @@
           TODO: make underline like in all editors
         */
         position: absolute;
-        border-bottom: 7px solid red;
+        border-bottom: 4px solid red;
       }
 
       /* end of ace markers */
 
       .eval_error {
+        padding: 0em 1em;
         color: red;
       }
 
@@ -239,6 +249,14 @@
         color: grey;
       }
 
+      .call_header .loop_step {
+        color: grey;
+        border-radius: 5px;
+        padding: 1px 5px;
+        font-size: 0.9em;
+        margin-right: 0.3em;
+      }
+
       /* problems view */
       .problem a {
         color: red;
@@ -340,7 +358,7 @@
         white-space: pre;
         max-width: fit-content;
         background-color: white;
-        box-shadow: 1px 2px 3px -1px var(--shadow_color);
+        box-shadow: 1px 2px 9px -1px var(--shadow_color);
       }
 
       .embed_value_explorer_content:focus {

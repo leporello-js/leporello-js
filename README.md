@@ -1,6 +1,6 @@
 # Leporello.js
 
-Leporello.js is a next-level online JavaScript debugger and REPL
+Leporello.js is a next-level online JavaScript and TypeScript debugger and REPL
 
 [<img src="docs/images/video_cover.png" width="600px">](https://vimeo.com/845773267)
 
@@ -28,55 +28,15 @@ IO operations are traced and transparently replayed on subsequent program execut
 ### Self-hosted
 Leporello.js source code is developed within Leporello.js itself
 
-## Supported javascript subset
+## Unsupported JavaScript/Typescript features:
 
-Variables are declared using the `const` or 'let' declaration. The use of `var` is not supported.
+Some JavaScript/TypeScript language constructs are not supported, but they will be supported in future:
 
-Currently the only supported loop type is `while`. Other loop types (for loop, for-of loop, for-in loop, do-while loop) will be supported in future.
-
-The `if` / `else` statements can only contain blocks of code and not single statements (TODO).
-
-Both traditional functions and arrow functions, with block bodies and concise bodies, are supported. Method definitions, however, are not currently supported.
-
-Classes are not supported at the moment. The `this` keyword is not currently supported. The `new` operator can be used for instantiating built-in classes or classes imported from [third-party](#importing-third-party-libs) libs.
-
-`switch` statements will be supported in future updates.
-
-Support for `try`, `catch`, and `finally` blocks is planned for future updates. However, the `throw` statement is currently supported.
-
-ES6 modules are fully supported. Note that circular module dependencies are not currently supported and may lead to IDE crashes (with a TODO for improvement). Import/export aliases are not supported, and exporting `let` variables is also not supported. Additionally, `import.meta` is not currently supported.
-
-`async` functions and `await` are fully supported.
-
-Generators are not supported.
-
-Destructuring is supported.
-
-Some operators are not supported at the moment, including:
-  - Unary plus
-  - Bitwise operators
-  - `in`
-  - `void`
-  - Comma operator
-  - Increment and decrement
-  - `delete`
-
-## Importing third-party libs
-
-To enable its comprehensive functionalities, Leporello.js parses and instruments your source code. Should you wish to import a module as a black box, preventing the ability to step into its functions, you can utilize the `external` pragma. For instance:
-
-```
-/* external */
-import {Foo} from './path/to/foo.js';
-```
-
-`external` pragma is just a comment that contains only the literal string `external` (both styles for comments and extra whitespaces are allowed).
-
-If a module path is a non-local path including a protocol and a host then it is always imported as an external module. Example:
-
-![External import](docs/images/external_import.png)
-
-Now the module is imported as a black box - you cannot debug `BigNumber` methods.
+- Classes
+- C-style for loop
+- `try` statement
+- `switch` statement
+- Generator functions
 
 ## IO
 
@@ -202,7 +162,7 @@ window.leporello.storage.get(key: string)
 window.leporello.storage.set(key: string, value: any)
 ```
 
-Unlike localStorage and sessionStorage, these functions allow saving and retrieving non-serializable objects.
+Values are cloned using [structuredClone](https://developer.mozilla.org/en-US/docs/Web/API/Window/structuredClone). Make sure they can be cloned using `structuredClone`.
 
 The storage can be cleared using the "(Re)open app window" button.
 
@@ -245,9 +205,3 @@ run tests in leporello itself:
 
 - grant local folder access
 - select `test/run.js` as entrypoint
-
-
-## Roadmap
-
-* Use production level JS parser, probably TypeScript parser
-* Implement VSCode plugin
