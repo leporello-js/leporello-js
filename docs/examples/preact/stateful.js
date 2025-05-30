@@ -1,18 +1,15 @@
-import {Component} from 'https://unpkg.com/preact?module';
+import { Component } from "preact"
 
-export const Stateful = ({getInitialState, handlers, render}) => {
-
+export const Stateful = ({ getInitialState, handlers, render }) => {
   return class extends Component {
-
     constructor() {
       super()
       this.compState = getInitialState()
       this.handlers = Object.fromEntries(
-        Object
-          .entries(handlers)
-          .map(([name, h]) => 
-            [name, this.makeHandler(h)]
-          )
+        Object.entries(handlers).map(([name, h]) => [
+          name,
+          this.makeHandler(h),
+        ]),
       )
     }
 
@@ -27,5 +24,4 @@ export const Stateful = ({getInitialState, handlers, render}) => {
       return render(this.props, this.compState, this.handlers)
     }
   }
-
 }

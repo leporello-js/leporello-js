@@ -1,6 +1,6 @@
-import _ from 'https://unpkg.com/lodash-es'
+import _ from "lodash-es"
 
-const url = 'https://api.github.com/search/repositories?q=stars:%3E1&sort=stars'
+const url = "https://api.github.com/search/repositories?q=stars:%3E1&sort=stars"
 const resp = await fetch(url)
 const repos = await resp.json()
 const langs = _(repos.items)
@@ -8,43 +8,18 @@ const langs = _(repos.items)
   .filter(l => l != null)
   .countBy()
   .toPairs()
-  .map(([language, count]) => ({language, count}))
+  .map(([language, count]) => ({ language, count }))
   .value()
 
-import {barY} from "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6/+esm";
+import { barY } from "@observablehq/plot"
 
 /*
   Move the cursor to the following line and see the plot displayed alongside the code
 */
 
-barY(langs, {x: "language", y: "count", sort: {x: "y", reverse: true}, fill: 'purple'})
-  .plot()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+barY(langs, {
+  x: "language",
+  y: "count",
+  sort: { x: "y", reverse: true },
+  fill: "purple",
+}).plot()
