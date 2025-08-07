@@ -33,10 +33,6 @@ body {
   }
 }
 
-.app {
-  /* same as ace editor */
-  font-family: Monaco, Menlo, "Ubuntu Mono", Consolas, source-code-pro, monospace;
-}
 
 .app::backdrop {
   background-color: white;
@@ -49,7 +45,7 @@ body {
     "code"
     "bottom"
     "statusbar";
-  grid-template-rows: auto 1fr 2.5em;
+  grid-template-rows: auto 1fr auto;
 }
 
 .editor_container, .bottom, .statusbar {
@@ -75,33 +71,31 @@ dialog {
 .editor_container {
   height: 55vh;
   resize: vertical;
+  overflow: auto;
   position: relative;
   grid-area: code;
   font-size: 16px;
 }
 
+/*
+  Makes cursor visible, but not blinking when focus is not in the editor. We
+  make it like that so transitions are visible when navigating calltree view
+*/
+.editor_container:not(:focus-within) .monaco-editor .cursor {
+  visibility: visible !important;
+}
+
 /* ace markers */
 
 .selection {
-  position: absolute;
-  background-color: #ff00ff;
-  z-index: 1; /* make it on top of evaluated_ok and evaluated_error */
+  background-color: rgb(148, 227, 191);
 }
 
 .evaluated_ok {
-  position: absolute;
-  background-color: rgb(225, 244, 253);
+  background-color: rgba(195, 233, 251, 0.5);
 }
 .evaluated_error {
-  position: absolute;
   background-color: var(--error-color);
-}
-.error-code {
-  /*
-    TODO: make underline like in all editors
-  */
-  position: absolute;
-  border-bottom: 4px solid red;
 }
 
 /* end of ace markers */
@@ -133,6 +127,8 @@ dialog {
 /* debugger */
 
 .bottom {
+  font-family: var(--code-font-family);
+  line-height: var(--code-line-height);
   grid-area: bottom;
   overflow: auto;
   display: grid;
@@ -248,20 +244,25 @@ dialog {
 /* files */
 
 .files_container {
-  overflow: auto;
   display: flex;
   flex-direction: column;
 }
 
-.allow_file_access {
+.file_tab_container {
+  visibility: visible;
   display: flex;
   flex-direction: column;
-}
-.allow_file_access .subtitle {
-  font-size: 0.8em;
+  overflow: auto;
+  &.hidden {
+    visibility: hidden;
+    height: 0;
+    overflow: hidden;
+  }
 }
 
 .files {
+  font-family: var(--code-font-family);
+  line-height: var(--code-line-height);
   overflow: auto;
   padding: 5px;
 }
@@ -297,6 +298,34 @@ dialog {
   width: 1em;
 }
 
+.file_tabs {
+  display: flex;
+  justify-content: space-evenly;
+  font-family: system-ui;
+  align-items: center;
+  
+  .tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    padding: 0.8em;
+    margin: 0.2em;
+
+    &.active {
+      background-color: rgb(225, 244, 253);
+    }
+
+    &.disabled {
+      color: grey;
+    }
+
+    .file_access {
+      font-size: 0.8em;
+    }
+  }
+}
+
 .file_actions {
   font-family: system-ui;
   display: flex;
@@ -309,21 +338,31 @@ dialog {
 
 .file_actions .file_action {
   margin-right: 2em;
+  &.disabled {
+    color: grey;
+    pointer-events: none;
+  }
 }
 
 .file_actions .select_entrypoint_title {
   width: 3em;
   text-align: center;
+  margin-left: auto;
 }
 
 /* value_explorer */
 
 .embed_value_explorer_container.is_not_dom_el {
+  visibility: visible !important; /* prevent monaco editor from hiding it */
   height: 0px;
+  font-family: var(--code-font-family);
+  line-height: var(--code-line-height);
 }
 
 .embed_value_explorer_container.is_dom_el {
   padding: 1em;
+  /* Make it on top of monaco editor */
+  z-index: 1;
 }
 
 .embed_value_explorer_wrapper {
@@ -352,14 +391,14 @@ dialog {
   margin-left: 0 !important;
 }
 
-.embed_value_explorer_control {
-  display: block;
-  margin-bottom: 1em;
-  font-size: 0.9em;
-}
-
 .value_explorer_node {
   margin-left: 1em;
+  &.is_calltree_node_explorer > .value_explorer_header {
+    display: none;
+  }
+  &.is_calltree_node_explorer > .value_explorer_node {
+    margin-left: 0em;
+  }
 }
 
 .value_explorer_header {
@@ -397,14 +436,14 @@ dialog {
   margin-right: 0.5em;
 }
 
-.status, .current_file {
+.status {
   font-size: 1.5em;
 }
 .status {
   color: red;
 }
 
-.statusbar_action { 
+.statusbar_action, .options { 
   margin-right: 2em;
 }
 
@@ -472,6 +511,10 @@ dialog {
   background: grey;
 }
 
+.share_dialog {
+  font-family: system-ui;
+}
+
 .share_dialog input, .share_dialog button {
   font-size: 1.2em;
 }
@@ -479,6 +522,20 @@ dialog {
 .share_dialog button {
   padding: 5px;
   height: 2em;
+}
+
+.share_name {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  label {
+    margin-right: 1em;
+  }
+  input {
+    margin-right: 2em;
+    flex: 1;
+  }
+  margin: 1em 0em 2em 0em;
 }
 
 dialog {
@@ -545,4 +602,8 @@ dialog::backdrop {
   100% {
     transform: translateX(0);
   }
+}
+
+.display-none {
+  display: none !important;
 }

@@ -5,21 +5,16 @@
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Leporello.js</title>
 
-    <script type='module' src='./src/ts_libs.js' async></script>
+    <link rel=preload href='/lib/monaco-vim.js' as=script></link>
+    <link rel=preload href='/lib/monaco/vs/language/typescript/tsWorker.js' as=script></link>
+    <link rel=preload href='/lib/monaco/vs/editor/editor.main.js' as=script></link>
+    <link rel=preload href='/lib/monaco/vs/editor/editor.main.css' as=style></link>
+    <link rel=preload href='/lib/monaco/vs/basic-languages/typescript/typescript.js' as=script></link>
+    <link rel=preload href='/lib/monaco/vs/language/typescript/tsMode.js' as=script></link>
 
-    <script src='ace/ace.js'></script>
-    <script src='ace/keybinding-vim.js'></script>
-    <script src='ace/ext-language_tools.js'></script>
-    <script src="./typescript/typescript.js"></script>
+    <script src="./lib/monaco/vs/loader.js"></script>
 
-    <script type="importmap">
-      {
-        "imports": {
-          "typescript": "./src/typescript-module.js"
-        }
-      }
-    </script>
-
+    <script type='module' src="/lib/typescript-ata.js"></script>
     <script type='module' src="./src/launch.js"></script>
 
     <link rel=stylesheet href='./styles.css'></link>
