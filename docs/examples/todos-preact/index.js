@@ -2,7 +2,7 @@
   Example of a TODO app built using the Preact library
 */
 
-import React from "preact/compat"
+import * as React from "preact/compat"
 
 // Core
 
