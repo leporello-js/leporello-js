@@ -14,9 +14,11 @@ const langs = _(repos.items)
 import { barY } from "@observablehq/plot"
 
 /*
-  Move the cursor to the following line and see the plot displayed alongside the code
+  Move the cursor to the following line and see the plot displayed alongside
+  the code. Use the @dom pragma to display DOM content inline
 */
 
+// @dom
 barY(langs, {
   x: "language",
   y: "count",
