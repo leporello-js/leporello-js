@@ -54,10 +54,16 @@ const serve_response_from_dir = async event => {
   } else if(dir_handle != null) {
     file = await read_file(dir_handle, path)
   } else {
+    /* Get app_window */
     let client = await self.clients.get(event.clientId)
 
+    /*
+      After open_app_window, event.clientId is empty string, and client is
+      null. Try to find main window and get dir_handle from it. 
+
+      TODO better use event.resultingClientId
+    */
     if(client == null) {
-      // Try to find main window and get dir_handle from it
       for(const c of await self.clients.matchAll()) {
         if(new URL(c.url).pathname == '/') {
           client = c
@@ -65,9 +71,6 @@ const serve_response_from_dir = async event => {
       }
     }
 
-
-    // client is null for app_window initial page load, and is app_window for
-    // js scripts
     if(client == null) {
       // User probably reloaded app_window by manually hitting F5 after IDE
       // window was closed

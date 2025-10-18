@@ -115,13 +115,21 @@ dialog {
 
 .tabs > .tab {
   margin-right: 1em;
-  padding: 0.3em 1em;
+  padding: 0.3em 0.8em 0.3em 1em;
   display: flex;
   align-items: center;
-}
-
-.tabs > .tab.active {
-  background-color: rgb(225, 244, 253);
+  color: inherit;
+  text-decoration: none;
+  .hotkey_key {
+    font-size: 0.8em;
+  }
+  .tab_label {
+    color: linktext;
+    text-decoration: underline;
+  }
+  &.active {
+    background-color: rgb(225, 244, 253);
+  }
 }
 
 /* debugger */
@@ -149,6 +157,18 @@ dialog {
 .debugger, .problems_container {
   padding: 5px;
   overflow: auto;
+}
+
+.debugger .run_button {
+  margin: 1em;
+  color: inherit;
+  text-decoration: none;
+  font-family: system-ui;
+
+  .run_button_label {
+    color: linktext;
+    text-decoration: underline;
+  }
 }
 
 .logs, .io_trace {
@@ -191,6 +211,9 @@ dialog {
 .callnode .active {
   background-color: var(--active_color);
 }
+.callnode .deferred_calls {
+  margin-left: 0em;
+}
 .call_el {
   /*
     Make active callnode background start from the left of the calltree
@@ -204,8 +227,7 @@ dialog {
   display: inline-block;
 }
 .call_el .expand_icon, .call_el .expand_icon_placeholder {
-  padding-left: 5px;
-  padding-right: 2px;
+  padding: 0px 5px;
 }
 
 .call_header {
@@ -375,6 +397,8 @@ dialog {
 }
 
 .embed_value_explorer_content {
+  overflow-x: auto;
+  overflow-y: hidden; /* hide vertical scrollbar */
   pointer-events: initial;
   white-space: pre;
   max-width: fit-content;
@@ -389,6 +413,46 @@ dialog {
 
 .embed_value_explorer_content > .value_explorer_node {
   margin-left: 0 !important;
+}
+
+.embed_value_explorer_content {
+  .hotkey_step_into {
+    margin-right: 1em;
+  }
+
+  &:not(:focus) {
+    .hotkey_unfocus {
+      display: none;
+    }
+  }
+
+  &:focus {
+    .hotkey_focus {
+      display: none;
+    }
+  }
+
+  &.hotkeys_right {
+    display: flex;
+    flex-direction: row;
+  }
+
+  .value_explorer_hotkeys {
+    font-weight: 200;
+    font-family: system-ui;
+    font-size: 0.9em;
+  }
+
+  &.hotkeys_bottom {
+    .value_explorer_hotkeys {
+      margin: 1em 0.5em 0.3em 0.5em;
+    }
+  }
+  &.hotkeys_right {
+    .value_explorer_hotkeys {
+      margin: 0em 1em;
+    }
+  }
 }
 
 .value_explorer_node {
@@ -420,6 +484,11 @@ dialog {
   font-weight: bold;
 }
 
+.jump_here {
+  padding: 0em 1em;
+  font-family: system-ui;
+}
+
 /* status */
 
 .statusbar {
@@ -438,17 +507,27 @@ dialog {
 
 .status {
   font-size: 1.5em;
-}
-.status {
   color: red;
+  margin-left: 1em;
 }
 
-.statusbar_action, .options { 
-  margin-right: 2em;
+.statusbar_module_with_spinner {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 }
 
-.statusbar_action.first { 
-  margin-left: auto;
+.statusbar_controls {
+  display: flex;
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statusbar_actions {
+  display: flex;
+  flex-direction: column;
 }
 
 .open_app_window_button {
@@ -482,15 +561,22 @@ dialog {
   transform: translate(-50%);
 }
 
-.options {
-  padding: 5px;
-}
-.options > * {
-  margin: 5px;
+.statusbar_links {
+  display: flex;
+  flex-direction: column;
 }
 
-.show_help, .github {
+.options {
+  display: flex;
+  flex-direction: column;
+}
+
+.show_help, .website {
   margin: 0em 0.5em;
+}
+
+.website:visited {
+  color: linktext;
 }
 
 .statusbar_button, .upload_button {
@@ -578,6 +664,13 @@ dialog::backdrop {
 
 .help_dialog form {
   margin-bottom: 1em;
+}
+
+.hotkey_key {
+  margin-left: 5px;
+  background-color: #e5e5e5;
+  border-radius: 5px;
+  padding: 0px 8px;
 }
 
 .panel:not([open]) {
