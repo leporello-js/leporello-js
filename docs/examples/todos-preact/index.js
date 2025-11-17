@@ -9,13 +9,6 @@ import * as React from "preact/compat"
 // Global application state
 let state
 
-// Preserve state (list of TODOs) when editing code
-if (globalThis.leporello) {
-  // Retrieve initial state from Leporello storage
-  // See: https://github.com/leporello-js/leporello-js?tab=readme-ov-file#saving-state-between-page-reloads
-  state = globalThis.leporello.storage.get("state")
-}
-
 /*
   Application logic is structured as pure functions with the signature `(state, ...args) => state`.
   This helper function wraps such a function so that its result updates the global state
@@ -25,10 +18,6 @@ const handler =
   fn =>
   (...args) => {
     state = fn(state, ...args)
-    if (globalThis.leporello) {
-      // Persist state to Leporello storage to restore it after page reloads
-      globalThis.leporello.storage.set("state", state)
-    }
     render()
   }
 

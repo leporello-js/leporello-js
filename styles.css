@@ -291,6 +291,7 @@ dialog {
 
 .files .file {
   margin-left: 1em;
+  cursor: pointer;
 }
 
 .files > .file {
@@ -533,8 +534,9 @@ dialog {
 .open_app_window_button {
   position: relative;
 }
-.open_app_window_tooltip {
+.onboarding_tooltip {
   padding: 1em;
+  min-width: 10em;
   position: absolute;
   margin-bottom: 20px;
   bottom: 100%;
@@ -542,13 +544,14 @@ dialog {
   font-size: 1.7em;
   background-color: rgb(120 206 247);
   border-radius: 21px;
-  transform: scale(0);
+  left: 50%;
+  transform: translate(-50%) scale(0);
   transition: transform 0.3s;
 }
-.open_app_window_tooltip.on {
-  transform: scale(1);
+.onboarding_tooltip.on {
+  transform: translate(-50%) scale(1);
 }
-.open_app_window_tooltip:after {
+.onboarding_tooltip:after {
   content: '';
   width: 0;
   height: 0;
@@ -577,6 +580,35 @@ dialog {
 
 .website:visited {
   color: linktext;
+}
+
+.inspect_jsx {
+  position: relative;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-self: stretch;
+  flex-direction: row;
+  flex: 0;
+  align-items: center;
+  padding: 0em 0.5em;
+
+
+  input {
+    display: none;
+  }
+
+  &:hover {
+    background-color: rgb(0, 0, 0, 0.1);
+  }
+
+  &:has(input:checked) {
+    background-color: #0000ee14;
+    color: linktext;
+  }
+  .onboarding_tooltip {
+    font-size: 1em;
+  }
 }
 
 .statusbar_button, .upload_button {
