@@ -1,8 +1,8 @@
 # Leporello.js
 
-Leporello.js is a next-level online JavaScript and TypeScript debugger and REPL
+Leporello.js is an online JavaScript/TypeScript playground with a time-travel debugger
 
-[<img src="docs/images/video_cover.png" width="600px">](https://vimeo.com/845773267)
+[<img src="docs/images/video_cover.png" width="600px">](https://vimeo.com/1122095709)
 
 ## **[Website](https://leporello.tech)**
 ## **[Try online](https://app.leporello.tech)**
@@ -13,27 +13,49 @@ Support us on [Github Sponsors](https://github.com/sponsors/leporello-js) and be
 
 ## Features
 
-### Going beyond the REPL
+### Live execution
+
 Your code is executed instantly as you type, with the results displayed next to it. No need to set breakpoints for debugging. Just move the cursor to any line and see what's happening.
 
-### Next level debugging capabilities
-Visualise and navigate a dynamic call graph of your program in a time-travel manner.
+### Time-travel debugging
 
-### Develop HTML5 apps interactively
-Modify your code and instantly see the updated version without losing the application state. Interact with your app and debug it later, similar to using a time machine.
+Step backward and forward through your program’s execution to instantly inspect past states and replay code behavior.
 
-### Save time when working on IO-heavy programs
-IO operations are traced and transparently replayed on subsequent program executions.
+### Call tree navigation
 
-### Self-hosted
-Leporello.js source code is developed within Leporello.js itself
+Visualise and navigate a dynamic call graph of your program. Easily jump through call hierarchies and dive into every function call your program makes.
+
+### Hot code reload
+
+Modify your code and instantly see the updated version without losing the application state. 
+
+### Post-hoc debugging
+
+Use your app like normal — then step back and debug the session later.
+
+### Save time when iterating on network-heavy programs
+
+Network requests are transparently traced and replayed during development, letting your code respond instantly as you tweak and debug
+
+### Inline charts and graphs
+
+Use any third-party JavaScript library to visualize your data next to the code.
+
+### Seamless NPM Imports
+
+Instantly import any npm package without setup or configuration, just by typing a standard import statement.
+
+### Inspect JSX
+
+Click a DOM element to jump to its corresponding JSX in the debugger. Inspect all related variables, arguments, and expressions in context.
+
+<!--
 
 ## Unsupported JavaScript/Typescript features:
 
 Some JavaScript/TypeScript language constructs are not supported, but they will be supported in future:
 
 - Classes
-- C-style for loop
 - `try` statement
 - `switch` statement
 - Generator functions
@@ -138,7 +160,7 @@ them:
 
 ![Deferred calls](docs/images/deferred_calls.png)
 
-<!--You can even run and debug Leporello.js in Leporello.js! To do this:
+<! - - You can even run and debug Leporello.js in Leporello.js! To do this:
 
 - Check out Leporello.js repo and grant local filesystem access to root project directory
 - Select `src/launch.js` as an entrypoint
@@ -151,7 +173,7 @@ The only problem is that both instances of Leporello.js will share the same
 localStorage. (TODO - inject localStorage implementation to opened window, that
 allows to share localStorage between host Leporello.js instance and window
 where code is run)
--->
+- - >
 
 ## Saving state between page reloads
 
@@ -205,3 +227,5 @@ run tests in leporello itself:
 
 - grant local folder access
 - select `test/run.js` as entrypoint
+
+-->
